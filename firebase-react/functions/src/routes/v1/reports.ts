@@ -142,13 +142,15 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
 
     const items = Object.entries(missingStats).map(([slotId, stats]) => {
-      let severity = 3;
-      if (slotId === "slot_filing_receipt") severity = 1;
-      else if (slotId.endsWith("_signed")) severity = 2;
+      let sevNum = 3;
+      if (slotId === "slot_filing_receipt") sevNum = 1;
+      else if (slotId.endsWith("_signed")) sevNum = 2;
 
       return {
         title: `[게이트 누락] ${slotId} 검증 실패 자동화 대응`,
-        severity,
+        severity: `Sev${sevNum}`,
+        owner: "ops",
+        eta: "TBD",
         impactCount: stats.impactCount,
         evidenceIds: Array.from(stats.evidenceIds).slice(0, 3),
         sampleCaseIds: Array.from(stats.sampleCaseIds).slice(0, 3),
@@ -157,7 +159,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       };
     });
 
-    items.sort((a, b) => a.severity - b.severity || b.impactCount - a.impactCount);
+    items.sort((a, b) => a.severity.localeCompare(b.severity) || b.impactCount - a.impactCount);
     const resultItems = items.slice(0, Number(topN));
 
     return res.status(200).send({

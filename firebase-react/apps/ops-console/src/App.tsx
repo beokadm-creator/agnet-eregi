@@ -98,16 +98,20 @@ function App() {
     const lines = backlogItems.map(item => {
       const reproLines = item.reproSteps.split("\n").map((l: string) => "  " + l).join("\n");
       const acLines = item.acceptanceCriteria.split("\n").map((l: string) => "  " + l).join("\n");
+      const severityStr = String(item.severity).startsWith("Sev") ? item.severity : `Sev${item.severity}`;
+      const ownerStr = item.owner || "ops";
+      const etaStr = item.eta || "TBD";
+      
       return `### ${item.title}
-- **Sev**: ${item.severity}
+- **Sev**: ${severityStr}
 - **영향도**: ${item.impactCount}건 발생
 - **샘플 케이스**: ${item.sampleCaseIds.join(", ") || "없음"}
 - **재현 단계**:
 ${reproLines}
 - **AC (Acceptance Criteria)**:
 ${acLines}
-- **Owner**: 
-- **ETA**: `;
+- **Owner**: ${ownerStr}
+- **ETA**: ${etaStr}`;
     });
 
     const markdown = lines.join("\n\n");
@@ -359,11 +363,11 @@ ${acLines}
                 <tr key={idx}>
                   <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
                     <span style={{ 
-                      background: item.severity === 1 ? "#ffebee" : item.severity === 2 ? "#fff3e0" : "#f5f5f5", 
-                      color: item.severity === 1 ? "#d32f2f" : item.severity === 2 ? "#e64a19" : "#616161",
+                      background: String(item.severity).includes("1") ? "#ffebee" : String(item.severity).includes("2") ? "#fff3e0" : "#f5f5f5", 
+                      color: String(item.severity).includes("1") ? "#d32f2f" : String(item.severity).includes("2") ? "#e64a19" : "#616161",
                       padding: "2px 6px", borderRadius: 4, fontWeight: "bold" 
                     }}>
-                      Sev{item.severity}
+                      {String(item.severity).startsWith("Sev") ? item.severity : `Sev${item.severity}`}
                     </span>
                   </td>
                   <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>{item.title}</td>
