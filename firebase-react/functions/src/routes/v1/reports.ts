@@ -39,6 +39,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
+        const requestId = req.headers["x-request-id"] || req.body?._requestId || "N/A";
         logError({ endpoint: "/v1/ops/reports/pilot-gate/daily.md", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
