@@ -80,6 +80,24 @@ function App() {
     }
   }
 
+  async function copyDailyLogMd() {
+    setBusy(true);
+    try {
+      const token = await ensureLogin();
+      const resp = await fetch(`${apiBase}/v1/ops/reports/pilot-gate/daily.md?date=${summaryDate}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!resp.ok) throw new Error("일일 로그를 불러올 수 없습니다.");
+      const text = await resp.text();
+      await navigator.clipboard.writeText(text);
+      setLog("일일 로그(.md)가 클립보드에 복사되었습니다.");
+    } catch (e: any) {
+      setLog(`일일 로그 복사 실패: ${e?.message || e}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function copyGateReport() {
     if (!gateReportText) return;
     navigator.clipboard.writeText(gateReportText)
@@ -453,9 +471,14 @@ ${acLines}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <h3 style={{ margin: 0, fontSize: "1.1em" }}>A. 일일 Gate 집계</h3>
               {gateReportText && (
-                <button onClick={copyGateReport} style={{ background: "#4caf50", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
-                  [일일 로그용 복사]
-                </button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={copyGateReport} style={{ background: "#4caf50", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
+                    [단순 요약 복사]
+                  </button>
+                  <button onClick={copyDailyLogMd} style={{ background: "#1976d2", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                    [일일 로그(복붙용) 복사]
+                  </button>
+                </div>
               )}
             </div>
             {gateReportText ? (

@@ -33,6 +33,120 @@ function tableFromRows(rows: string[][]) {
 }
 
 export function registerReportRoutes(app: express.Express, adminApp: typeof admin) {
+  // Gate 일일 집계록(MD) 조회 API (운영용)
+  app.get("/v1/ops/reports/pilot-gate/daily.md", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) {
+        logError({ endpoint: "/v1/ops/reports/pilot-gate/daily.md", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
+
+      const dateParam = String(req.query.date || "");
+      const targetDateStr = dateParam ? dateParam : new Date().toLocaleDateString("en-CA").split("/").reverse().join("-");
+      const targetDate = new Date(targetDateStr);
+
+      if (isNaN(targetDate.getTime())) {
+        logError({ endpoint: "/v1/ops/reports/pilot-gate/daily.md", code: "INVALID_ARGUMENT", messageKo: "날짜 형식이 잘못되었습니다." });
+        return fail(res, 400, "INVALID_ARGUMENT", "날짜 형식이 잘못되었습니다. YYYY-MM-DD");
+      }
+
+      const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+
+      const snapshot = await adminApp.firestore()
+        .collection("pilot_gate_evidence")
+        .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startOfDay))
+        .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endOfDay))
+        .get();
+
+      const docs = snapshot.docs.map(d => d.data());
+
+      const total = docs.length;
+      const okCount = docs.filter(d => d.ok === true || d.status === "ok").length;
+      const failCount = total - okCount;
+
+      const missingCount: Record<string, number> = {};
+      const failCases = new Set<string>();
+      
+      const missingStats: Record<string, { impactCount: number, evidenceIds: Set<string>, sampleCaseIds: Set<string> }> = {};
+
+      for (const d of docs) {
+        if (d.ok === false || d.status === "fail") {
+          failCases.add(d.caseId);
+          const evId = d.evidenceId;
+          const caseId = d.caseId;
+          
+          if (Array.isArray(d.missing)) {
+            for (const m of d.missing) {
+              missingCount[m] = (missingCount[m] || 0) + 1;
+              if (!missingStats[m]) missingStats[m] = { impactCount: 0, evidenceIds: new Set(), sampleCaseIds: new Set() };
+              missingStats[m].impactCount++;
+              missingStats[m].evidenceIds.add(evId);
+              missingStats[m].sampleCaseIds.add(caseId);
+            }
+          }
+        }
+      }
+
+      const topMissing = Object.entries(missingCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(e => `${e[0]}(${e[1]}건)`);
+
+      const sampleFailCaseIds = Array.from(failCases).slice(0, 3);
+
+      const items = Object.entries(missingStats).map(([slotId, stats]) => {
+        let sevNum = 3;
+        if (slotId === "slot_filing_receipt") sevNum = 1;
+        else if (slotId.endsWith("_signed")) sevNum = 2;
+
+        return {
+          slotId,
+          severity: `Sev${sevNum}`,
+          impactCount: stats.impactCount
+        };
+      });
+
+      items.sort((a, b) => a.severity.localeCompare(b.severity) || b.impactCount - a.impactCount);
+      const top3Items = items.slice(0, 3);
+
+      let markdown = `### (품질) /packages/validate\n`;
+      markdown += `- Gate 집계 결과:\n`;
+      markdown += `  [${targetDateStr} Gate 집계] 총 ${total}건 (성공: ${okCount}건, 실패: ${failCount}건)\n`;
+      
+      if (failCount > 0) {
+        markdown += `  - 주요 누락서류: ${topMissing.join(", ") || "없음"}\n`;
+        markdown += `  - 실패 샘플(최대3건): ${sampleFailCaseIds.join(", ") || "없음"}\n`;
+      }
+      
+      markdown += `\n### (이슈) Top3 이슈(고정 포맷)\n\n`;
+      markdown += `| 제목 | Sev(1~3) | 영향(몇 케이스) | 재현 steps | 관련 caseId | 현재상태(조치중·대기·완료) | 오너 | ETA | 비고 |\n`;
+      markdown += `|---|---:|---:|---|---|---|---|---|---|\n`;
+      
+      if (top3Items.length === 0) {
+        markdown += `| 없음 | - | - | - | - | - | - | - | - |\n`;
+        markdown += `| 없음 | - | - | - | - | - | - | - | - |\n`;
+        markdown += `| 없음 | - | - | - | - | - | - | - | - |\n`;
+      } else {
+        top3Items.forEach((item) => {
+          markdown += `| [게이트 누락] ${item.slotId} 검증 실패 | ${item.severity.replace('Sev', '')} | ${item.impactCount} | - | - | 대기 | ops | TBD | - |\n`;
+        });
+        // 3줄을 맞추기 위해 빈 행 추가
+        for (let i = top3Items.length; i < 3; i++) {
+          markdown += `| 없음 | - | - | - | - | - | - | - | - |\n`;
+        }
+      }
+
+      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+      return res.status(200).send(markdown);
+    } catch (err: any) {
+      logError({ endpoint: "/v1/ops/reports/pilot-gate/daily.md", code: "INTERNAL", messageKo: "일일 로그 생성 중 시스템 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "일일 로그 생성 중 시스템 오류가 발생했습니다.");
+    }
+  });
+
   // Gate 일일 집계 API (운영용)
   app.get("/v1/ops/reports/pilot-gate/daily", async (req, res) => {
     try {
