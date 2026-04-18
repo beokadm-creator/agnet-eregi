@@ -53,7 +53,7 @@ export function fail(
   details?: any
 ) {
   const req = res.req as any;
-  const requestId = req?.requestId || req?.headers?.["x-request-id"] || req?.body?._requestId || "unknown";
+  const requestId = res.getHeader("X-Request-Id") || req?.requestId || req?.headers?.["x-request-id"] || req?.body?._requestId || "unknown";
   return res.status(status).json({
     ok: false,
     error: {
