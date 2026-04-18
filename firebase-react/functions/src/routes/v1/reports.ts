@@ -3,7 +3,7 @@ import type * as admin from "firebase-admin";
 import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, WidthType } from "docx";
 
 import { requireAuth, isOps, partnerIdOf } from "../../lib/auth";
-import { fail } from "../../lib/http";
+import { fail, logError } from "../../lib/http";
 import { caseRef } from "../../lib/firestore";
 
 function fmtTs(v: any) {
@@ -35,228 +35,302 @@ function tableFromRows(rows: string[][]) {
 export function registerReportRoutes(app: express.Express, adminApp: typeof admin) {
   // Gate 일일 집계 API (운영용)
   app.get("/v1/ops/reports/pilot-gate/daily", async (req, res) => {
-    const auth = await requireAuth(adminApp, req, res);
-    if (!auth) return;
-    if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
-
-    const dateParam = String(req.query.date || "");
-    const targetDateStr = dateParam ? dateParam : new Date().toLocaleDateString("en-CA").split("/").reverse().join("-");
-    const targetDate = new Date(targetDateStr);
-    
-    if (isNaN(targetDate.getTime())) {
-      return fail(res, 400, "INVALID_ARGUMENT", "날짜 형식이 잘못되었습니다. YYYY-MM-DD");
-    }
-
-    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
-
-    const snapshot = await adminApp.firestore()
-      .collection("pilot_gate_evidence")
-      .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startOfDay))
-      .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endOfDay))
-      .get();
-
-    const docs = snapshot.docs.map(d => d.data());
-
-    const total = docs.length;
-    const okCount = docs.filter(d => d.ok === true || d.status === "ok").length;
-    const failCount = total - okCount;
-
-    const missingCount: Record<string, number> = {};
-    const failCases = new Set<string>();
-
-    for (const d of docs) {
-      if (d.ok === false || d.status === "fail") {
-        failCases.add(d.caseId);
-        if (Array.isArray(d.missing)) {
-          for (const m of d.missing) {
-            missingCount[m] = (missingCount[m] || 0) + 1;
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) {
+        logError({ endpoint: "/v1/ops/reports/pilot-gate/daily", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
+  
+      const dateParam = String(req.query.date || "");
+      const targetDateStr = dateParam ? dateParam : new Date().toLocaleDateString("en-CA").split("/").reverse().join("-");
+      const targetDate = new Date(targetDateStr);
+      
+      if (isNaN(targetDate.getTime())) {
+        logError({ endpoint: "/v1/ops/reports/pilot-gate/daily", code: "INVALID_ARGUMENT", messageKo: "날짜 형식이 잘못되었습니다." });
+        return fail(res, 400, "INVALID_ARGUMENT", "날짜 형식이 잘못되었습니다. YYYY-MM-DD");
+      }
+  
+      const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+  
+      const snapshot = await adminApp.firestore()
+        .collection("pilot_gate_evidence")
+        .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startOfDay))
+        .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endOfDay))
+        .get();
+  
+      const docs = snapshot.docs.map(d => d.data());
+  
+      const total = docs.length;
+      const okCount = docs.filter(d => d.ok === true || d.status === "ok").length;
+      const failCount = total - okCount;
+  
+      const missingCount: Record<string, number> = {};
+      const failCases = new Set<string>();
+  
+      for (const d of docs) {
+        if (d.ok === false || d.status === "fail") {
+          failCases.add(d.caseId);
+          if (Array.isArray(d.missing)) {
+            for (const m of d.missing) {
+              missingCount[m] = (missingCount[m] || 0) + 1;
+            }
           }
         }
       }
-    }
-
-    const topMissing = Object.entries(missingCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(e => `${e[0]}(${e[1]}건)`);
-
-    const sampleFailCaseIds = Array.from(failCases).slice(0, 3);
-
-    let copyText = `[${targetDateStr} Gate 집계] 총 ${total}건 (성공: ${okCount}건, 실패: ${failCount}건)`;
-    if (failCount > 0) {
-      copyText += `\n- 주요 누락서류: ${topMissing.join(", ") || "없음"}`;
-      copyText += `\n- 실패 샘플(최대3건): ${sampleFailCaseIds.join(", ") || "없음"}`;
-    }
-
-    return res.status(200).send({
-      ok: true,
-      data: {
-        total,
-        ok: okCount,
-        fail: failCount,
-        topMissing,
-        sampleFailCaseIds,
-        copyText
+  
+      const topMissing = Object.entries(missingCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(e => `${e[0]}(${e[1]}건)`);
+  
+      const sampleFailCaseIds = Array.from(failCases).slice(0, 3);
+  
+      let copyText = `[${targetDateStr} Gate 집계] 총 ${total}건 (성공: ${okCount}건, 실패: ${failCount}건)`;
+      if (failCount > 0) {
+        copyText += `\n- 주요 누락서류: ${topMissing.join(", ") || "없음"}`;
+        copyText += `\n- 실패 샘플(최대3건): ${sampleFailCaseIds.join(", ") || "없음"}`;
       }
-    });
+  
+      return res.status(200).send({
+        ok: true,
+        data: {
+          total,
+          ok: okCount,
+          fail: failCount,
+          topMissing,
+          sampleFailCaseIds,
+          copyText
+        }
+      });
+    } catch (err: any) {
+      logError({ endpoint: "/v1/ops/reports/pilot-gate/daily", code: "INTERNAL", messageKo: "집계 중 시스템 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "집계 중 시스템 오류가 발생했습니다.");
+    }
   });
 
   // Gate 백로그 후보 생성 API (운영용)
   app.post("/v1/ops/reports/pilot-gate/backlog", async (req, res) => {
-    const auth = await requireAuth(adminApp, req, res);
-    if (!auth) return;
-    if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
-
-    const { date, topN = 3 } = req.body;
-    const targetDateStr = date ? String(date) : new Date().toLocaleDateString("en-CA").split("/").reverse().join("-");
-    const targetDate = new Date(targetDateStr);
-    
-    if (isNaN(targetDate.getTime())) {
-      return fail(res, 400, "INVALID_ARGUMENT", "날짜 형식이 잘못되었습니다. YYYY-MM-DD");
-    }
-
-    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
-
-    const snapshot = await adminApp.firestore()
-      .collection("pilot_gate_evidence")
-      .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startOfDay))
-      .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endOfDay))
-      .get();
-
-    const docs = snapshot.docs.map(d => d.data());
-
-    const missingStats: Record<string, { impactCount: number, evidenceIds: Set<string>, sampleCaseIds: Set<string> }> = {};
-    for (const d of docs) {
-      if (d.ok === false || d.status === "fail") {
-        const evId = d.evidenceId;
-        const caseId = d.caseId;
-        for (const m of (d.missing || [])) {
-          if (!missingStats[m]) missingStats[m] = { impactCount: 0, evidenceIds: new Set(), sampleCaseIds: new Set() };
-          missingStats[m].impactCount++;
-          missingStats[m].evidenceIds.add(evId);
-          missingStats[m].sampleCaseIds.add(caseId);
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) {
+        logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
+  
+      const { date, topN = 3 } = req.body;
+      const targetDateStr = date ? String(date) : new Date().toLocaleDateString("en-CA").split("/").reverse().join("-");
+      const targetDate = new Date(targetDateStr);
+      
+      if (isNaN(targetDate.getTime())) {
+        logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog", code: "INVALID_ARGUMENT", messageKo: "날짜 형식이 잘못되었습니다." });
+        return fail(res, 400, "INVALID_ARGUMENT", "날짜 형식이 잘못되었습니다. YYYY-MM-DD");
+      }
+  
+      const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+  
+      const snapshot = await adminApp.firestore()
+        .collection("pilot_gate_evidence")
+        .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startOfDay))
+        .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endOfDay))
+        .get();
+  
+      const docs = snapshot.docs.map(d => d.data());
+  
+      const missingStats: Record<string, { impactCount: number, evidenceIds: Set<string>, sampleCaseIds: Set<string> }> = {};
+      for (const d of docs) {
+        if (d.ok === false || d.status === "fail") {
+          const evId = d.evidenceId;
+          const caseId = d.caseId;
+          for (const m of (d.missing || [])) {
+            if (!missingStats[m]) missingStats[m] = { impactCount: 0, evidenceIds: new Set(), sampleCaseIds: new Set() };
+            missingStats[m].impactCount++;
+            missingStats[m].evidenceIds.add(evId);
+            missingStats[m].sampleCaseIds.add(caseId);
+          }
         }
       }
+  
+      const items = Object.entries(missingStats).map(([slotId, stats]) => {
+        let sevNum = 3;
+        if (slotId === "slot_filing_receipt") sevNum = 1;
+        else if (slotId.endsWith("_signed")) sevNum = 2;
+  
+        return {
+          title: `[게이트 누락] ${slotId} 검증 실패 자동화 대응`,
+          severity: `Sev${sevNum}`,
+          owner: "ops",
+          eta: "TBD",
+          impactCount: stats.impactCount,
+          evidenceIds: Array.from(stats.evidenceIds).slice(0, 3),
+          sampleCaseIds: Array.from(stats.sampleCaseIds).slice(0, 3),
+          reproSteps: `1. 파트너 콘솔에서 ${slotId} 업로드 누락 또는 API 오류 확인\n2. ${slotId} 제출 로직 디버깅`,
+          acceptanceCriteria: `1. ${slotId} 파일이 정상적으로 Storage에 업로드됨\n2. Gate 검증 API 호출 시 missing 배열에 ${slotId}가 포함되지 않음\n3. ok: true 달성`
+        };
+      });
+  
+      items.sort((a, b) => a.severity.localeCompare(b.severity) || b.impactCount - a.impactCount);
+      const resultItems = items.slice(0, Number(topN));
+  
+      return res.status(200).send({
+        ok: true,
+        data: { items: resultItems }
+      });
+    } catch (err: any) {
+      logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog", code: "INTERNAL", messageKo: "백로그 생성 중 시스템 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "백로그 생성 중 시스템 오류가 발생했습니다.");
     }
+  });
 
-    const items = Object.entries(missingStats).map(([slotId, stats]) => {
-      let severity = 3;
-      if (slotId === "slot_filing_receipt") severity = 1;
-      else if (slotId.endsWith("_signed")) severity = 2;
-
-      return {
-        title: `[게이트 누락] ${slotId} 검증 실패 자동화 대응`,
-        severity,
-        impactCount: stats.impactCount,
-        evidenceIds: Array.from(stats.evidenceIds).slice(0, 3),
-        sampleCaseIds: Array.from(stats.sampleCaseIds).slice(0, 3),
-        reproSteps: `1. 파트너 콘솔에서 ${slotId} 업로드 누락 또는 API 오류 확인\n2. ${slotId} 제출 로직 디버깅`,
-        acceptanceCriteria: `1. ${slotId} 파일이 정상적으로 Storage에 업로드됨\n2. Gate 검증 API 호출 시 missing 배열에 ${slotId}가 포함되지 않음\n3. ok: true 달성`
-      };
-    });
-
-    items.sort((a, b) => a.severity - b.severity || b.impactCount - a.impactCount);
-    const resultItems = items.slice(0, Number(topN));
-
-    return res.status(200).send({
-      ok: true,
-      data: { items: resultItems }
-    });
+  // Ops Console: 특정 케이스 조회 API
+  app.get("/v1/ops/reports/pilot-gate/by-case", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) {
+        logError({ endpoint: "/v1/ops/reports/pilot-gate/by-case", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
+  
+      const caseId = req.query.caseId;
+      if (!caseId || typeof caseId !== "string") {
+        logError({ endpoint: "/v1/ops/reports/pilot-gate/by-case", code: "INVALID_ARGUMENT", messageKo: "caseId 파라미터가 필요합니다." });
+        return fail(res, 400, "INVALID_ARGUMENT", "caseId 파라미터가 필요합니다.");
+      }
+      const limitNum = Number(req.query.limit) || 10;
+  
+      const snapshot = await adminApp.firestore()
+        .collection("pilot_gate_evidence")
+        .where("caseId", "==", caseId)
+        .orderBy("validatedAt", "desc")
+        .limit(limitNum)
+        .get();
+  
+      const evidences = snapshot.docs.map(d => {
+        const data = d.data();
+        return {
+          evidenceId: d.id,
+          ok: data.ok,
+          missingCount: Array.isArray(data.missing) ? data.missing.length : 0,
+          missing: data.missing || [],
+          validatedAt: fmtTs(data.validatedAt),
+          env: data.env || "unknown"
+        };
+      });
+  
+      return res.status(200).send({
+        ok: true,
+        data: { evidences }
+      });
+    } catch (err: any) {
+      logError({ endpoint: "/v1/ops/reports/pilot-gate/by-case", code: "INTERNAL", messageKo: "조회 중 시스템 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "조회 중 시스템 오류가 발생했습니다.");
+    }
   });
 
   // 주간 리뷰용 내보내기 (markdown export)
   app.get("/v1/ops/reports/pilot-gate/backlog.md", async (req, res) => {
-    const auth = await requireAuth(adminApp, req, res);
-    if (!auth) return;
-    if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
-
-    const { week } = req.query; // YYYY-WW 형태, 없을 경우 지난 7일 기준
-    let startDate: Date;
-    let endDate: Date;
-
-    if (week && typeof week === "string" && week.match(/^\d{4}-W\d{2}$/)) {
-      const [yearStr, weekStr] = week.split("-W");
-      const year = parseInt(yearStr, 10);
-      const w = parseInt(weekStr, 10);
-      // 간단한 주차 계산 (단순화: 1월 1일을 포함하는 주를 1주차로 계산)
-      const jan1 = new Date(year, 0, 1);
-      const daysOffset = (w - 1) * 7;
-      startDate = new Date(year, 0, 1 + daysOffset - jan1.getDay());
-      endDate = new Date(startDate.getTime());
-      endDate.setDate(startDate.getDate() + 6);
-      endDate.setHours(23, 59, 59, 999);
-    } else {
-      // 기본값: 오늘 기준 과거 7일
-      endDate = new Date();
-      endDate.setHours(23, 59, 59, 999);
-      startDate = new Date(endDate.getTime());
-      startDate.setDate(endDate.getDate() - 6);
-      startDate.setHours(0, 0, 0, 0);
-    }
-
-    const snapshot = await adminApp.firestore()
-      .collection("pilot_gate_evidence")
-      .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startDate))
-      .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endDate))
-      .get();
-
-    const docs = snapshot.docs.map(d => d.data());
-
-    const missingStats: Record<string, { impactCount: number, evidenceIds: Set<string>, sampleCaseIds: Set<string> }> = {};
-    for (const d of docs) {
-      if (d.ok === false || d.status === "fail") {
-        const evId = d.evidenceId;
-        const caseId = d.caseId;
-        for (const m of (d.missing || [])) {
-          if (!missingStats[m]) missingStats[m] = { impactCount: 0, evidenceIds: new Set(), sampleCaseIds: new Set() };
-          missingStats[m].impactCount++;
-          missingStats[m].evidenceIds.add(evId);
-          missingStats[m].sampleCaseIds.add(caseId);
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) {
+        logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog.md", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
+  
+      const { week } = req.query; // YYYY-WW 형태, 없을 경우 지난 7일 기준
+      let startDate: Date;
+      let endDate: Date;
+  
+      if (week && typeof week === "string" && week.match(/^\d{4}-W\d{2}$/)) {
+        const [yearStr, weekStr] = week.split("-W");
+        const year = parseInt(yearStr, 10);
+        const w = parseInt(weekStr, 10);
+        // 간단한 주차 계산 (단순화: 1월 1일을 포함하는 주를 1주차로 계산)
+        const jan1 = new Date(year, 0, 1);
+        const daysOffset = (w - 1) * 7;
+        startDate = new Date(year, 0, 1 + daysOffset - jan1.getDay());
+        endDate = new Date(startDate.getTime());
+        endDate.setDate(startDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
+      } else {
+        // 기본값: 오늘 기준 과거 7일
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        startDate = new Date(endDate.getTime());
+        startDate.setDate(endDate.getDate() - 6);
+        startDate.setHours(0, 0, 0, 0);
+      }
+  
+      const snapshot = await adminApp.firestore()
+        .collection("pilot_gate_evidence")
+        .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startDate))
+        .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endDate))
+        .get();
+  
+      const docs = snapshot.docs.map(d => d.data());
+  
+      const missingStats: Record<string, { impactCount: number, evidenceIds: Set<string>, sampleCaseIds: Set<string> }> = {};
+      for (const d of docs) {
+        if (d.ok === false || d.status === "fail") {
+          const evId = d.evidenceId;
+          const caseId = d.caseId;
+          for (const m of (d.missing || [])) {
+            if (!missingStats[m]) missingStats[m] = { impactCount: 0, evidenceIds: new Set(), sampleCaseIds: new Set() };
+            missingStats[m].impactCount++;
+            missingStats[m].evidenceIds.add(evId);
+            missingStats[m].sampleCaseIds.add(caseId);
+          }
         }
       }
-    }
-
-    const items = Object.entries(missingStats).map(([slotId, stats]) => {
-      let severity = 3;
-      if (slotId === "slot_filing_receipt") severity = 1;
-      else if (slotId.endsWith("_signed")) severity = 2;
-
-      return {
-        title: `[게이트 누락] ${slotId} 검증 실패 자동화 대응`,
-        severity,
-        impactCount: stats.impactCount,
-        evidenceIds: Array.from(stats.evidenceIds).slice(0, 3),
-        sampleCaseIds: Array.from(stats.sampleCaseIds).slice(0, 3),
-        reproSteps: `1. 파트너 콘솔에서 ${slotId} 업로드 누락 또는 API 오류 확인\n2. ${slotId} 제출 로직 디버깅`,
-        acceptanceCriteria: `1. ${slotId} 파일이 정상적으로 Storage에 업로드됨\n2. Gate 검증 API 호출 시 missing 배열에 ${slotId}가 포함되지 않음\n3. ok: true 달성`
-      };
-    });
-
-    items.sort((a, b) => a.severity - b.severity || b.impactCount - a.impactCount);
-
-    const titleDateStr = `${startDate.toLocaleDateString("en-CA")} ~ ${endDate.toLocaleDateString("en-CA")}`;
-    let markdown = `# 주간 Gate 검증 백로그 리뷰 (${titleDateStr})\n\n`;
-    
-    if (items.length === 0) {
-      markdown += "해당 기간 동안 Gate 검증 실패(누락) 사례가 없습니다.\n";
-    } else {
-      for (const item of items) {
-        markdown += `### ${item.title}\n`;
-        markdown += `- **Sev**: ${item.severity}\n`;
-        markdown += `- **영향도**: ${item.impactCount}건 발생\n`;
-        markdown += `- **샘플 케이스**: ${item.sampleCaseIds.join(", ") || "없음"}\n`;
-        markdown += `- **재현 단계**:\n${item.reproSteps.split("\\n").map(l => "  " + l).join("\\n")}\n`;
-        markdown += `- **AC (Acceptance Criteria)**:\n${item.acceptanceCriteria.split("\\n").map(l => "  " + l).join("\\n")}\n`;
-        markdown += `- **Owner**: \n`;
-        markdown += `- **ETA**: \n\n`;
+  
+      const items = Object.entries(missingStats).map(([slotId, stats]) => {
+        let severity = 3;
+        if (slotId === "slot_filing_receipt") severity = 1;
+        else if (slotId.endsWith("_signed")) severity = 2;
+  
+        return {
+          title: `[게이트 누락] ${slotId} 검증 실패 자동화 대응`,
+          severity,
+          impactCount: stats.impactCount,
+          evidenceIds: Array.from(stats.evidenceIds).slice(0, 3),
+          sampleCaseIds: Array.from(stats.sampleCaseIds).slice(0, 3),
+          reproSteps: `1. 파트너 콘솔에서 ${slotId} 업로드 누락 또는 API 오류 확인\n2. ${slotId} 제출 로직 디버깅`,
+          acceptanceCriteria: `1. ${slotId} 파일이 정상적으로 Storage에 업로드됨\n2. Gate 검증 API 호출 시 missing 배열에 ${slotId}가 포함되지 않음\n3. ok: true 달성`
+        };
+      });
+  
+      items.sort((a, b) => a.severity - b.severity || b.impactCount - a.impactCount);
+  
+      const titleDateStr = `${startDate.toLocaleDateString("en-CA")} ~ ${endDate.toLocaleDateString("en-CA")}`;
+      let markdown = `# 주간 Gate 검증 백로그 리뷰 (${titleDateStr})\n\n`;
+      
+      if (items.length === 0) {
+        markdown += "해당 기간 동안 Gate 검증 실패(누락) 사례가 없습니다.\n";
+      } else {
+        for (const item of items) {
+          markdown += `### ${item.title}\n`;
+          markdown += `- **Sev**: ${item.severity}\n`;
+          markdown += `- **영향도**: ${item.impactCount}건 발생\n`;
+          markdown += `- **샘플 케이스**: ${item.sampleCaseIds.join(", ") || "없음"}\n`;
+          markdown += `- **재현 단계**:\n${item.reproSteps.split("\\n").map(l => "  " + l).join("\\n")}\n`;
+          markdown += `- **AC (Acceptance Criteria)**:\n${item.acceptanceCriteria.split("\\n").map(l => "  " + l).join("\\n")}\n`;
+          markdown += `- **Owner**: \n`;
+          markdown += `- **ETA**: \n\n`;
+        }
       }
+  
+      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="backlog_${titleDateStr.replace(/ /g, "_")}.md"`);
+      return res.status(200).send(markdown);
+    } catch (err: any) {
+      logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog.md", code: "INTERNAL", messageKo: "내보내기 중 시스템 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "내보내기 중 시스템 오류가 발생했습니다.");
     }
-
-    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="backlog_${titleDateStr.replace(/ /g, "_")}.md"`);
-    return res.status(200).send(markdown);
   });
 
   // 케이스 종료 리포트(DOCX) - 케이스 참여자/ops

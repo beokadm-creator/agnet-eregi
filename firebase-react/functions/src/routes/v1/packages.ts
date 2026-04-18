@@ -4,7 +4,7 @@ import JSZip from "jszip";
 import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 
 import { requireAuth, isOps, partnerIdOf } from "../../lib/auth";
-import { fail } from "../../lib/http";
+import { fail, logError } from "../../lib/http";
 import { caseRef } from "../../lib/firestore";
 import { requiredSlotsForStage } from "../../lib/workflow";
 import { getSlotTitleKo } from "../../lib/casepack";
@@ -547,91 +547,103 @@ async function validatePackageContents(adminApp: typeof admin, params: { caseId:
 
 export function registerPackageRoutes(app: express.Express, adminApp: typeof admin) {
   app.get("/v1/cases/:caseId/packages/validate", async (req, res) => {
-    const auth = await requireAuth(adminApp, req, res);
-    if (!auth) return;
- 
-    const caseId = req.params.caseId;
-    const cs = await caseRef(adminApp, caseId).get();
-    if (!cs.exists) return fail(res, 404, "NOT_FOUND", "케이스를 찾을 수 없습니다.");
-    const c = cs.data() as any;
- 
-    const canRead = isOps(auth) || c.ownerUid === auth.uid || (partnerIdOf(auth) && c.partnerId === partnerIdOf(auth));
-    if (!canRead) return fail(res, 403, "FORBIDDEN", "접근 권한이 없습니다.");
- 
-    const casePackId = String(c.casePackId ?? "");
-    const required = await requiredSlotsForStage(adminApp, { caseId, casePackId, stage: "draft_filing" as any });
-    const signedSlots = required.filter((s) => String(s).endsWith("_signed"));
- 
-    const docsSnap = await adminApp.firestore().collection(`cases/${caseId}/documents`).get();
-    const docs = docsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
-    const bySlot = new Map<string, any>();
-    for (const d of docs) bySlot.set(String(d.slotId), d);
- 
-    const bucket = adminApp.storage().bucket();
-    const signed = [];
-    for (const slotId of signedSlots) {
-      const d = bySlot.get(String(slotId));
-      const v = d?.latestVersionId ? d?.versions?.[d.latestVersionId] : null;
-      const storagePath = v?.storagePath ? String(v.storagePath) : null;
-      const fileName = v?.fileName ? String(v.fileName) : null;
-      const status = d?.status ? String(d.status) : "missing";
- 
-      let exists = false;
-      if (storagePath) {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+  
+      const caseId = req.params.caseId;
+      const cs = await caseRef(adminApp, caseId).get();
+      if (!cs.exists) {
+        logError({ endpoint: "/v1/cases/:caseId/packages/validate", caseId, code: "NOT_FOUND", messageKo: "케이스를 찾을 수 없습니다." });
+        return fail(res, 404, "NOT_FOUND", "케이스를 찾을 수 없습니다.");
+      }
+      const c = cs.data() as any;
+  
+      const canRead = isOps(auth) || c.ownerUid === auth.uid || (partnerIdOf(auth) && c.partnerId === partnerIdOf(auth));
+      if (!canRead) {
+        logError({ endpoint: "/v1/cases/:caseId/packages/validate", caseId, code: "FORBIDDEN", messageKo: "접근 권한이 없습니다." });
+        return fail(res, 403, "FORBIDDEN", "접근 권한이 없습니다.");
+      }
+  
+      const casePackId = String(c.casePackId ?? "");
+      const required = await requiredSlotsForStage(adminApp, { caseId, casePackId, stage: "draft_filing" as any });
+      const signedSlots = required.filter((s) => String(s).endsWith("_signed"));
+  
+      const docsSnap = await adminApp.firestore().collection(`cases/${caseId}/documents`).get();
+      const docs = docsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
+      const bySlot = new Map<string, any>();
+      for (const d of docs) bySlot.set(String(d.slotId), d);
+  
+      const bucket = adminApp.storage().bucket();
+      const signed = [];
+      for (const slotId of signedSlots) {
+        const d = bySlot.get(String(slotId));
+        const v = d?.latestVersionId ? d?.versions?.[d.latestVersionId] : null;
+        const storagePath = v?.storagePath ? String(v.storagePath) : null;
+        const fileName = v?.fileName ? String(v.fileName) : null;
+        const status = d?.status ? String(d.status) : "missing";
+  
+        let exists = false;
+        if (storagePath) {
+          try {
+            const [ok] = await bucket.file(storagePath).exists();
+            exists = Boolean(ok);
+          } catch {
+            exists = false;
+          }
+        }
+  
+        signed.push({ slotId, status, fileName, storagePath, exists });
+      }
+  
+      const receiptDoc = bySlot.get("slot_filing_receipt");
+      const receiptV = receiptDoc?.latestVersionId ? receiptDoc?.versions?.[receiptDoc.latestVersionId] : null;
+      const receiptPath = receiptV?.storagePath ? String(receiptV.storagePath) : null;
+      const receiptName = receiptV?.fileName ? String(receiptV.fileName) : null;
+      const receiptStatus = receiptDoc?.status ? String(receiptDoc.status) : "missing";
+      let receiptExists = false;
+      if (receiptPath) {
         try {
-          const [ok] = await bucket.file(storagePath).exists();
-          exists = Boolean(ok);
+          const [ok] = await bucket.file(receiptPath).exists();
+          receiptExists = Boolean(ok);
         } catch {
-          exists = false;
+          receiptExists = false;
         }
       }
- 
-      signed.push({ slotId, status, fileName, storagePath, exists });
-    }
- 
-    const receiptDoc = bySlot.get("slot_filing_receipt");
-    const receiptV = receiptDoc?.latestVersionId ? receiptDoc?.versions?.[receiptDoc.latestVersionId] : null;
-    const receiptPath = receiptV?.storagePath ? String(receiptV.storagePath) : null;
-    const receiptName = receiptV?.fileName ? String(receiptV.fileName) : null;
-    const receiptStatus = receiptDoc?.status ? String(receiptDoc.status) : "missing";
-    let receiptExists = false;
-    if (receiptPath) {
-      try {
-        const [ok] = await bucket.file(receiptPath).exists();
-        receiptExists = Boolean(ok);
-      } catch {
-        receiptExists = false;
-      }
-    }
- 
-    const missing = signed.filter((x) => x.status !== "ok" || !x.storagePath || !x.exists).map((x) => x.slotId);
-    const ok = missing.length === 0 && receiptStatus === "ok" && Boolean(receiptPath) && receiptExists;
-
-    const evidenceId = `ev_${Date.now()}_${caseId.slice(-6)}`;
-    await adminApp.firestore().collection("pilot_gate_evidence").doc(evidenceId).set({
-      caseId,
-      evidenceId,
-      ok,
-      status: ok ? "ok" : "fail",
-      missing,
-      signed,
-      filingReceipt: { slotId: "slot_filing_receipt", status: receiptStatus, fileName: receiptName, storagePath: receiptPath, exists: receiptExists },
-      validatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
-      actorUid: auth.uid,
-      env: process.env.FUNCTIONS_EMULATOR === "true" ? "local" : "staging"
-    });
-
-    res.setHeader("Content-Type", "application/json");
-    return res.status(200).send({
-      ok: true,
-      data: {
-        ok,
+  
+      const missing = signed.filter((x) => x.status !== "ok" || !x.storagePath || !x.exists).map((x) => x.slotId);
+      const ok = missing.length === 0 && receiptStatus === "ok" && Boolean(receiptPath) && receiptExists;
+  
+      const evidenceId = `ev_${Date.now()}_${caseId.slice(-6)}`;
+      await adminApp.firestore().collection("pilot_gate_evidence").doc(evidenceId).set({
+        caseId,
         evidenceId,
+        ok,
+        status: ok ? "ok" : "fail",
+        missing,
         signed,
         filingReceipt: { slotId: "slot_filing_receipt", status: receiptStatus, fileName: receiptName, storagePath: receiptPath, exists: receiptExists },
-        missing
-      }
-    });
+        validatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+        actorUid: auth.uid,
+        env: process.env.FUNCTIONS_EMULATOR === "true" ? "local" : "staging"
+      });
+  
+      res.setHeader("Content-Type", "application/json");
+      return res.status(200).send({
+        ok: true,
+        data: {
+          ok,
+          evidenceId,
+          signed,
+          filingReceipt: { slotId: "slot_filing_receipt", status: receiptStatus, fileName: receiptName, storagePath: receiptPath, exists: receiptExists },
+          missing
+        }
+      });
+    } catch (err: any) {
+      const caseId = req.params.caseId || "unknown";
+      logError({ endpoint: "/v1/cases/:caseId/packages/validate", caseId, code: "INTERNAL", messageKo: "검증 중 시스템 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "검증 중 시스템 오류가 발생했습니다.");
+    }
   });
  
   // 제출 패키지 ZIP (접수증 + 생성 템플릿(DOCX) + 종료리포트(DOCX) + 메타데이터)
