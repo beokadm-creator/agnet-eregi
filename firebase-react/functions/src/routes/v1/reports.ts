@@ -186,6 +186,61 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
+  // 최근 실패/최근 evidence 조회 API (운영용)
+  app.get("/v1/ops/reports/pilot-gate/recent", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) {
+        logError({ endpoint: "/v1/ops/reports/pilot-gate/recent", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
+
+      const days = Number(req.query.days) || 7;
+      const onlyFail = req.query.onlyFail === "1" || req.query.onlyFail === "true";
+      const limitNum = Number(req.query.limit) || 50;
+
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - days);
+
+      let query = adminApp.firestore()
+        .collection("pilot_gate_evidence")
+        .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startDate))
+        .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endDate));
+
+      if (onlyFail) {
+        query = query.where("ok", "==", false);
+      }
+
+      // 복합 색인이 필요할 수 있으므로, orderBy는 생략하고 메모리 정렬
+      const snapshot = await query.get();
+
+      const evidences = snapshot.docs.map(d => {
+        const data = d.data();
+        return {
+          evidenceId: d.id,
+          caseId: data.caseId,
+          ok: data.ok,
+          missingCount: Array.isArray(data.missing) ? data.missing.length : 0,
+          missingTop3: Array.isArray(data.missing) ? data.missing.slice(0, 3) : [],
+          validatedAt: fmtTs(data.validatedAt),
+          env: data.env || "unknown"
+        };
+      });
+
+      evidences.sort((a, b) => new Date(b.validatedAt).getTime() - new Date(a.validatedAt).getTime());
+      
+      return res.status(200).send({
+        ok: true,
+        data: { evidences: evidences.slice(0, limitNum) }
+      });
+    } catch (err: any) {
+      logError({ endpoint: "/v1/ops/reports/pilot-gate/recent", code: "INTERNAL", messageKo: "조회 중 시스템 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "조회 중 시스템 오류가 발생했습니다.");
+    }
+  });
+
   // Ops Console: 특정 케이스 조회 API
   app.get("/v1/ops/reports/pilot-gate/by-case", async (req, res) => {
     try {

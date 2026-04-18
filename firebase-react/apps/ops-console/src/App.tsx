@@ -24,6 +24,7 @@ function App() {
   const [summaryDate, setSummaryDate] = useState<string>(new Date().toLocaleDateString("en-CA").split("/").reverse().join("-"));
   const [gateReportText, setGateReportText] = useState<string>("");
   const [backlogItems, setBacklogItems] = useState<any[]>([]);
+  const [recentFails, setRecentFails] = useState<any[]>([]);
   const [sev1Log, setSev1Log] = useState<{regenerateOk?: boolean; validateData?: any; reqId?: string}>({});
 
   async function ensureLogin() {
@@ -59,6 +60,7 @@ function App() {
     setBusy(true);
     setGateReportText("");
     setBacklogItems([]);
+    setRecentFails([]);
     try {
       const gateData = await apiGet(`/v1/ops/reports/pilot-gate/daily?date=${summaryDate}`);
       setGateReportText(gateData.copyText || "");
@@ -66,7 +68,11 @@ function App() {
       const backlogData = await apiPost(`/v1/ops/reports/pilot-gate/backlog`, { date: summaryDate, topN: 3 });
       setBacklogItems(backlogData.items || []);
       
-      setLog(`오늘 운영 요약 로드 성공: 집계 완료, 백로그 후보 ${backlogData.items?.length ?? 0}건`);
+      // 최근 실패 케이스 같이 로드 (7일)
+      const recentData = await apiGet(`/v1/ops/reports/pilot-gate/recent?days=7&onlyFail=1&limit=50`);
+      setRecentFails(recentData.evidences || []);
+      
+      setLog(`오늘 운영 요약 로드 성공: 집계 완료, 백로그 후보 ${backlogData.items?.length ?? 0}건, 최근 실패 ${recentData.evidences?.length ?? 0}건`);
     } catch (e: any) {
       setLog(String(e?.message || e));
     } finally {
@@ -457,6 +463,49 @@ ${acLines}
               </table>
             ) : (
               <div style={{ color: "#999", fontSize: "0.9em" }}>백로그 후보가 없거나 요약을 가져오지 않았습니다.</div>
+            )}
+          </div>
+          {/* 최근 실패 케이스 영역 */}
+          <div style={{ flex: "1 1 100%", background: "#fff", padding: 12, border: "1px solid #eee", borderRadius: 6, marginTop: 16 }}>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "1.1em", color: "#d32f2f" }}>C. 최근 7일 실패 케이스 (최신 50건)</h3>
+            {recentFails.length > 0 ? (
+              <div style={{ maxHeight: 300, overflowY: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
+                  <thead style={{ position: "sticky", top: 0, background: "#fff" }}>
+                    <tr>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6 }}>validatedAt</th>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6 }}>caseId</th>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6 }}>누락 서류</th>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6 }}>evidenceId</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentFails.map((fail, idx) => (
+                      <tr key={idx} style={{ background: idx % 2 === 0 ? "#fafafa" : "#fff" }}>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 6, color: "#666" }}>
+                          {new Date(fail.validatedAt).toLocaleString()}
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                          <span 
+                            style={{ cursor: "pointer", textDecoration: "underline", color: "#1890ff", fontWeight: "bold" }} 
+                            onClick={() => handleLoadCaseFromBacklog(fail.caseId)}
+                          >
+                            {fail.caseId}
+                          </span>
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 6, color: "#d32f2f" }}>
+                          {fail.missingTop3.join(", ")} {fail.missingCount > 3 ? `(+${fail.missingCount - 3})` : ""}
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 6, color: "#999", fontSize: "0.85em" }}>
+                          {fail.evidenceId}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ color: "#999", fontSize: "0.9em" }}>최근 7일간 실패 케이스가 없거나 조회 전입니다.</div>
             )}
           </div>
         </div>
