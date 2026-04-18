@@ -327,10 +327,9 @@ ${acLines}
       setSev1Log(prev => ({ ...prev, validateData: json.data, reqId }));
       
       // 3. 복사 텍스트 생성
-      const text = `[Sev1 핫픽스 대응] caseId: ${caseId}
-- 패키지 재생성: 성공
-- 재검증 결과: ok(${json.data?.ok}), evidenceId: ${json.data?.evidenceId}
-- Request ID: ${reqId}`;
+      const text = `[Sev1 Hotfix] caseId=${caseId}, requestId=${reqId}
+regenerate=ok, validate=ok, evidenceId=${json.data?.evidenceId}
+next=재검증 재시도/파트너 문의/수동 확인`;
       await navigator.clipboard.writeText(text);
       
       setLog(`Sev1 핫픽스 완료! 재검증 성공 (evidenceId: ${json.data?.evidenceId}). 클립보드에 결과가 복사되었습니다.`);
@@ -340,10 +339,9 @@ ${acLines}
       
       // 실패 시에도 복사 텍스트 생성 시도 (현재 상태 기반)
       setSev1Log(prev => {
-        const text = `[Sev1 핫픽스 대응] caseId: ${caseId}
-- 패키지 재생성: ${prev.regenerateOk ? "성공" : "실패/미수행"}
-- 재검증 결과: 실패
-- Request ID: ${prev.reqId || e?.reqId || "N/A"}`;
+        const text = `[Sev1 Hotfix] caseId=${caseId}, requestId=${prev.reqId || e?.reqId || "N/A"}
+regenerate=${prev.regenerateOk ? "ok" : "fail"}, validate=fail, evidenceId=N/A
+next=재검증 재시도/파트너 문의/수동 확인`;
         navigator.clipboard.writeText(text).catch(() => {});
         return prev;
       });
@@ -398,10 +396,9 @@ ${acLines}
   }
 
   function copySev1Log() {
-    const text = `[Sev1 핫픽스 대응] caseId: ${caseId}
-- 패키지 재생성: ${sev1Log.regenerateOk ? "성공" : "실패/미수행"}
-- 재검증 결과: ${sev1Log.validateData ? `ok(${sev1Log.validateData.ok}), evidenceId: ${sev1Log.validateData.evidenceId}` : "실패/미수행"}
-- Request ID: ${sev1Log.reqId || "N/A"}`;
+    const text = `[Sev1 Hotfix] caseId=${caseId}, requestId=${sev1Log.reqId || "N/A"}
+regenerate=${sev1Log.regenerateOk ? "ok" : "fail"}, validate=${sev1Log.validateData ? "ok" : "fail"}, evidenceId=${sev1Log.validateData?.evidenceId || "N/A"}
+next=재검증 재시도/파트너 문의/수동 확인`;
     navigator.clipboard.writeText(text).then(() => setLog("운영 로그용 3줄 복사 완료")).catch(e => setLog("복사 실패: " + e));
   }
 
