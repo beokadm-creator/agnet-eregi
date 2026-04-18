@@ -719,6 +719,34 @@ Headers:
 > 참고: `evidenceId`는 검증의 `ok` 여부와 무관하게 무조건 발급 및 반환되며, `pilot_gate_evidence` 컬렉션에 저장됩니다. (저장 데이터: `ok`, `status`, `missing`, `signed` 등 포함)
 > 참고: `ok: false`인 경우 `missing` 배열에 누락된 `slotId`들이 포함됩니다.
 
+### 12.3 GET /v1/ops/reports/pilot-gate/daily
+목적: 일일 Gate 검증 통계를 운영자가 한 눈에 파악할 수 있도록 집계하여, 운영 로그 복사-붙여넣기에 최적화된 텍스트와 함께 반환합니다. (운영자 전용 엔드포인트)
+
+요청:
+- Query Parameter: `date=YYYY-MM-DD` (생략 시 서버 시간 기준 오늘)
+
+응답(예):
+```json
+{
+  "ok": true,
+  "data": {
+    "total": 3,
+    "ok": 1,
+    "fail": 2,
+    "topMissing": [
+      "slot_registration_application_signed(2건)",
+      "slot_minutes_signed(2건)",
+      "slot_power_of_attorney_signed(2건)"
+    ],
+    "sampleFailCaseIds": [
+      "case_fail_4a2002a0-6c73-4dc5-8d18-b714259eb7c4",
+      "case_fail_a7bc2848-418e-4861-949a-30c6213fc85e"
+    ],
+    "copyText": "[2026-04-18 Gate 집계] 총 3건 (성공: 1건, 실패: 2건)\n- 주요 누락서류: slot_registration_application_signed(2건), slot_minutes_signed(2건), slot_power_of_attorney_signed(2건)\n- 실패 샘플(최대3건): case_fail_4a2002a0-6c73-4dc5-8d18-b714259eb7c4, case_fail_a7bc2848-418e-4861-949a-30c6213fc85e"
+  }
+}
+```
+
 ### 8.2 GET /v1/ops/partners/{partnerId}/payables/summary
 응답:
 ```json
