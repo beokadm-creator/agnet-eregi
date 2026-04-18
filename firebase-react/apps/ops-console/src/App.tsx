@@ -25,6 +25,8 @@ function App() {
   const [settlementItems, setSettlementItems] = useState<any[]>([]);
   const [gateDate, setGateDate] = useState<string>(new Date().toLocaleDateString("en-CA").split("/").reverse().join("-"));
   const [gateReportText, setGateReportText] = useState<string>("");
+  const [backlogDate, setBacklogDate] = useState<string>(new Date().toLocaleDateString("en-CA").split("/").reverse().join("-"));
+  const [backlogItems, setBacklogItems] = useState<any[]>([]);
 
   async function ensureLogin() {
     if (!auth.currentUser) await signInAnonymously(auth);
@@ -74,6 +76,44 @@ function App() {
     navigator.clipboard.writeText(gateReportText)
       .then(() => setLog("복사 완료"))
       .catch((e) => setLog(`복사 실패: ${e}`));
+  }
+
+  async function loadBacklog() {
+    setBusy(true);
+    setBacklogItems([]);
+    try {
+      const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog`, { date: backlogDate, topN: 3 });
+      setBacklogItems(data.items || []);
+      setLog(`백로그 후보 로드 성공: ${data.items?.length ?? 0}건`);
+    } catch (e: any) {
+      setLog(String(e?.message || e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function copyBacklog() {
+    if (!backlogItems.length) return;
+    
+    const lines = backlogItems.map(item => {
+      const reproLines = item.reproSteps.split("\n").map((l: string) => "  " + l).join("\n");
+      const acLines = item.acceptanceCriteria.split("\n").map((l: string) => "  " + l).join("\n");
+      return `### ${item.title}
+- **Sev**: ${item.severity}
+- **영향도**: ${item.impactCount}건 발생
+- **샘플 케이스**: ${item.sampleCaseIds.join(", ") || "없음"}
+- **재현 단계**:
+${reproLines}
+- **AC (Acceptance Criteria)**:
+${acLines}
+- **Owner**: 
+- **ETA**: `;
+    });
+
+    const markdown = lines.join("\n\n");
+    navigator.clipboard.writeText(markdown)
+      .then(() => setLog("백로그 복사 완료 (스프린트 백로그용)"))
+      .catch((e) => setLog(`백로그 복사 실패: ${e}`));
   }
 
   async function becomeOpsApprover() {
@@ -278,6 +318,63 @@ function App() {
               {gateReportText}
             </pre>
           </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f0f8ff" }}>
+        <h2 style={{ margin: "0 0 8px 0", color: "#333" }}>자동 백로그 후보 생성</h2>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <label>
+            대상 일자:{" "}
+            <input
+              type="date"
+              value={backlogDate}
+              onChange={(e) => setBacklogDate(e.target.value)}
+              disabled={busy}
+              style={{ padding: 6 }}
+            />
+          </label>
+          <button disabled={busy || !backlogDate} onClick={loadBacklog}>
+            백로그 후보 생성
+          </button>
+          {backlogItems.length > 0 && (
+            <button onClick={copyBacklog} style={{ background: "#2196f3", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
+              복사 (스프린트 백로그용)
+            </button>
+          )}
+        </div>
+        
+        {backlogItems.length > 0 && (
+          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12, background: "#fff" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 8 }}>Sev</th>
+                <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 8 }}>제목</th>
+                <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 8 }}>영향도</th>
+                <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 8 }}>샘플케이스</th>
+              </tr>
+            </thead>
+            <tbody>
+              {backlogItems.map((item, idx) => (
+                <tr key={idx}>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
+                    <span style={{ 
+                      background: item.severity === 1 ? "#ffebee" : item.severity === 2 ? "#fff3e0" : "#f5f5f5", 
+                      color: item.severity === 1 ? "#d32f2f" : item.severity === 2 ? "#e64a19" : "#616161",
+                      padding: "2px 6px", borderRadius: 4, fontWeight: "bold" 
+                    }}>
+                      Sev{item.severity}
+                    </span>
+                  </td>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>{item.title}</td>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>{item.impactCount}건</td>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 8, fontSize: "0.9em", color: "#666" }}>
+                    {item.sampleCaseIds.join(", ")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 

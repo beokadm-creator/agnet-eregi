@@ -747,6 +747,46 @@ Headers:
 }
 ```
 
+### 12.4 POST /v1/ops/reports/pilot-gate/backlog
+목적: 일일 Gate 검증 통계를 기반으로 누락된 항목들에 대한 백로그 후보(스프린트 이슈 티켓 초안)를 자동 생성하여 반환합니다. (운영자 전용 엔드포인트)
+
+요청:
+```json
+{
+  "date": "2026-04-18",
+  "topN": 3
+}
+```
+
+응답(예):
+```json
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "title": "[게이트 누락] slot_filing_receipt 검증 실패 자동화 대응",
+        "severity": 1,
+        "impactCount": 2,
+        "evidenceIds": ["ev_123", "ev_456"],
+        "sampleCaseIds": ["case_123", "case_456"],
+        "reproSteps": "1. 파트너 콘솔에서 slot_filing_receipt 업로드 누락 또는 API 오류 확인\n2. slot_filing_receipt 제출 로직 디버깅",
+        "acceptanceCriteria": "1. slot_filing_receipt 파일이 정상적으로 Storage에 업로드됨\n2. Gate 검증 API 호출 시 missing 배열에 slot_filing_receipt가 포함되지 않음\n3. ok: true 달성"
+      },
+      {
+        "title": "[게이트 누락] slot_minutes_signed 검증 실패 자동화 대응",
+        "severity": 2,
+        "impactCount": 5,
+        "evidenceIds": ["ev_789"],
+        "sampleCaseIds": ["case_789"],
+        "reproSteps": "1. 파트너 콘솔에서 slot_minutes_signed 업로드 누락 또는 API 오류 확인\n2. slot_minutes_signed 제출 로직 디버깅",
+        "acceptanceCriteria": "1. slot_minutes_signed 파일이 정상적으로 Storage에 업로드됨\n2. Gate 검증 API 호출 시 missing 배열에 slot_minutes_signed가 포함되지 않음\n3. ok: true 달성"
+      }
+    ]
+  }
+}
+```
+
 ### 8.2 GET /v1/ops/partners/{partnerId}/payables/summary
 응답:
 ```json

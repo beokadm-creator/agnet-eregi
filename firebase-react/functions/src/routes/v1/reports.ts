@@ -102,6 +102,70 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     });
   });
 
+  // Gate 백로그 후보 생성 API (운영용)
+  app.post("/v1/ops/reports/pilot-gate/backlog", async (req, res) => {
+    const auth = await requireAuth(adminApp, req, res);
+    if (!auth) return;
+    if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+    const { date, topN = 3 } = req.body;
+    const targetDateStr = date ? String(date) : new Date().toLocaleDateString("en-CA").split("/").reverse().join("-");
+    const targetDate = new Date(targetDateStr);
+    
+    if (isNaN(targetDate.getTime())) {
+      return fail(res, 400, "INVALID_ARGUMENT", "날짜 형식이 잘못되었습니다. YYYY-MM-DD");
+    }
+
+    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+
+    const snapshot = await adminApp.firestore()
+      .collection("pilot_gate_evidence")
+      .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startOfDay))
+      .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endOfDay))
+      .get();
+
+    const docs = snapshot.docs.map(d => d.data());
+
+    const missingStats: Record<string, { impactCount: number, evidenceIds: Set<string>, sampleCaseIds: Set<string> }> = {};
+    for (const d of docs) {
+      if (d.ok === false || d.status === "fail") {
+        const evId = d.evidenceId;
+        const caseId = d.caseId;
+        for (const m of (d.missing || [])) {
+          if (!missingStats[m]) missingStats[m] = { impactCount: 0, evidenceIds: new Set(), sampleCaseIds: new Set() };
+          missingStats[m].impactCount++;
+          missingStats[m].evidenceIds.add(evId);
+          missingStats[m].sampleCaseIds.add(caseId);
+        }
+      }
+    }
+
+    const items = Object.entries(missingStats).map(([slotId, stats]) => {
+      let severity = 3;
+      if (slotId === "slot_filing_receipt") severity = 1;
+      else if (slotId.endsWith("_signed")) severity = 2;
+
+      return {
+        title: `[게이트 누락] ${slotId} 검증 실패 자동화 대응`,
+        severity,
+        impactCount: stats.impactCount,
+        evidenceIds: Array.from(stats.evidenceIds).slice(0, 3),
+        sampleCaseIds: Array.from(stats.sampleCaseIds).slice(0, 3),
+        reproSteps: `1. 파트너 콘솔에서 ${slotId} 업로드 누락 또는 API 오류 확인\n2. ${slotId} 제출 로직 디버깅`,
+        acceptanceCriteria: `1. ${slotId} 파일이 정상적으로 Storage에 업로드됨\n2. Gate 검증 API 호출 시 missing 배열에 ${slotId}가 포함되지 않음\n3. ok: true 달성`
+      };
+    });
+
+    items.sort((a, b) => a.severity - b.severity || b.impactCount - a.impactCount);
+    const resultItems = items.slice(0, Number(topN));
+
+    return res.status(200).send({
+      ok: true,
+      data: { items: resultItems }
+    });
+  });
+
   // 케이스 종료 리포트(DOCX) - 케이스 참여자/ops
   app.get("/v1/cases/:caseId/reports/closing.docx", async (req, res) => {
     const auth = await requireAuth(adminApp, req, res);
