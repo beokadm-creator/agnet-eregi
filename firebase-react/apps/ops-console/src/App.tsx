@@ -7,6 +7,7 @@ function App() {
   const apiBase = useMemo(() => import.meta.env.VITE_API_BASE || "", []);
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<string>("");
+  const [errorBox, setErrorBox] = useState<{message: string, reqId?: string} | null>(null);
   const [items, setItems] = useState<any[]>([]);
   const [gate, setGate] = useState<string>("refund_approve");
   const [status, setStatus] = useState<string>("pending");
@@ -32,15 +33,33 @@ function App() {
     return await auth.currentUser!.getIdToken(true);
   }
 
+  function handleError(e: any, defaultReqId?: string) {
+    const msg = String(e?.message || e);
+    const reqId = e?.reqId || defaultReqId;
+    setErrorBox({ message: msg, reqId });
+    setLog(`Error: ${msg}`);
+  }
+
+  function clearError() {
+    setErrorBox(null);
+  }
+
   async function apiGet(path: string) {
+    clearError();
     const token = await ensureLogin();
     const resp = await fetch(`${apiBase}${path}`, { headers: { Authorization: `Bearer ${token}` } });
-    const json = await resp.json();
-    if (!json.ok) throw new Error(json.error?.messageKo || "요청 실패");
+    const reqId = resp.headers.get("X-Request-Id") || "unknown";
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || !json.ok) {
+      const err = new Error(json.error?.messageKo || "요청 실패") as any;
+      err.reqId = json.error?.requestId || reqId;
+      throw err;
+    }
     return json.data;
   }
 
   async function apiPost(path: string, body: any) {
+    clearError();
     const token = await ensureLogin();
     const resp = await fetch(`${apiBase}${path}`, {
       method: "POST",
@@ -51,8 +70,13 @@ function App() {
       },
       body: JSON.stringify(body)
     });
-    const json = await resp.json();
-    if (!json.ok) throw new Error(json.error?.messageKo || "요청 실패");
+    const reqId = resp.headers.get("X-Request-Id") || "unknown";
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || !json.ok) {
+      const err = new Error(json.error?.messageKo || "요청 실패") as any;
+      err.reqId = json.error?.requestId || reqId;
+      throw err;
+    }
     return json.data;
   }
 
@@ -74,7 +98,7 @@ function App() {
       
       setLog(`오늘 운영 요약 로드 성공: 집계 완료, 백로그 후보 ${backlogData.items?.length ?? 0}건, 최근 실패 ${recentData.evidences?.length ?? 0}건`);
     } catch (e: any) {
-      setLog(String(e?.message || e));
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -82,17 +106,24 @@ function App() {
 
   async function copyDailyLogMd() {
     setBusy(true);
+    clearError();
     try {
       const token = await ensureLogin();
       const resp = await fetch(`${apiBase}/v1/ops/reports/pilot-gate/daily.md?date=${summaryDate}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!resp.ok) throw new Error("일일 로그를 불러올 수 없습니다.");
+      if (!resp.ok) {
+        const reqId = resp.headers.get("X-Request-Id") || "unknown";
+        const json = await resp.json().catch(() => ({}));
+        const err = new Error(json?.error?.messageKo || "일일 로그를 불러올 수 없습니다.") as any;
+        err.reqId = json?.error?.requestId || reqId;
+        throw err;
+      }
       const text = await resp.text();
       await navigator.clipboard.writeText(text);
       setLog("일일 로그(.md)가 클립보드에 복사되었습니다.");
     } catch (e: any) {
-      setLog(`일일 로그 복사 실패: ${e?.message || e}`);
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -131,13 +162,18 @@ ${acLines}
 
   async function downloadWeeklyBacklog() {
     setBusy(true);
+    clearError();
     try {
       const token = await ensureLogin();
       const resp = await fetch(`${apiBase}/v1/ops/reports/pilot-gate/backlog.md`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!resp.ok) {
-        throw new Error(`주간 백로그 다운로드 실패: ${resp.status}`);
+        const reqId = resp.headers.get("X-Request-Id") || "unknown";
+        const json = await resp.json().catch(() => ({}));
+        const err = new Error(json?.error?.messageKo || `주간 백로그 다운로드 실패: ${resp.status}`) as any;
+        err.reqId = json?.error?.requestId || reqId;
+        throw err;
       }
       const blob = await resp.blob();
       const url = window.URL.createObjectURL(blob);
@@ -152,7 +188,7 @@ ${acLines}
       window.URL.revokeObjectURL(url);
       setLog("주간 백로그 다운로드 완료");
     } catch (e: any) {
-      setLog(String(e?.message || e));
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -165,7 +201,7 @@ ${acLines}
       setLog("dev: set claims role=ops_approver (token refresh 필요)");
       await ensureLogin();
     } catch (e: any) {
-      setLog(String(e?.message || e));
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -178,7 +214,7 @@ ${acLines}
       setItems(data.items || []);
       setLog(`loaded approvals: ${data.items?.length ?? 0}`);
     } catch (e: any) {
-      setLog(String(e?.message || e));
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -191,7 +227,7 @@ ${acLines}
       setLog(`decision ok: ${approvalId} -> ${data.status}`);
       await loadApprovals();
     } catch (e: any) {
-      setLog(String(e?.message || e));
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -199,6 +235,7 @@ ${acLines}
 
   async function executeRefund(it: any) {
     setBusy(true);
+    clearError();
     try {
       const token = await ensureLogin();
       const t = it.target;
@@ -211,11 +248,16 @@ ${acLines}
         },
         body: JSON.stringify({ approvalId: it.id })
       });
-      const json = await resp.json();
-      if (!json.ok) throw new Error(json.error?.messageKo || "요청 실패");
+      const reqId = resp.headers.get("X-Request-Id") || "unknown";
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok || !json.ok) {
+        const err = new Error(json?.error?.messageKo || "요청 실패") as any;
+        err.reqId = json?.error?.requestId || reqId;
+        throw err;
+      }
       setLog(`refund executed: ${t.refundId}`);
     } catch (e: any) {
-      setLog(String(e?.message || e));
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -223,7 +265,7 @@ ${acLines}
 
   async function loadCaseDetail() {
     if (!caseId) {
-      setLog("caseId가 필요합니다.");
+      handleError("caseId가 필요합니다.");
       return;
     }
     await loadCaseDetailWithId(caseId);
@@ -250,7 +292,7 @@ ${acLines}
       setGateEvidences(g.evidences || []);
       setLog("case detail loaded");
     } catch (e: any) {
-      setLog(String(e?.message || e));
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -259,6 +301,7 @@ ${acLines}
   async function doSev1HotfixFull() {
     setBusy(true);
     setSev1Log({});
+    clearError();
     try {
       // 1. 패키지 재생성
       setLog("Sev1 핫픽스: 패키지 재생성 시작...");
@@ -272,11 +315,13 @@ ${acLines}
         headers: { Authorization: `Bearer ${token}` }
       });
       const reqId = resp.headers.get("X-Request-Id") || "unknown";
-      const json = await resp.json();
+      const json = await resp.json().catch(() => ({}));
       
       if (!resp.ok || !json.ok) {
          setSev1Log(prev => ({ ...prev, validateData: null, reqId: json.error?.requestId || reqId }));
-         throw new Error(json.error?.messageKo || "검증 요청 실패");
+         const err = new Error(json.error?.messageKo || "검증 요청 실패") as any;
+         err.reqId = json.error?.requestId || reqId;
+         throw err;
       }
       
       setSev1Log(prev => ({ ...prev, validateData: json.data, reqId }));
@@ -291,14 +336,14 @@ ${acLines}
       setLog(`Sev1 핫픽스 완료! 재검증 성공 (evidenceId: ${json.data?.evidenceId}). 클립보드에 결과가 복사되었습니다.`);
       await loadCaseDetailWithId(caseId);
     } catch (e: any) {
-      setLog(`Sev1 핫픽스 실패: ${e?.message || e}`);
+      handleError(e);
       
       // 실패 시에도 복사 텍스트 생성 시도 (현재 상태 기반)
       setSev1Log(prev => {
         const text = `[Sev1 핫픽스 대응] caseId: ${caseId}
 - 패키지 재생성: ${prev.regenerateOk ? "성공" : "실패/미수행"}
 - 재검증 결과: 실패
-- Request ID: ${prev.reqId || "N/A"}`;
+- Request ID: ${prev.reqId || e?.reqId || "N/A"}`;
         navigator.clipboard.writeText(text).catch(() => {});
         return prev;
       });
@@ -320,7 +365,7 @@ ${acLines}
       setLog("패키지 재생성 성공");
     } catch (e: any) {
       setSev1Log(prev => ({ ...prev, regenerateOk: false }));
-      setLog(`패키지 재생성 실패: ${e?.message || e}`);
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -328,22 +373,25 @@ ${acLines}
 
   async function doValidate() {
     setBusy(true);
+    clearError();
     try {
       const token = await ensureLogin();
       const resp = await fetch(`${apiBase}/v1/cases/${caseId}/packages/validate`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const reqId = resp.headers.get("X-Request-Id") || "unknown";
-      const json = await resp.json();
+      const json = await resp.json().catch(() => ({}));
       if (!resp.ok || !json.ok) {
          setSev1Log(prev => ({ ...prev, validateData: null, reqId: json.error?.requestId || reqId }));
-         throw new Error(json.error?.messageKo || "요청 실패");
+         const err = new Error(json.error?.messageKo || "요청 실패") as any;
+         err.reqId = json.error?.requestId || reqId;
+         throw err;
       }
       setSev1Log(prev => ({ ...prev, validateData: json.data, reqId }));
       setLog(`재검증 성공 (evidenceId: ${json.data?.evidenceId})`);
       await loadCaseDetailWithId(caseId);
     } catch (e: any) {
-      setLog(`재검증 실패: ${e?.message || e}`);
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -364,7 +412,7 @@ ${acLines}
       setSettlements(data.items || []);
       setLog(`loaded settlements: ${data.items?.length ?? 0}`);
     } catch (e: any) {
-      setLog(String(e?.message || e));
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -381,7 +429,7 @@ ${acLines}
       setLog(`settlement generated: ${data.settlementId}`);
       await loadSettlements();
     } catch (e: any) {
-      setLog(String(e?.message || e));
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -394,7 +442,7 @@ ${acLines}
       setLog(`settlement paid: ${data.settlementId}`);
       await loadSettlements();
     } catch (e: any) {
-      setLog(String(e?.message || e));
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -403,12 +451,15 @@ ${acLines}
   async function loadSettlementItems() {
     setBusy(true);
     try {
-      if (!settlementIdForItems) throw new Error("settlementId가 필요합니다.");
+      if (!settlementIdForItems) {
+        handleError("settlementId가 필요합니다.");
+        return;
+      }
       const data = await apiGet(`/v1/ops/settlements/${settlementIdForItems}/items`);
       setSettlementItems(data.items || []);
       setLog(`loaded settlement items: ${data.items?.length ?? 0}`);
     } catch (e: any) {
-      setLog(String(e?.message || e));
+      handleError(e);
     } finally {
       setBusy(false);
     }
@@ -443,6 +494,27 @@ ${acLines}
       <div style={{ marginTop: 16 }}>
         <div><strong>API Base</strong>: {apiBase || "(not set)"}</div>
       </div>
+
+      {errorBox && (
+        <div style={{ marginTop: 16, padding: 12, border: "1px solid #f44336", borderRadius: 8, background: "#ffebee", color: "#d32f2f" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <strong>에러 발생:</strong> {errorBox.message}
+            </div>
+            {errorBox.reqId && errorBox.reqId !== "unknown" && (
+              <button 
+                onClick={() => navigator.clipboard.writeText(errorBox.reqId || "")}
+                style={{ background: "#d32f2f", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}
+              >
+                Request ID 복사
+              </button>
+            )}
+          </div>
+          {errorBox.reqId && errorBox.reqId !== "unknown" && (
+            <div style={{ marginTop: 4, fontSize: "0.85em" }}>Request ID: {errorBox.reqId}</div>
+          )}
+        </div>
+      )}
 
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f9f9f9" }}>
         <h2 style={{ margin: "0 0 8px 0", color: "#333" }}>오늘 운영 요약</h2>
