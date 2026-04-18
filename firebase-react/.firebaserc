@@ -1,0 +1,22 @@
+{
+  "projects": {
+    "default": "agent-eregi",
+    "agent-eregi": "agent-eregi"
+  },
+  "targets": {
+    "agent-eregi": {
+      "hosting": {
+        "ops-console": [
+          "agent-eregi"
+        ],
+        "partner-console": [
+          "partner-console-eregi"
+        ],
+        "user-web": [
+          "user-web-eregi"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

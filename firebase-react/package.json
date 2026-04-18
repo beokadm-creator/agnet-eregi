@@ -1,0 +1,28 @@
+{
+  "name": "registry-platform-firebase",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "functions"
+  ],
+  "scripts": {
+    "dev:user": "npm --workspace apps/user-web run dev",
+    "dev:partner": "npm --workspace apps/partner-console run dev",
+    "dev:ops": "npm --workspace apps/ops-console run dev",
+    "build": "npm -ws run build",
+    "lint": "npm -ws run lint",
+    "format": "npm -ws run format || true",
+    "test:rules": "node scripts/rules_test.mjs",
+    "test:rules:exec": "firebase emulators:exec --project demo-rp --only auth,firestore \"node scripts/rules_test.mjs\"",
+    "emulators": "firebase emulators:start",
+    "deploy:staging": "firebase deploy --project project-staging",
+    "deploy:prod": "firebase deploy --project project-prod",
+    "deploy:agent-eregi": "firebase deploy --project agent-eregi --only functions,hosting:ops-console"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase-admin": "^12.6.0",
+    "firebase-tools": "^13.11.2"
+  }
+}
