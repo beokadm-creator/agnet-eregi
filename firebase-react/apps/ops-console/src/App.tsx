@@ -24,6 +24,7 @@ function App() {
   const [summaryDate, setSummaryDate] = useState<string>(new Date().toLocaleDateString("en-CA").split("/").reverse().join("-"));
   const [gateReportText, setGateReportText] = useState<string>("");
   const [backlogItems, setBacklogItems] = useState<any[]>([]);
+  const [sev1Log, setSev1Log] = useState<{regenerateOk?: boolean; validateData?: any; reqId?: string}>({});
 
   async function ensureLogin() {
     if (!auth.currentUser) await signInAnonymously(auth);
@@ -197,16 +198,24 @@ ${acLines}
   }
 
   async function loadCaseDetail() {
+    if (!caseId) {
+      setLog("caseId가 필요합니다.");
+      return;
+    }
+    await loadCaseDetailWithId(caseId);
+  }
+
+  async function loadCaseDetailWithId(cid: string) {
     setBusy(true);
+    setSev1Log({});
     try {
-      if (!caseId) throw new Error("caseId가 필요합니다.");
-      const c = await apiGet(`/v1/cases/${caseId}`);
-      const t = await apiGet(`/v1/cases/${caseId}/timeline?limit=50`);
-      const d = await apiGet(`/v1/cases/${caseId}/documents`);
+      const c = await apiGet(`/v1/cases/${cid}`);
+      const t = await apiGet(`/v1/cases/${cid}/timeline?limit=50`);
+      const d = await apiGet(`/v1/cases/${cid}/documents`);
       
       let g = { evidences: [] };
       try {
-        g = await apiGet(`/v1/ops/reports/pilot-gate/by-case?caseId=${caseId}&limit=10`);
+        g = await apiGet(`/v1/ops/reports/pilot-gate/by-case?caseId=${cid}&limit=10`);
       } catch (ge) {
         console.warn("gate evidence 로드 실패:", ge);
       }
@@ -221,6 +230,56 @@ ${acLines}
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleLoadCaseFromBacklog(cid: string) {
+    setCaseId(cid);
+    loadCaseDetailWithId(cid);
+  }
+
+  async function doRegenerate() {
+    setBusy(true);
+    try {
+      await apiPost(`/v1/ops/cases/${caseId}/packages/regenerate`, {});
+      setSev1Log(prev => ({ ...prev, regenerateOk: true }));
+      setLog("패키지 재생성 성공");
+    } catch (e: any) {
+      setSev1Log(prev => ({ ...prev, regenerateOk: false }));
+      setLog(`패키지 재생성 실패: ${e?.message || e}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doValidate() {
+    setBusy(true);
+    try {
+      const token = await ensureLogin();
+      const resp = await fetch(`${apiBase}/v1/cases/${caseId}/packages/validate`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const reqId = resp.headers.get("X-Request-Id") || "unknown";
+      const json = await resp.json();
+      if (!resp.ok || !json.ok) {
+         setSev1Log(prev => ({ ...prev, validateData: null, reqId: json.error?.requestId || reqId }));
+         throw new Error(json.error?.messageKo || "요청 실패");
+      }
+      setSev1Log(prev => ({ ...prev, validateData: json.data, reqId }));
+      setLog(`재검증 성공 (evidenceId: ${json.data?.evidenceId})`);
+      await loadCaseDetailWithId(caseId);
+    } catch (e: any) {
+      setLog(`재검증 실패: ${e?.message || e}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function copySev1Log() {
+    const text = `[Sev1 핫픽스 대응] caseId: ${caseId}
+- 패키지 재생성: ${sev1Log.regenerateOk ? "성공" : "실패/미수행"}
+- 재검증 결과: ${sev1Log.validateData ? `ok(${sev1Log.validateData.ok}), evidenceId: ${sev1Log.validateData.evidenceId}` : "실패/미수행"}
+- Request ID: ${sev1Log.reqId || "N/A"}`;
+    navigator.clipboard.writeText(text).then(() => setLog("운영 로그용 3줄 복사 완료")).catch(e => setLog("복사 실패: " + e));
   }
 
   async function loadSettlements() {
@@ -386,7 +445,11 @@ ${acLines}
                       <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>{item.title}</td>
                       <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>{item.impactCount}건</td>
                       <td style={{ borderBottom: "1px solid #eee", padding: 6, fontSize: "0.9em", color: "#666" }}>
-                        {item.sampleCaseIds.join(", ")}
+                        {item.sampleCaseIds.map((cid: string) => (
+                          <span key={cid} style={{ cursor: "pointer", textDecoration: "underline", marginRight: 8, color: "#1890ff" }} onClick={() => handleLoadCaseFromBacklog(cid)}>
+                            {cid}
+                          </span>
+                        ))}
                       </td>
                     </tr>
                   ))}
@@ -499,6 +562,25 @@ ${acLines}
                 </table>
               )}
             </div>
+
+            {/* E. Sev1 핫픽스 대응 (접수증 누락 등) */}
+            {gateEvidences?.[0]?.missing?.includes("slot_filing_receipt") && (
+              <div style={{ padding: 12, background: "#ffebee", borderRadius: 6, border: "1px solid #ffcdd2" }}>
+                <h3 style={{ margin: "0 0 8px 0", color: "#d32f2f" }}>E. Sev1 핫픽스 (접수증 누락 대응)</h3>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <button disabled={busy} onClick={doRegenerate} style={{ background: "#d32f2f", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>1. 패키지 재생성</button>
+                  <button disabled={busy} onClick={doValidate} style={{ background: "#d32f2f", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>2. Gate 재검증</button>
+                  <button disabled={!sev1Log.reqId} onClick={copySev1Log} style={{ background: "#424242", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>[운영 로그용 3줄 복사]</button>
+                </div>
+                {sev1Log.reqId && (
+                  <div style={{ marginTop: 8, fontSize: "0.9em", color: "#d32f2f" }}>
+                    <div>재생성: {sev1Log.regenerateOk ? "✅ 성공" : "-"}</div>
+                    <div>재검증: {sev1Log.validateData ? `✅ evidenceId: ${sev1Log.validateData.evidenceId} (ok: ${sev1Log.validateData.ok})` : "❌ 실패"}</div>
+                    <div>Req ID: {sev1Log.reqId}</div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

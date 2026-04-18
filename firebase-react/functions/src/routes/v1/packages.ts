@@ -800,11 +800,17 @@ export function registerPackageRoutes(app: express.Express, adminApp: typeof adm
     try {
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
-      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      if (!isOps(auth)) {
+        logError({ endpoint: "/v1/ops/cases/:caseId/packages/regenerate", caseId: req.params.caseId, code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
 
       const caseId = req.params.caseId;
       const cs = await caseRef(adminApp, caseId).get();
-      if (!cs.exists) return fail(res, 404, "NOT_FOUND", "케이스를 찾을 수 없습니다.");
+      if (!cs.exists) {
+        logError({ endpoint: "/v1/ops/cases/:caseId/packages/regenerate", caseId, code: "NOT_FOUND", messageKo: "케이스를 찾을 수 없습니다." });
+        return fail(res, 404, "NOT_FOUND", "케이스를 찾을 수 없습니다.");
+      }
 
       // 실제로는 별도의 큐나 비동기 워크플로우를 트리거할 수 있지만, 
       // MVP에서는 즉시 생성 여부를 테스트하는 것으로 대체
@@ -818,6 +824,8 @@ export function registerPackageRoutes(app: express.Express, adminApp: typeof adm
         }
       });
     } catch (err: any) {
+      const caseId = req.params.caseId || "unknown";
+      logError({ endpoint: "/v1/ops/cases/:caseId/packages/regenerate", caseId, code: "INTERNAL", messageKo: "재생성 실패", err });
       console.error("Regenerate Failed:", err);
       return fail(res, 500, "INTERNAL", `재생성 실패: ${err.message || "알 수 없는 오류"}`);
     }
