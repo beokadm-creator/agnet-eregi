@@ -7,6 +7,20 @@ interface Props {
   busy: boolean;
 }
 
+const slotLabelMap: Record<string, string> = {
+  "slot_corp_seal_cert": "법인인감증명서",
+  "slot_corp_registry": "법인등기부등본",
+  "slot_minutes_signed": "의사록 (서명본)",
+  "slot_power_of_attorney_signed": "위임장 (서명본)",
+  "slot_filing_receipt": "접수증",
+  "slot_resignation_letter_signed": "사임서 (서명본)",
+  "slot_acceptance_letter_signed": "취임승낙서 (서명본)"
+};
+
+function getSlotLabel(slotId: string): string {
+  return slotLabelMap[slotId] || slotId;
+}
+
 export function CompletionPanel({ caseId, onLog, busy }: Props) {
   const [validation, setValidation] = useState<any | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -93,14 +107,23 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
   };
 
   const handleCopyEvidence = async () => {
-    if (!evidenceId) return;
-    const text = `[Pilot Gate] caseId: ${caseId} | evidenceId: ${evidenceId} | status: ✅ | missing: 0`;
+    if (!validation) return;
+    const evId = evidenceId || validation.evidenceId || "unknown";
+    const ok = validation.ok;
+    const missingCount = Array.isArray(validation.missing) ? validation.missing.length : 0;
+    
+    let text = `[Pilot Gate] caseId: ${caseId} | evidenceId: ${evId} | status: ${ok ? "✅" : "❌"} | missingCount: ${missingCount}`;
+    if (!ok && missingCount > 0) {
+      text += ` | missing: ${validation.missing.join(",")}`;
+    }
+
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      onLog("증거 복사 완료");
     } catch (e) {
-      onLog("복사 실패");
+      onLog("증거 복사 실패");
     }
   };
 
@@ -145,19 +168,17 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
       )}
 
       {validation && (
-        <div style={{ marginTop: 12, textAlign: "left", background: "#fff", border: "1px solid #d9f7be", borderRadius: 8, padding: 12, fontSize: 13 }}>
+        <div style={{ marginTop: 12, textAlign: "left", background: "#fff", border: `1px solid ${validation.ok ? "#d9f7be" : "#ffa39e"}`, borderRadius: 8, padding: 12, fontSize: 13 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <div style={{ fontWeight: 700, color: validation.ok ? "#389e0d" : "#cf1322" }}>
               {validation.ok ? "✅ signed/ 및 접수증 포함 확인됨" : "⚠️ 누락된 파일이 있습니다"}
             </div>
-            {validation.ok && evidenceId && (
-              <button 
-                onClick={handleCopyEvidence}
-                style={{ padding: "4px 8px", fontSize: 12, background: copied ? "#52c41a" : "#fff", color: copied ? "#fff" : "#1890ff", border: `1px solid ${copied ? "#52c41a" : "#1890ff"}`, borderRadius: 4, cursor: "pointer" }}
-              >
-                {copied ? "복사됨!" : "증거 복사"}
-              </button>
-            )}
+            <button 
+              onClick={handleCopyEvidence}
+              style={{ padding: "4px 8px", fontSize: 12, background: copied ? "#52c41a" : "#fff", color: copied ? "#fff" : "#1890ff", border: `1px solid ${copied ? "#52c41a" : "#1890ff"}`, borderRadius: 4, cursor: "pointer" }}
+            >
+              {copied ? "복사됨!" : "증거 복사"}
+            </button>
           </div>
           {evidenceId && (
             <div style={{ fontSize: 11, color: "#8c8c8c", marginBottom: 8 }}>
@@ -165,9 +186,16 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
             </div>
           )}
           {Array.isArray(validation.missing) && validation.missing.length > 0 && (
-            <div style={{ marginBottom: 8 }}>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>누락:</div>
-              <div style={{ color: "#cf1322" }}>{validation.missing.join(", ")}</div>
+            <div style={{ marginBottom: 12, background: "#fff1f0", padding: 8, borderRadius: 4, border: "1px solid #ffccc7" }}>
+              <div style={{ fontWeight: 600, marginBottom: 4, color: "#cf1322" }}>다음 액션 가이드:</div>
+              <div style={{ color: "#cf1322", marginBottom: 8 }}>누락된 서명본/접수증을 업로드한 뒤 다시 ‘ZIP 포함 파일 검증’을 눌러주세요.</div>
+              <ul style={{ margin: 0, paddingLeft: 20, color: "#cf1322" }}>
+                {validation.missing.map((slot: string) => (
+                  <li key={slot}>
+                    {getSlotLabel(slot)} <span style={{ fontSize: "0.8em", color: "#ff4d4f" }}>({slot})</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
           <div style={{ color: "#666" }}>
