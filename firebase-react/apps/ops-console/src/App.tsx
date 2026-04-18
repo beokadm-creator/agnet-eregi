@@ -116,6 +116,35 @@ ${acLines}
       .catch((e) => setLog(`백로그 복사 실패: ${e}`));
   }
 
+  async function downloadWeeklyBacklog() {
+    setBusy(true);
+    try {
+      const token = await ensureLogin();
+      const resp = await fetch(`${apiBase}/v1/ops/reports/pilot-gate/backlog.md`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!resp.ok) {
+        throw new Error(`주간 백로그 다운로드 실패: ${resp.status}`);
+      }
+      const blob = await resp.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const contentDisposition = resp.headers.get("Content-Disposition") || "";
+      const match = contentDisposition.match(/filename="?([^"]+)"?/);
+      a.download = match ? match[1] : "weekly_backlog.md";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      setLog("주간 백로그 다운로드 완료");
+    } catch (e: any) {
+      setLog(String(e?.message || e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function becomeOpsApprover() {
     setBusy(true);
     try {
@@ -335,13 +364,16 @@ ${acLines}
             />
           </label>
           <button disabled={busy || !backlogDate} onClick={loadBacklog}>
-            백로그 후보 생성
+            일일 백로그 후보 생성
           </button>
           {backlogItems.length > 0 && (
             <button onClick={copyBacklog} style={{ background: "#2196f3", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
               복사 (스프린트 백로그용)
             </button>
           )}
+          <button disabled={busy} onClick={downloadWeeklyBacklog} style={{ background: "#9c27b0", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", marginLeft: "auto" }}>
+            주간 리뷰용 다운로드 (최근 7일 .md)
+          </button>
         </div>
         
         {backlogItems.length > 0 && (

@@ -166,6 +166,99 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     });
   });
 
+  // 주간 리뷰용 내보내기 (markdown export)
+  app.get("/v1/ops/reports/pilot-gate/backlog.md", async (req, res) => {
+    const auth = await requireAuth(adminApp, req, res);
+    if (!auth) return;
+    if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+    const { week } = req.query; // YYYY-WW 형태, 없을 경우 지난 7일 기준
+    let startDate: Date;
+    let endDate: Date;
+
+    if (week && typeof week === "string" && week.match(/^\d{4}-W\d{2}$/)) {
+      const [yearStr, weekStr] = week.split("-W");
+      const year = parseInt(yearStr, 10);
+      const w = parseInt(weekStr, 10);
+      // 간단한 주차 계산 (단순화: 1월 1일을 포함하는 주를 1주차로 계산)
+      const jan1 = new Date(year, 0, 1);
+      const daysOffset = (w - 1) * 7;
+      startDate = new Date(year, 0, 1 + daysOffset - jan1.getDay());
+      endDate = new Date(startDate.getTime());
+      endDate.setDate(startDate.getDate() + 6);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      // 기본값: 오늘 기준 과거 7일
+      endDate = new Date();
+      endDate.setHours(23, 59, 59, 999);
+      startDate = new Date(endDate.getTime());
+      startDate.setDate(endDate.getDate() - 6);
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    const snapshot = await adminApp.firestore()
+      .collection("pilot_gate_evidence")
+      .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startDate))
+      .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endDate))
+      .get();
+
+    const docs = snapshot.docs.map(d => d.data());
+
+    const missingStats: Record<string, { impactCount: number, evidenceIds: Set<string>, sampleCaseIds: Set<string> }> = {};
+    for (const d of docs) {
+      if (d.ok === false || d.status === "fail") {
+        const evId = d.evidenceId;
+        const caseId = d.caseId;
+        for (const m of (d.missing || [])) {
+          if (!missingStats[m]) missingStats[m] = { impactCount: 0, evidenceIds: new Set(), sampleCaseIds: new Set() };
+          missingStats[m].impactCount++;
+          missingStats[m].evidenceIds.add(evId);
+          missingStats[m].sampleCaseIds.add(caseId);
+        }
+      }
+    }
+
+    const items = Object.entries(missingStats).map(([slotId, stats]) => {
+      let severity = 3;
+      if (slotId === "slot_filing_receipt") severity = 1;
+      else if (slotId.endsWith("_signed")) severity = 2;
+
+      return {
+        title: `[게이트 누락] ${slotId} 검증 실패 자동화 대응`,
+        severity,
+        impactCount: stats.impactCount,
+        evidenceIds: Array.from(stats.evidenceIds).slice(0, 3),
+        sampleCaseIds: Array.from(stats.sampleCaseIds).slice(0, 3),
+        reproSteps: `1. 파트너 콘솔에서 ${slotId} 업로드 누락 또는 API 오류 확인\n2. ${slotId} 제출 로직 디버깅`,
+        acceptanceCriteria: `1. ${slotId} 파일이 정상적으로 Storage에 업로드됨\n2. Gate 검증 API 호출 시 missing 배열에 ${slotId}가 포함되지 않음\n3. ok: true 달성`
+      };
+    });
+
+    items.sort((a, b) => a.severity - b.severity || b.impactCount - a.impactCount);
+
+    const titleDateStr = `${startDate.toLocaleDateString("en-CA")} ~ ${endDate.toLocaleDateString("en-CA")}`;
+    let markdown = `# 주간 Gate 검증 백로그 리뷰 (${titleDateStr})\n\n`;
+    
+    if (items.length === 0) {
+      markdown += "해당 기간 동안 Gate 검증 실패(누락) 사례가 없습니다.\n";
+    } else {
+      for (const item of items) {
+        markdown += `### ${item.title}\n`;
+        markdown += `- **Sev**: ${item.severity}\n`;
+        markdown += `- **영향도**: ${item.impactCount}건 발생\n`;
+        markdown += `- **샘플 케이스**: ${item.sampleCaseIds.join(", ") || "없음"}\n`;
+        markdown += `- **재현 단계**:\n${item.reproSteps.split("\\n").map(l => "  " + l).join("\\n")}\n`;
+        markdown += `- **AC (Acceptance Criteria)**:\n${item.acceptanceCriteria.split("\\n").map(l => "  " + l).join("\\n")}\n`;
+        markdown += `- **Owner**: \n`;
+        markdown += `- **ETA**: \n\n`;
+      }
+    }
+
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="backlog_${titleDateStr.replace(/ /g, "_")}.md"`);
+    return res.status(200).send(markdown);
+  });
+
   // 케이스 종료 리포트(DOCX) - 케이스 참여자/ops
   app.get("/v1/cases/:caseId/reports/closing.docx", async (req, res) => {
     const auth = await requireAuth(adminApp, req, res);
