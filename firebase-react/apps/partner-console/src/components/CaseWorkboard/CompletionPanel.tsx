@@ -26,6 +26,7 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [validating, setValidating] = useState(false);
   const [evidenceId, setEvidenceId] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const downloadSubmissionPackage = async () => {
@@ -84,19 +85,23 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
     setValidating(true);
     setValidation(null);
     setValidationError(null);
+    setRequestId(null);
     try {
       const token = await ensureLogin();
       const resp = await fetch(`${apiBase}/v1/cases/${caseId}/packages/validate`, {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` }
       });
+      const reqId = resp.headers.get("X-Request-Id") || "unknown";
+      setRequestId(reqId);
       const json = await resp.json().catch(() => null);
       if (!resp.ok || !json?.ok) {
+        if (json?.error?.requestId) setRequestId(json.error.requestId);
         throw new Error(json?.error?.messageKo || "검증 요청 실패");
       }
       setValidation(json.data);
       if (json.data.evidenceId) setEvidenceId(json.data.evidenceId);
-      onLog("validated package presence");
+      onLog(`validated package presence (requestId: ${reqId})`);
     } catch (e: any) {
       const msg = String(e?.message || e);
       setValidationError(msg);
@@ -107,12 +112,13 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
   };
 
   const handleCopyEvidence = async () => {
-    if (!validation) return;
-    const evId = evidenceId || validation.evidenceId || "unknown";
-    const ok = validation.ok;
-    const missingCount = Array.isArray(validation.missing) ? validation.missing.length : 0;
+    if (!validation && !validationError) return;
+    const evId = evidenceId || validation?.evidenceId || "unknown";
+    const ok = validation?.ok ?? false;
+    const missingCount = Array.isArray(validation?.missing) ? validation.missing.length : 0;
+    const reqId = requestId || "N/A";
     
-    let text = `[Pilot Gate] caseId: ${caseId} | evidenceId: ${evId} | status: ${ok ? "✅" : "❌"} | missingCount: ${missingCount}`;
+    let text = `[Pilot Gate] caseId: ${caseId} | evidenceId: ${evId} | status: ${ok ? "✅" : "❌"} | missingCount: ${missingCount} | requestId: ${reqId}`;
     if (!ok && missingCount > 0) {
       text += ` | missing: ${validation.missing.join(",")}`;
     }
@@ -162,8 +168,21 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
       </div>
 
       {validationError && (
-        <div style={{ marginTop: 12, color: "#cf1322", fontSize: 13 }}>
-          검증 실패: {validationError}
+        <div style={{ marginTop: 12, padding: 8, background: "#fff1f0", border: "1px solid #ffccc7", color: "#cf1322", borderRadius: 4, fontSize: 13 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <strong>검증 오류:</strong> {validationError}
+            </div>
+            <button 
+              onClick={handleCopyEvidence}
+              style={{ padding: "4px 8px", fontSize: 12, background: copied ? "#52c41a" : "#fff", color: copied ? "#fff" : "#1890ff", border: `1px solid ${copied ? "#52c41a" : "#1890ff"}`, borderRadius: 4, cursor: "pointer" }}
+            >
+              {copied ? "복사됨!" : "에러 복사"}
+            </button>
+          </div>
+          <div style={{ marginTop: 8, fontWeight: "bold" }}>다음 액션 가이드:</div>
+          <div>서류 업로드 상태를 확인한 후 다시 검증을 시도해주세요.</div>
+          {requestId && <div style={{ fontSize: 11, color: "#8c8c8c", marginTop: 4 }}>Request ID: {requestId}</div>}
         </div>
       )}
 
@@ -183,6 +202,7 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
           {evidenceId && (
             <div style={{ fontSize: 11, color: "#8c8c8c", marginBottom: 8 }}>
               Evidence ID: {evidenceId}
+              {requestId && <span style={{ marginLeft: 8 }}>| Request ID: {requestId}</span>}
             </div>
           )}
           {Array.isArray(validation.missing) && validation.missing.length > 0 && (
@@ -193,6 +213,9 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
                 {validation.missing.map((slot: string) => (
                   <li key={slot}>
                     {getSlotLabel(slot)} <span style={{ fontSize: "0.8em", color: "#ff4d4f" }}>({slot})</span>
+                    <div style={{ fontSize: "0.85em", color: "#666", marginTop: 2 }}>
+                      👉 {slot.includes("receipt") ? "접수증 영역에서" : "서명본 패널에서"} 파일을 확인하고 다시 업로드해주세요.
+                    </div>
                   </li>
                 ))}
               </ul>
