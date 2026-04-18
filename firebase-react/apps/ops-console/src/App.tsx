@@ -14,18 +14,15 @@ function App() {
   const [caseDetail, setCaseDetail] = useState<any | null>(null);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
-  const [quotes, setQuotes] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [refunds, setRefunds] = useState<any[]>([]);
+  const [gateEvidences, setGateEvidences] = useState<any[]>([]);
   const [settlements, setSettlements] = useState<any[]>([]);
   const [settlementPartnerId, setSettlementPartnerId] = useState<string>("p_demo_01");
   const [periodFrom, setPeriodFrom] = useState<string>("2026-01-01");
   const [periodTo, setPeriodTo] = useState<string>("2026-01-31");
   const [settlementIdForItems, setSettlementIdForItems] = useState<string>("");
   const [settlementItems, setSettlementItems] = useState<any[]>([]);
-  const [gateDate, setGateDate] = useState<string>(new Date().toLocaleDateString("en-CA").split("/").reverse().join("-"));
+  const [summaryDate, setSummaryDate] = useState<string>(new Date().toLocaleDateString("en-CA").split("/").reverse().join("-"));
   const [gateReportText, setGateReportText] = useState<string>("");
-  const [backlogDate, setBacklogDate] = useState<string>(new Date().toLocaleDateString("en-CA").split("/").reverse().join("-"));
   const [backlogItems, setBacklogItems] = useState<any[]>([]);
 
   async function ensureLogin() {
@@ -57,13 +54,18 @@ function App() {
     return json.data;
   }
 
-  async function loadGateReport() {
+  async function loadSummary() {
     setBusy(true);
     setGateReportText("");
+    setBacklogItems([]);
     try {
-      const data = await apiGet(`/v1/ops/reports/pilot-gate/daily?date=${gateDate}`);
-      setGateReportText(data.copyText || "");
-      setLog("Gate 집계 로드 성공");
+      const gateData = await apiGet(`/v1/ops/reports/pilot-gate/daily?date=${summaryDate}`);
+      setGateReportText(gateData.copyText || "");
+      
+      const backlogData = await apiPost(`/v1/ops/reports/pilot-gate/backlog`, { date: summaryDate, topN: 3 });
+      setBacklogItems(backlogData.items || []);
+      
+      setLog(`오늘 운영 요약 로드 성공: 집계 완료, 백로그 후보 ${backlogData.items?.length ?? 0}건`);
     } catch (e: any) {
       setLog(String(e?.message || e));
     } finally {
@@ -74,22 +76,8 @@ function App() {
   function copyGateReport() {
     if (!gateReportText) return;
     navigator.clipboard.writeText(gateReportText)
-      .then(() => setLog("복사 완료"))
+      .then(() => setLog("복사 완료 (운영 로그용)"))
       .catch((e) => setLog(`복사 실패: ${e}`));
-  }
-
-  async function loadBacklog() {
-    setBusy(true);
-    setBacklogItems([]);
-    try {
-      const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog`, { date: backlogDate, topN: 3 });
-      setBacklogItems(data.items || []);
-      setLog(`백로그 후보 로드 성공: ${data.items?.length ?? 0}건`);
-    } catch (e: any) {
-      setLog(String(e?.message || e));
-    } finally {
-      setBusy(false);
-    }
   }
 
   function copyBacklog() {
@@ -215,15 +203,18 @@ ${acLines}
       const c = await apiGet(`/v1/cases/${caseId}`);
       const t = await apiGet(`/v1/cases/${caseId}/timeline?limit=50`);
       const d = await apiGet(`/v1/cases/${caseId}/documents`);
-      const q = await apiGet(`/v1/cases/${caseId}/quotes`);
-      const p = await apiGet(`/v1/cases/${caseId}/payments`);
-      const r = await apiGet(`/v1/cases/${caseId}/refunds`);
+      
+      let g = { evidences: [] };
+      try {
+        g = await apiGet(`/v1/ops/reports/pilot-gate/by-case?caseId=${caseId}&limit=10`);
+      } catch (ge) {
+        console.warn("gate evidence 로드 실패:", ge);
+      }
+
       setCaseDetail(c.case);
       setTimeline(t.items || []);
       setDocuments(d.items || []);
-      setQuotes(q.items || []);
-      setPayments(p.items || []);
-      setRefunds(r.items || []);
+      setGateEvidences(g.evidences || []);
       setLog("case detail loaded");
     } catch (e: any) {
       setLog(String(e?.message || e));
@@ -320,94 +311,92 @@ ${acLines}
       </div>
 
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f9f9f9" }}>
-        <h2 style={{ margin: "0 0 8px 0", color: "#333" }}>일일 Gate 집계</h2>
+        <h2 style={{ margin: "0 0 8px 0", color: "#333" }}>오늘 운영 요약</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <label>
             대상 일자:{" "}
             <input
               type="date"
-              value={gateDate}
-              onChange={(e) => setGateDate(e.target.value)}
+              value={summaryDate}
+              onChange={(e) => setSummaryDate(e.target.value)}
               disabled={busy}
               style={{ padding: 6 }}
             />
           </label>
-          <button disabled={busy || !gateDate} onClick={loadGateReport}>
-            집계 가져오기
+          <button disabled={busy || !summaryDate} onClick={loadSummary}>
+            오늘 요약 가져오기
           </button>
-        </div>
-        {gateReportText && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <button onClick={copyGateReport} style={{ background: "#4caf50", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
-                복사 (운영 로그용)
-              </button>
-            </div>
-            <pre style={{ margin: 0, padding: 12, background: "#fff", border: "1px solid #ddd", borderRadius: 4, whiteSpace: "pre-wrap", wordWrap: "break-word" }}>
-              {gateReportText}
-            </pre>
-          </div>
-        )}
-      </div>
-
-      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f0f8ff" }}>
-        <h2 style={{ margin: "0 0 8px 0", color: "#333" }}>자동 백로그 후보 생성</h2>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <label>
-            대상 일자:{" "}
-            <input
-              type="date"
-              value={backlogDate}
-              onChange={(e) => setBacklogDate(e.target.value)}
-              disabled={busy}
-              style={{ padding: 6 }}
-            />
-          </label>
-          <button disabled={busy || !backlogDate} onClick={loadBacklog}>
-            일일 백로그 후보 생성
-          </button>
-          {backlogItems.length > 0 && (
-            <button onClick={copyBacklog} style={{ background: "#2196f3", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
-              복사 (스프린트 백로그용)
-            </button>
-          )}
           <button disabled={busy} onClick={downloadWeeklyBacklog} style={{ background: "#9c27b0", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", marginLeft: "auto" }}>
             주간 리뷰용 다운로드 (최근 7일 .md)
           </button>
         </div>
         
-        {backlogItems.length > 0 && (
-          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12, background: "#fff" }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 8 }}>Sev</th>
-                <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 8 }}>제목</th>
-                <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 8 }}>영향도</th>
-                <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 8 }}>샘플케이스</th>
-              </tr>
-            </thead>
-            <tbody>
-              {backlogItems.map((item, idx) => (
-                <tr key={idx}>
-                  <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
-                    <span style={{ 
-                      background: item.severity === 1 ? "#ffebee" : item.severity === 2 ? "#fff3e0" : "#f5f5f5", 
-                      color: item.severity === 1 ? "#d32f2f" : item.severity === 2 ? "#e64a19" : "#616161",
-                      padding: "2px 6px", borderRadius: 4, fontWeight: "bold" 
-                    }}>
-                      Sev{item.severity}
-                    </span>
-                  </td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>{item.title}</td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>{item.impactCount}건</td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: 8, fontSize: "0.9em", color: "#666" }}>
-                    {item.sampleCaseIds.join(", ")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
+          {/* 일일 Gate 집계 영역 */}
+          <div style={{ flex: "1 1 300px", background: "#fff", padding: 12, border: "1px solid #eee", borderRadius: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <h3 style={{ margin: 0, fontSize: "1.1em" }}>A. 일일 Gate 집계</h3>
+              {gateReportText && (
+                <button onClick={copyGateReport} style={{ background: "#4caf50", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
+                  [일일 로그용 복사]
+                </button>
+              )}
+            </div>
+            {gateReportText ? (
+              <pre style={{ margin: 0, padding: 8, background: "#f5f5f5", border: "1px solid #ddd", borderRadius: 4, whiteSpace: "pre-wrap", wordWrap: "break-word", fontSize: "0.9em" }}>
+                {gateReportText}
+              </pre>
+            ) : (
+              <div style={{ color: "#999", fontSize: "0.9em" }}>요약을 가져오면 표시됩니다.</div>
+            )}
+          </div>
+
+          {/* 백로그 후보 영역 */}
+          <div style={{ flex: "2 1 400px", background: "#fff", padding: 12, border: "1px solid #eee", borderRadius: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <h3 style={{ margin: 0, fontSize: "1.1em" }}>B. 백로그 후보</h3>
+              {backlogItems.length > 0 && (
+                <button onClick={copyBacklog} style={{ background: "#2196f3", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
+                  [스프린트 백로그용 복사]
+                </button>
+              )}
+            </div>
+            {backlogItems.length > 0 ? (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6 }}>Sev</th>
+                    <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6 }}>제목</th>
+                    <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6 }}>영향도</th>
+                    <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6 }}>샘플케이스</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {backlogItems.map((item, idx) => (
+                    <tr key={idx}>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                        <span style={{ 
+                          background: item.severity === 1 ? "#ffebee" : item.severity === 2 ? "#fff3e0" : "#f5f5f5", 
+                          color: item.severity === 1 ? "#d32f2f" : item.severity === 2 ? "#e64a19" : "#616161",
+                          padding: "2px 6px", borderRadius: 4, fontWeight: "bold" 
+                        }}>
+                          Sev{item.severity}
+                        </span>
+                      </td>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>{item.title}</td>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>{item.impactCount}건</td>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6, fontSize: "0.9em", color: "#666" }}>
+                        {item.sampleCaseIds.join(", ")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div style={{ color: "#999", fontSize: "0.9em" }}>백로그 후보가 없거나 요약을 가져오지 않았습니다.</div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
@@ -417,32 +406,99 @@ ${acLines}
             caseId{" "}
             <input value={caseId} onChange={(e) => setCaseId(e.target.value)} style={{ width: 360, padding: 6 }} />
           </label>
-          <button disabled={busy} onClick={loadCaseDetail}>케이스 상세 로드</button>
+          <button disabled={busy} onClick={loadCaseDetail}>조회</button>
         </div>
         {caseDetail && (
-          <div style={{ marginTop: 12 }}>
-            <div><strong>status</strong>: {caseDetail.status}</div>
-            <div><strong>ownerUid</strong>: {caseDetail.ownerUid}</div>
-            <div><strong>partnerId</strong>: {caseDetail.partnerId}</div>
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* A. Case 요약 */}
+            <div style={{ padding: 12, background: "#f5f5f5", borderRadius: 6 }}>
+              <h3 style={{ margin: "0 0 8px 0" }}>A. Case 요약</h3>
+              <div><strong>status</strong>: {caseDetail.status}</div>
+              <div><strong>stage</strong>: {caseDetail.stage || "-"}</div>
+              <div><strong>updatedAt</strong>: {new Date(caseDetail.updatedAt).toLocaleString()}</div>
+              <div><strong>partnerId</strong>: {caseDetail.partnerId}</div>
+            </div>
 
-            <h3 style={{ marginTop: 12 }}>문서</h3>
-            <div style={{ color: "#666" }}>총 {documents.length}건</div>
+            {/* B. Documents 요약 */}
+            <div style={{ padding: 12, background: "#fff3e0", borderRadius: 6 }}>
+              <h3 style={{ margin: "0 0 8px 0" }}>B. Documents (최근 10개)</h3>
+              {documents.length === 0 ? (
+                <div style={{ color: "#666" }}>없음</div>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>slotId</th>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>status</th>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>fileName</th>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>updatedAt</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documents.slice(0, 10).map((d) => {
+                      const v = d.latestVersionId ? d.versions?.[d.latestVersionId] : null;
+                      return (
+                        <tr key={d.id}>
+                          <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{d.slotId}</td>
+                          <td style={{ borderBottom: "1px solid #eee", padding: 4, color: d.status !== "ok" ? "red" : "inherit" }}>{d.status}</td>
+                          <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{v?.fileName || "-"}</td>
+                          <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{new Date(d.updatedAt).toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
 
-            <h3 style={{ marginTop: 12 }}>견적</h3>
-            <div style={{ color: "#666" }}>총 {quotes.length}건</div>
+            {/* C. Timeline 최근 20개 */}
+            <div style={{ padding: 12, background: "#e3f2fd", borderRadius: 6 }}>
+              <h3 style={{ margin: "0 0 8px 0" }}>C. Timeline (최근 20개)</h3>
+              {timeline.length === 0 ? (
+                <div style={{ color: "#666" }}>없음</div>
+              ) : (
+                <ul style={{ margin: 0, paddingLeft: 20, fontSize: "0.9em" }}>
+                  {timeline.slice(0, 20).map((e) => (
+                    <li key={e.id}>
+                      [{new Date(e.occurredAt).toLocaleString()}] {e.type} / {e.summaryKo}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-            <h3 style={{ marginTop: 12 }}>결제</h3>
-            <div style={{ color: "#666" }}>총 {payments.length}건</div>
-
-            <h3 style={{ marginTop: 12 }}>환불</h3>
-            <div style={{ color: "#666" }}>총 {refunds.length}건</div>
-
-            <h3 style={{ marginTop: 12 }}>타임라인(최근)</h3>
-            <ul>
-              {timeline.slice(0, 10).map((e) => (
-                <li key={e.id}>{e.type} / {e.summaryKo}</li>
-              ))}
-            </ul>
+            {/* D. Gate evidence 최근 10개 */}
+            <div style={{ padding: 12, background: "#e8f5e9", borderRadius: 6 }}>
+              <h3 style={{ margin: "0 0 8px 0" }}>D. Gate Evidence (최근 10개)</h3>
+              {/* @ts-ignore */}
+              {typeof gateEvidences === 'undefined' || !gateEvidences || gateEvidences.length === 0 ? (
+                <div style={{ color: "#666" }}>없음</div>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>validatedAt</th>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>ok</th>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>missingCount</th>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>missing[]</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* @ts-ignore */}
+                    {gateEvidences.map((g) => (
+                      <tr key={g.evidenceId}>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{g.validatedAt}</td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 4, color: g.ok ? "green" : "red", fontWeight: "bold" }}>
+                          {g.ok ? "true" : "false"}
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{g.missingCount}</td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{g.missing?.join(", ") || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         )}
       </div>
