@@ -52,12 +52,14 @@ export function fail(
   messageKo: string,
   details?: any
 ) {
+  const req = res.req as any;
+  const requestId = req?.requestId || req?.headers?.["x-request-id"] || req?.body?._requestId || "unknown";
   return res.status(status).json({
     ok: false,
     error: {
       code,
       messageKo,
-      requestId: res.getHeader("X-Request-Id"),
+      requestId,
       details: details ?? {}
     }
   });

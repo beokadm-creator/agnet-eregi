@@ -1,0 +1,62 @@
+import * as admin from "firebase-admin";
+import * as functions from "firebase-functions";
+import cors from "cors";
+import express from "express";
+
+import { requestIdMiddleware, fail, ok } from "./lib/http";
+import { registerFunnelRoutes } from "./routes/v1/funnel";
+import { registerCaseRoutes } from "./routes/v1/cases";
+import { registerRefundRoutes } from "./routes/v1/refunds";
+import { registerApprovalRoutes } from "./routes/v1/approvals";
+import { registerQuoteRoutes } from "./routes/v1/quotes";
+import { registerDevRoutes } from "./routes/v1/dev";
+import { registerPaymentRoutes } from "./routes/v1/payments";
+import { registerPartnerRoutes } from "./routes/v1/partner";
+import { registerDocumentRoutes } from "./routes/v1/documents";
+import { registerSettlementRoutes } from "./routes/v1/settlements";
+import { registerPayablesRoutes } from "./routes/v1/payables";
+import { registerWorkflowRoutes } from "./routes/v1/workflow";
+import { registerTaskRoutes } from "./routes/v1/tasks";
+import { registerFilingRoutes } from "./routes/v1/filing";
+import { registerReportRoutes } from "./routes/v1/reports";
+import { registerPackageRoutes } from "./routes/v1/packages";
+import { registerFormRoutes } from "./routes/v1/forms";
+
+admin.initializeApp();
+
+const app = express();
+app.use(cors({ origin: true }));
+app.use(requestIdMiddleware);
+// 웹훅 서명 검증을 위해 rawBody를 보관한다.
+app.use(
+  express.json({
+    limit: "2mb",
+    verify: (req, _res, buf) => {
+      (req as any).rawBody = buf;
+    }
+  })
+);
+
+// v1 routes
+registerFunnelRoutes(app, admin);
+registerCaseRoutes(app, admin);
+registerRefundRoutes(app, admin);
+registerApprovalRoutes(app, admin);
+registerQuoteRoutes(app, admin);
+registerPaymentRoutes(app, admin);
+registerPartnerRoutes(app, admin);
+registerDocumentRoutes(app, admin);
+registerSettlementRoutes(app, admin);
+registerPayablesRoutes(app, admin);
+registerWorkflowRoutes(app, admin);
+registerTaskRoutes(app, admin);
+registerFilingRoutes(app, admin);
+registerReportRoutes(app, admin);
+registerPackageRoutes(app, admin);
+registerFormRoutes(app, admin);
+registerDevRoutes(app, admin);
+
+app.get("/health", async (_req, res) => ok(res, { status: "ok" }));
+app.use((_req, res) => fail(res, 404, "NOT_FOUND", "존재하지 않는 엔드포인트입니다."));
+
+export const api = functions.region("asia-northeast3").https.onRequest(app);
