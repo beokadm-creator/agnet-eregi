@@ -1,0 +1,97 @@
+specVersion: 0.2
+title: "가격 규칙 DSL(기본가+가산) — 사건팩 기반"
+description: >
+  파트너가 사건팩별 가격을 ‘표준 포맷’으로 등록하게 하여,
+  사용자는 비교 가능하고 AI는 자동 견적(범위/전제조건 포함)을 산출할 수 있다.
+
+concepts:
+  - basePrice: "사건팩 기본 보수(수행자 보수)."
+  - legalFees: "법정비용/실비(플랫폼/파트너가 ‘대납’할 수는 있으나 수익 항목이 아님)."
+  - adders: "조건부 가산(긴급, 관할 변경, 외국인 포함 등)."
+  - priceRange: "불확실성이 있는 경우 min/max 범위를 허용."
+
+expressionLanguage:
+  fields:
+    # 사건 입력/사건팩에서 나오는 표준 필드(예시)
+    - deadlineHours
+    - jurisdictionChanged
+    - hasForeignOfficer
+    - stakeholdersCount
+    - isDispute
+  operators: ["==","!=",">",">=","<","<=","in","and","or"]
+
+priceRuleFile:
+  partnerId: "P-000001"
+  currency: "KRW"
+  version: "v1"
+
+  casePacks:
+    corp.incorporation:
+      basePrice:
+        min: 200000
+        max: 250000
+        noteKo: "표준 케이스 기준. 서류 검토 후 확정."
+      adders:
+        - id: ADD_URGENT
+          nameKo: "긴급 가산(72시간 이내)"
+          when: "deadlineHours != null and deadlineHours <= 72"
+          amount:
+            min: 50000
+            max: 100000
+          affectsEtaHours: +24
+          disclosureKo: "긴급 처리 요청 시 추가 비용이 발생할 수 있습니다."
+
+        - id: ADD_FOREIGN
+          nameKo: "외국인/재외국민 포함"
+          when: "hasForeignOfficer == true"
+          amount:
+            min: 80000
+            max: 150000
+          affectsEtaHours: +24
+          disclosureKo: "신원/주소 확인 및 추가 서류로 인해 시간이 늘어날 수 있습니다."
+
+      legalFeesPolicy:
+        mode: "pass_through"
+        noteKo: "법정비용은 실비로 별도 청구될 수 있습니다."
+
+      quotePolicy:
+        # 자동 견적을 어디까지 허용할지
+        autoQuote:
+          enabled: true
+          confidence: "medium"
+          finalizeAfter:
+            event: "DOC_REVIEW_PASSED"
+            requiresHumanApproval: true
+
+    corp.officer_change:
+      basePrice: { min: 150000, max: 220000, noteKo: "변경 유형/직위 수에 따라 달라질 수 있음." }
+      adders:
+        - id: ADD_DISPUTE
+          nameKo: "분쟁/가처분 동반"
+          when: "isDispute == true"
+          amount: { min: 200000, max: 500000 }
+          affectsEtaHours: +48
+          disclosureKo: "분쟁 케이스는 수동 검토 후 진행 가능 여부/비용이 확정됩니다."
+      legalFeesPolicy: { mode: "pass_through" }
+      quotePolicy:
+        autoQuote: { enabled: true, confidence: "low", finalizeAfter: { event: "MANUAL_REVIEW_DONE", requiresHumanApproval: true } }
+
+    corp.hq_move:
+      basePrice: { min: 150000, max: 230000, noteKo: "관할 변경 여부에 따라 달라질 수 있음." }
+      adders:
+        - id: ADD_JUR
+          nameKo: "관할 변경"
+          when: "jurisdictionChanged == true"
+          amount: { min: 70000, max: 150000 }
+          affectsEtaHours: +24
+          disclosureKo: "관할 변경 시 절차/서류가 추가될 수 있습니다."
+      legalFeesPolicy: { mode: "pass_through" }
+
+uiDisclosureStandard:
+  # 사용자 비교 화면에서 반드시 공통으로 보여줄 항목
+  mustShow:
+    - "예상 총액 범위(min~max)"
+    - "구성: 법정비용(실비) / 수행자 보수 / 플랫폼 수수료"
+    - "가산 조건(발생 조건 + 금액 범위)"
+    - "확정 시점(예: 서류 검토 후 1회 확정)"
+

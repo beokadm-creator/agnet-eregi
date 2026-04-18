@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/spec/contracts/settlement_event.schema.json",
+  "title": "Payment/Refund/Settlement Event Payload Contract — v1",
+  "description": "결제/환불/정산 이벤트 페이로드(회계/정산 엔진 입력)의 단일 계약. 이벤트 envelope 자체는 `events/case_event.schema.json`을 사용한다.",
+  "type": "object",
+  "required": ["version", "eventType", "data"],
+  "properties": {
+    "version": { "type": "string", "const": "v1" },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "PAYMENT_AUTHORIZED",
+        "PAYMENT_CAPTURED",
+        "PAYMENT_FAILED",
+        "PAYMENT_CANCELLED",
+        "REFUND_REQUESTED",
+        "REFUND_APPROVED",
+        "REFUND_EXECUTED",
+        "REFUND_REJECTED",
+        "PLATFORM_FEE_RECOGNIZED",
+        "PARTNER_FEE_HELD",
+        "LEGAL_FEES_HELD",
+        "LEGAL_FEES_PAID",
+        "PARTNER_RECEIVABLE_CREATED",
+        "PARTNER_RECEIVABLE_OFFSET_APPLIED",
+        "SETTLEMENT_TO_PARTNER_CREATED",
+        "SETTLEMENT_TO_PARTNER_PAID",
+        "SETTLEMENT_VOIDED"
+      ]
+    },
+    "data": { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "eventType": { "const": "PAYMENT_AUTHORIZED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/PaymentAuthorizedData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "PAYMENT_CAPTURED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/PaymentCapturedData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "PAYMENT_FAILED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/PaymentFailedData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "PAYMENT_CANCELLED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/PaymentCancelledData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "REFUND_REQUESTED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/RefundRequestedData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "REFUND_APPROVED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/RefundApprovedData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "REFUND_EXECUTED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/RefundExecutedData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "REFUND_REJECTED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/RefundRejectedData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "PLATFORM_FEE_RECOGNIZED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/PlatformFeeRecognizedData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "PARTNER_FEE_HELD" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/PartnerFeeHeldData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "LEGAL_FEES_HELD" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/LegalFeesHeldData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "LEGAL_FEES_PAID" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/LegalFeesPaidData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "PARTNER_RECEIVABLE_CREATED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/PartnerReceivableCreatedData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "PARTNER_RECEIVABLE_OFFSET_APPLIED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/PartnerReceivableOffsetAppliedData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "SETTLEMENT_TO_PARTNER_CREATED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/SettlementToPartnerCreatedData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "SETTLEMENT_TO_PARTNER_PAID" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/SettlementToPartnerPaidData" } } }
+    },
+    {
+      "if": { "properties": { "eventType": { "const": "SETTLEMENT_VOIDED" } } },
+      "then": { "properties": { "data": { "$ref": "#/$defs/SettlementVoidedData" } } }
+    }
+  ],
+  "$defs": {
+    "IsoDateTime": { "type": "string", "format": "date-time" },
+    "Money": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": { "type": "number" },
+        "currency": { "type": "string", "default": "KRW" }
+      },
+      "additionalProperties": false
+    },
+    "PaymentAuthorizedData": {
+      "type": "object",
+      "required": ["paymentId", "caseId", "amount", "method", "pg"],
+      "properties": {
+        "paymentId": { "type": "string" },
+        "caseId": { "type": "string" },
+        "quoteId": { "type": ["string", "null"] },
+        "amount": { "$ref": "#/$defs/Money" },
+        "method": { "type": "string", "enum": ["card", "transfer", "vbank", "easy_pay"] },
+        "pg": { "type": "string" },
+        "pgAuthKey": { "type": ["string", "null"] },
+        "authorizedAt": { "$ref": "#/$defs/IsoDateTime" }
+      },
+      "additionalProperties": false
+    },
+    "PaymentCapturedData": {
+      "type": "object",
+      "required": ["paymentId", "caseId", "amount", "capturedAt"],
+      "properties": {
+        "paymentId": { "type": "string" },
+        "caseId": { "type": "string" },
+        "amount": { "$ref": "#/$defs/Money" },
+        "capturedAt": { "$ref": "#/$defs/IsoDateTime" }
+      },
+      "additionalProperties": false
+    },
+    "PaymentFailedData": {
+      "type": "object",
+      "required": ["paymentId", "caseId", "reasonKo"],
+      "properties": {
+        "paymentId": { "type": "string" },
+        "caseId": { "type": "string" },
+        "pg": { "type": ["string", "null"] },
+        "reasonKo": { "type": "string" },
+        "pgErrorCode": { "type": ["string", "null"] },
+        "failedAt": { "$ref": "#/$defs/IsoDateTime" }
+      },
+      "additionalProperties": false
+    },
+    "PaymentCancelledData": {
+      "type": "object",
+      "required": ["paymentId", "caseId", "cancelledAt"],
+      "properties": {
+        "paymentId": { "type": "string" },
+        "caseId": { "type": "string" },
+        "cancelledAt": { "$ref": "#/$defs/IsoDateTime" },
+        "reasonKo": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "RefundRequestedData": {
+      "type": "object",
+      "required": ["refundId", "paymentId", "caseId", "amount", "reasonKo"],
+      "properties": {
+        "refundId": { "type": "string" },
+        "paymentId": { "type": "string" },
+        "caseId": { "type": "string" },
+        "amount": { "$ref": "#/$defs/Money" },
+        "reasonKo": { "type": "string" },
+        "requestedAt": { "$ref": "#/$defs/IsoDateTime" }
+      },
+      "additionalProperties": false
+    },
+    "RefundApprovedData": {
+      "type": "object",
+      "required": ["refundId", "approved"],
+      "properties": {
+        "refundId": { "type": "string" },
+        "approved": { "type": "boolean" },
+        "approvedAt": { "$ref": "#/$defs/IsoDateTime" }
+      },
+      "additionalProperties": false
+    },
+    "RefundExecutedData": {
+      "type": "object",
+      "required": ["refundId", "paymentId", "caseId", "amount", "executedAt"],
+      "properties": {
+        "refundId": { "type": "string" },
+        "paymentId": { "type": "string" },
+        "caseId": { "type": "string" },
+        "amount": { "$ref": "#/$defs/Money" },
+        "executedAt": { "$ref": "#/$defs/IsoDateTime" }
+      },
+      "additionalProperties": false
+    },
+    "RefundRejectedData": {
+      "type": "object",
+      "required": ["refundId", "caseId", "reasonKo"],
+      "properties": {
+        "refundId": { "type": "string" },
+        "caseId": { "type": "string" },
+        "reasonKo": { "type": "string" },
+        "rejectedAt": { "$ref": "#/$defs/IsoDateTime" }
+      },
+      "additionalProperties": false
+    },
+    "PlatformFeeRecognizedData": {
+      "type": "object",
+      "required": ["caseId", "amount", "recognizedAt"],
+      "properties": {
+        "caseId": { "type": "string" },
+        "amount": { "$ref": "#/$defs/Money" },
+        "recognizedAt": { "$ref": "#/$defs/IsoDateTime" },
+        "basisEventId": { "type": ["string", "null"], "description": "매출 인식 근거 이벤트(예: PAYMENT_CAPTURED)" }
+      },
+      "additionalProperties": false
+    },
+    "PartnerFeeHeldData": {
+      "type": "object",
+      "required": ["caseId", "partnerId", "amount"],
+      "properties": {
+        "caseId": { "type": "string" },
+        "partnerId": { "type": "string" },
+        "amount": { "$ref": "#/$defs/Money" },
+        "basisEventId": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "LegalFeesHeldData": {
+      "type": "object",
+      "required": ["caseId", "amount"],
+      "properties": {
+        "caseId": { "type": "string" },
+        "amount": { "$ref": "#/$defs/Money" },
+        "basisEventId": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "LegalFeesPaidData": {
+      "type": "object",
+      "required": ["caseId", "amount", "paidAt"],
+      "properties": {
+        "caseId": { "type": "string" },
+        "amount": { "$ref": "#/$defs/Money" },
+        "paidAt": { "$ref": "#/$defs/IsoDateTime" },
+        "externalRef": { "type": ["string", "null"], "description": "대납/납부 증빙 ID" }
+      },
+      "additionalProperties": false
+    },
+    "PartnerReceivableCreatedData": {
+      "type": "object",
+      "required": ["receivableId", "partnerId", "amount", "reasonKo", "createdAt"],
+      "properties": {
+        "receivableId": { "type": "string" },
+        "partnerId": { "type": "string" },
+        "caseId": { "type": ["string", "null"] },
+        "amount": { "$ref": "#/$defs/Money" },
+        "reasonKo": { "type": "string" },
+        "sourceEventId": { "type": ["string", "null"], "description": "근거가 된 이벤트 ID(예: REFUND_EXECUTED)" },
+        "createdAt": { "$ref": "#/$defs/IsoDateTime" }
+      },
+      "additionalProperties": false
+    },
+    "PartnerReceivableOffsetAppliedData": {
+      "type": "object",
+      "required": ["partnerId", "receivableId", "settlementId", "amount", "appliedAt"],
+      "properties": {
+        "partnerId": { "type": "string" },
+        "receivableId": { "type": "string" },
+        "settlementId": { "type": "string" },
+        "amount": { "$ref": "#/$defs/Money" },
+        "appliedAt": { "$ref": "#/$defs/IsoDateTime" }
+      },
+      "additionalProperties": false
+    },
+    "SettlementToPartnerCreatedData": {
+      "type": "object",
+      "required": ["settlementId", "caseId", "partnerId", "grossAmount", "platformFee", "netAmount", "period"],
+      "properties": {
+        "settlementId": { "type": "string" },
+        "caseId": { "type": "string" },
+        "partnerId": { "type": "string" },
+        "grossAmount": { "$ref": "#/$defs/Money" },
+        "platformFee": { "$ref": "#/$defs/Money" },
+        "netAmount": { "$ref": "#/$defs/Money" },
+        "period": {
+          "type": "object",
+          "required": ["from", "to"],
+          "properties": {
+            "from": { "$ref": "#/$defs/IsoDateTime" },
+            "to": { "$ref": "#/$defs/IsoDateTime" }
+          },
+          "additionalProperties": false
+        },
+        "createdAt": { "$ref": "#/$defs/IsoDateTime" }
+      },
+      "additionalProperties": false
+    },
+    "SettlementToPartnerPaidData": {
+      "type": "object",
+      "required": ["settlementId", "partnerId", "netAmount", "paidAt", "payoutMethod"],
+      "properties": {
+        "settlementId": { "type": "string" },
+        "partnerId": { "type": "string" },
+        "netAmount": { "$ref": "#/$defs/Money" },
+        "paidAt": { "$ref": "#/$defs/IsoDateTime" },
+        "payoutMethod": { "type": "string", "enum": ["bank_transfer"] },
+        "bankRef": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "SettlementVoidedData": {
+      "type": "object",
+      "required": ["settlementId", "reasonKo"],
+      "properties": {
+        "settlementId": { "type": "string" },
+        "reasonKo": { "type": "string" },
+        "voidedAt": { "$ref": "#/$defs/IsoDateTime" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

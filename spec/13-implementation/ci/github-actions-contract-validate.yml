@@ -1,0 +1,25 @@
+name: Contract Validate
+
+on:
+  push:
+    paths:
+      - "spec/**"
+  pull_request:
+    paths:
+      - "spec/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: |
+          pip install pyyaml jsonschema
+      - name: Validate contracts
+        run: |
+          python spec/13-implementation/tools/validate_contracts.py
+

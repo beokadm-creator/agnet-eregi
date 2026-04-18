@@ -113,15 +113,47 @@ function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!resp.ok) {
-        const reqId = resp.headers.get("X-Request-Id") || "unknown";
         const json = await resp.json().catch(() => ({}));
+        const reqId = resp.headers.get("X-Request-Id") || json?.error?.requestId || "N/A";
         const err = new Error(json?.error?.messageKo || "일일 로그를 불러올 수 없습니다.") as any;
-        err.reqId = json?.error?.requestId || reqId;
+        err.reqId = reqId;
         throw err;
       }
       const text = await resp.text();
       await navigator.clipboard.writeText(text);
       setLog("일일 로그(.md)가 클립보드에 복사되었습니다.");
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function downloadDailyLogMd() {
+    setBusy(true);
+    clearError();
+    try {
+      const token = await ensureLogin();
+      const resp = await fetch(`${apiBase}/v1/ops/reports/pilot-gate/daily.md?date=${summaryDate}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!resp.ok) {
+        const json = await resp.json().catch(() => ({}));
+        const reqId = resp.headers.get("X-Request-Id") || json?.error?.requestId || "N/A";
+        const err = new Error(json?.error?.messageKo || "일일 로그를 다운로드할 수 없습니다.") as any;
+        err.reqId = reqId;
+        throw err;
+      }
+      const blob = await resp.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `daily_log_${summaryDate}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      setLog("일일 로그(.md)가 다운로드되었습니다.");
     } catch (e: any) {
       handleError(e);
     } finally {
@@ -549,6 +581,9 @@ ${acLines}
                   </button>
                   <button onClick={copyDailyLogMd} style={{ background: "#1976d2", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
                     [일일 로그(복붙용) 복사]
+                  </button>
+                  <button onClick={downloadDailyLogMd} style={{ background: "#f57c00", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                    [일일 로그 다운로드]
                   </button>
                 </div>
               )}

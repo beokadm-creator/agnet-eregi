@@ -1,0 +1,140 @@
+specVersion: 0.1
+title: "엔진 오케스트레이션 스펙(UX 연동) — 등기 플랫폼"
+description: >
+  모바일 사용자 퍼널(자연어/카테고리→진단→추천→사건)과
+  PC 파트너/운영 콘솔에서 ‘엔진(규칙+AI)’이 어디서 어떻게 호출되고,
+  어떤 출력이 어떤 UI 컴포넌트로 표출되는지 정의한다.
+
+engines:
+  - id: intent_router
+    nameKo: "인텐트/업무 라우터"
+    type: "ai"
+    purposeKo: "자연어/선택 입력을 사건팩 후보(1~3개)로 매핑하고 필수 질문 생성"
+    inputs: ["intentText", "categoryHint", "userContext(optional)"]
+    outputs:
+      - casePackCandidates: [{casePackId: "string", score: 0.0, reasonKo: "string"}]
+      - questionsToUser: ["string"]
+      - confidence: "low|medium|high"
+    guardrails:
+      - "결론 확정 금지(후보+확률+추가 질문)"
+      - "근거는 사건팩 키워드/분기와 연결"
+
+  - id: casepack_rule_engine
+    nameKo: "사건팩 규칙 엔진"
+    type: "rules"
+    purposeKo: "입력값에 따라 분기 트리 적용, 준비물/체크리스트/상태/SLA/리스크 계산"
+    inputs: ["casePackId", "caseInput"]
+    outputs:
+      - derivedFields
+      - requiredDocuments
+      - checklistItems
+      - depthScore
+      - riskScore
+      - riskFlags
+
+  - id: pricing_engine
+    nameKo: "견적/가격 엔진"
+    type: "rules"
+    purposeKo: "파트너 가격 규칙(기본가+가산)으로 사용자 케이스의 예상 견적 범위를 산출"
+    inputs: ["partnerId", "casePackId", "caseInput", "depthScore", "riskScore"]
+    outputs:
+      - priceRange: {min: 0, max: 0, currency: "KRW"}
+      - breakdown: [{component: "LEGAL_FEES|PROFESSIONAL_FEE|PLATFORM_FEE|ADDERS", min: 0, max: 0}]
+      - assumptions: ["string"]
+    guardrails:
+      - "확정 견적은 QUOTE_FINALIZED 이벤트에서만(사람 승인)"
+
+  - id: eta_engine
+    nameKo: "ETA(소요시간) 엔진"
+    type: "hybrid"
+    purposeKo: "사건팩 기본값 + 분기 가산 + 파트너 SLA 통계 + 현재 용량으로 ETA 범위 산출"
+    inputs: ["casePackId", "caseInput", "riskFlags", "partnerStats", "capacity"]
+    outputs:
+      - etaRange: {minHours: 0, maxHours: 0}
+      - assumptions: ["string"]
+
+  - id: partner_search_ranker
+    nameKo: "파트너 후보 추출/정렬 엔진"
+    type: "hybrid"
+    purposeKo: "사건팩/지역/제외조건/가용성으로 후보 필터링 후 SLA/품질/가격으로 랭킹"
+    inputs: ["casePackId", "caseInput", "depthScore", "riskScore"]
+    outputs:
+      - rankedPartners: [{partnerId: "string", score: 0.0, reasonsKo: ["string"]}]
+      - sponsorPartners: [{partnerId: "string", sponsorLabel: true}]
+    policy:
+      - "광고/스폰서는 별도 영역 + 라벨 고정"
+      - "최저가 정렬 기본 제공 금지(또는 경고/필터 강제)"
+
+  - id: doc_review_engine
+    nameKo: "문서(업로드) 대략 검토 엔진"
+    type: "ai+rules"
+    purposeKo: "문서 슬롯 분류, 누락/불일치 후보 탐지, 보완 메시지 초안 생성(승인 필요)"
+    inputs: ["documentTextExtractOrOcr", "caseInput", "casePackRules"]
+    outputs:
+      - slotPrediction
+      - inconsistencies
+      - missingSlots
+      - fixRecommendations
+      - messageDraft
+    guardrails:
+      - "자동 발송 금지(파트너/운영 승인)"
+      - "근거 문서/필드 포인터 기록(감사)"
+
+  - id: notification_engine
+    nameKo: "알림/재진입 엔진"
+    type: "rules"
+    purposeKo: "다음 할 일/마감/SLA 기반으로 푸시/카톡 알림 트리거"
+    inputs: ["caseState", "todoList", "slaTimers", "userPreferences"]
+    outputs: ["notifications[]"]
+
+uiIntegration:
+  mobile_user:
+    home:
+      calls: ["intent_router"]
+      shows:
+        - component: "SearchBar"
+        - component: "CategoryChips"
+        - component: "ExampleQueries"
+    mini_diagnosis:
+      calls: ["casepack_rule_engine", "partner_search_ranker(optional)", "pricing_engine(optional)", "eta_engine(optional)"]
+      shows:
+        - component: "QuestionCard"
+        - component: "ValuePreviewCard(비용/시간/준비물)"
+    results:
+      calls: ["partner_search_ranker", "pricing_engine", "eta_engine"]
+      shows:
+        - component: "RecommendedPartnerCard(1)"
+        - component: "CompareList(Top3)"
+        - component: "SponsorCarousel(labeled)"
+    partner_detail:
+      calls: ["pricing_engine", "eta_engine"]
+      shows:
+        - component: "MapCard(방문 가능)"
+        - component: "PartnerProfileSummary"
+        - component: "CTA(온라인 진행/방문 예약)"
+    case_workspace:
+      calls: ["doc_review_engine(on upload)", "notification_engine"]
+      shows:
+        - component: "Tabs(요약/준비물/업로드/진행/메시지/결제)"
+        - component: "DocSlotCards"
+        - component: "AIReviewCard(초안/확정 아님)"
+
+  pc_partner_console:
+    case_queue:
+      calls: ["casepack_rule_engine", "partner_search_ranker(optional for reassignment)"]
+      shows: ["QueueTable", "Filters", "SLAIndicators"]
+    case_detail:
+      calls: ["doc_review_engine", "pricing_engine", "eta_engine"]
+      shows: ["DocSlots", "Checklist", "DraftMessage(approval)", "FinalizeQuote"]
+
+approvalGates:
+  - id: message_send
+    requires: "partner_or_ops"
+    reasonKo: "AI 보완 메시지 자동발송 금지"
+  - id: quote_finalize
+    requires: "partner_or_ops"
+    reasonKo: "확정 견적은 사람 승인 + 사용자 동의 로그 필요"
+  - id: high_risk_case
+    requires: "ops"
+    reasonKo: "고리스크 플래그는 수동검토 후 진행"
+

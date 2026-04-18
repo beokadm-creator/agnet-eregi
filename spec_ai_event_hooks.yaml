@@ -1,0 +1,115 @@
+specVersion: 0.1
+title: AI Event Hooks Spec (AI 개입 훅 스펙)
+description: "사건 워크스페이스 이벤트 기반으로 AI 작업을 트리거하고, 승인 게이트를 통해 사용자 노출을 통제한다."
+
+common:
+  outputEnvelope:
+    requestId: "uuid"
+    caseId: "CASE-..."
+    casePackId: "corp.incorporation"
+    model: "model-id"
+    policyVersion: "ai-policy-2026-04-13"
+    confidence: "low|medium|high"
+    warnings: []
+    requiresHumanApproval: true
+
+hooks:
+  - id: AI_INTAKE
+    triggerEvent: CASE_CREATED
+    purposeKo: "사건팩 후보 매칭, 필수 분기 질문 생성, 초기 ETA/금액 범위 제안"
+    inputs:
+      - casePackCandidates: true
+      - userProvided: ["intentText", "basicFields"]
+    outputs:
+      - casePackSuggestion
+      - questionsToUser
+      - etaRange
+      - priceRange
+    approval:
+      required: false
+      userFacing: true
+      noteKo: "단, 법률적 단정 금지 / 범위+전제조건 형태로만 노출"
+
+  - id: AI_DOC_CLASSIFY
+    triggerEvent: DOCUMENT_UPLOADED
+    purposeKo: "업로드 파일을 문서 슬롯(정관/의사록/승낙서 등)으로 분류하고 누락 슬롯을 갱신"
+    inputs:
+      - document: ["fileName", "fileType", "textExtractOrOcr", "hash"]
+      - casePack: ["documents.required", "documents.optional"]
+    outputs:
+      - documentSlotPrediction
+      - missingDocumentSlots
+      - extractionQuality
+    approval:
+      required: false
+      userFacing: true
+      noteKo: "분류 결과는 사용자가 수정할 수 있어야 함(정정 UX)"
+
+  - id: AI_DOC_REVIEW
+    triggerEvent: DOCUMENT_REVIEW_REQUESTED
+    purposeKo: "문서/입력값 불일치 후보 탐지, 보완 포인트 추천"
+    inputs:
+      - caseInput: true
+      - documents: true
+      - casePackRules: ["decisionTree", "checklist", "documents"]
+    outputs:
+      - inconsistencies
+      - riskFlagsSuggested
+      - checklistGaps
+      - fixRecommendations
+      - messageDraftToCustomer
+    approval:
+      required: true
+      approverRole: ["ops", "partner"]
+      userFacing: true
+      noteKo: "보완요청 메시지는 승인 후 발송(기본 자동발송 OFF)"
+
+  - id: AI_QUOTE_ETA
+    triggerEvent: QUOTE_REQUESTED
+    purposeKo: "금액/소요시간 범위 산정(사건팩 + 파트너 평균 + 현재 큐)"
+    inputs:
+      - casePackPricingRules: true
+      - depthScore: true
+      - riskScore: true
+      - partnerStats: ["avgCompleteHours", "breachRate30d"]
+      - opsQueue: ["currentBacklog"]
+    outputs:
+      - priceRange
+      - priceBreakdown
+      - etaRange
+      - assumptions
+    approval:
+      required: true
+      approverRole: ["ops"]
+      userFacing: true
+      noteKo: "확정 견적은 별도 이벤트(QUOTE_FINALIZED)에서 사람이 확정"
+
+  - id: AI_MESSAGE_ASSIST
+    triggerEvent: MESSAGE_DRAFT_REQUESTED
+    purposeKo: "고객/파트너 메시지 초안 생성(톤/법적 고지 포함)"
+    inputs:
+      - threadContext: true
+      - caseContext: true
+      - sopTemplates: true
+    outputs:
+      - messageDraft
+      - suggestedAttachments
+    approval:
+      required: true
+      approverRole: ["ops", "partner"]
+      userFacing: true
+      noteKo: "발송 전 승인 필수"
+
+  - id: AI_RISK_ESCALATION
+    triggerEvent: RISK_FLAGGED
+    purposeKo: "고리스크 케이스 수동검토 라우팅 및 이유 요약"
+    inputs:
+      - riskFlags: true
+      - evidenceLinks: true
+    outputs:
+      - escalationReason
+      - opsChecklist
+    approval:
+      required: false
+      userFacing: false
+

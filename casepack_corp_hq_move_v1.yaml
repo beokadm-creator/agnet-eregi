@@ -1,0 +1,107 @@
+casePack:
+  id: corp.hq_move
+  nameKo: "본점이전 등기"
+  version: v1
+
+  scope:
+    includes:
+      - "관할 내 본점이전"
+      - "관할 밖 본점이전(분기)"
+    excludes:
+      - "분쟁/가처분 동반 시 manual_review"
+    legalNotes:
+      - "관할 변경 여부가 절차·서류·리드타임을 크게 바꿈"
+
+  inputForm:
+    version: v1
+    fields:
+      - { key: oldAddress, labelKo: 기존 본점주소, type: string, required: true }
+      - { key: newAddress, labelKo: 신규 본점주소, type: string, required: true }
+      - { key: jurisdictionChanged, labelKo: 관할 변경 여부, type: boolean, required: true }
+      - { key: hasBranchOffices, labelKo: 지점 존재 여부, type: boolean, required: true }
+      - { key: deadlineHours, labelKo: 희망 완료까지 남은 시간(시간), type: number, required: false }
+    derivedFields:
+      - { key: isUrgent, formula: "deadlineHours != null && deadlineHours <= 72" }
+
+  decisionTree:
+    version: v1
+    branches:
+      - id: B_JURISDICTION
+        nameKo: "관할 밖 이전"
+        when: { all: [ { field: jurisdictionChanged, op: eq, value: true } ] }
+        effects:
+          depthScoreDelta: 30
+          riskFlagsAdd: ["JURISDICTION_CHANGE"]
+          slaDeltaHours: 24
+          checklistAdd: ["관할 변경 서류/절차 분기 적용"]
+          documentsAdd: ["관할 변경 관련 추가 서류(케이스별)"]
+
+      - id: B_URGENT
+        nameKo: "긴급(72시간 이내)"
+        when: { all: [ { field: isUrgent, op: eq, value: true } ] }
+        effects:
+          depthScoreDelta: 20
+          riskFlagsAdd: ["URGENT"]
+          slaDeltaHours: -24
+          checklistAdd: ["긴급 진행 동의"]
+          documentsAdd: []
+
+  documents:
+    version: v1
+    required:
+      - { id: D_MINUTES, nameKo: 주주총회/이사회 의사록(해당), type: file, required: true, condition: null, notesKo: "" }
+      - { id: D_ADDRESS_PROOF, nameKo: 신규 주소 증빙(임대차계약서 등), type: file, required: true, condition: null, notesKo: "" }
+      - { id: D_SEAL, nameKo: 인감/서명 관련 서류(케이스별), type: file, required: true, condition: null, notesKo: "" }
+    optional: []
+
+  checklist:
+    version: v1
+    items:
+      - { id: C_SCOPE, phase: 접수, titleKo: "관할 변경 여부 확정", required: true, acceptanceCriteriaKo: "jurisdictionChanged 값 확정" }
+      - { id: C_DOCS, phase: 서류수집, titleKo: "필수 서류 업로드", required: true, acceptanceCriteriaKo: "누락 없음" }
+      - { id: C_REVIEW, phase: 검토, titleKo: "결의/주소 증빙 검토", required: true, acceptanceCriteriaKo: "요건 충족 확인" }
+      - { id: C_SUBMIT, phase: 제출, titleKo: "제출 완료", required: true, acceptanceCriteriaKo: "접수번호 확보" }
+
+  workflow:
+    version: v1
+    states:
+      - { id: RECEIVED, nameKo: 접수 }
+      - { id: DOC_REQUEST, nameKo: 서류요청 }
+      - { id: DOC_RECEIVED, nameKo: 서류수령 }
+      - { id: REVIEW, nameKo: 검토/보완 }
+      - { id: FILE_SUBMIT, nameKo: 신청/제출 }
+      - { id: IN_PROGRESS, nameKo: 처리중 }
+      - { id: DONE, nameKo: 완료 }
+    transitions:
+      - { from: RECEIVED, to: DOC_REQUEST, guard: always }
+      - { from: DOC_REQUEST, to: DOC_RECEIVED, guard: allRequiredDocsUploaded }
+      - { from: DOC_RECEIVED, to: REVIEW, guard: always }
+      - { from: REVIEW, to: FILE_SUBMIT, guard: reviewPassed }
+      - { from: FILE_SUBMIT, to: IN_PROGRESS, guard: submissionAccepted }
+      - { from: IN_PROGRESS, to: DONE, guard: completionConfirmed }
+
+  sla:
+    version: v1
+    timers:
+      - { id: T_START, nameKo: 착수 SLA, targetHours: 1, breachAction: ESCALATE_OPS }
+      - { id: T_COMPLETE, nameKo: 완료 SLA, targetHours: 72, breachAction: ESCALATE_PARTNER }
+
+  scoring:
+    version: v1
+    baseDepthScore: 40
+    riskModel:
+      baseRiskScore: 20
+      rules:
+        - { id: R_JUR, nameKo: 관할 변경, when: { all: [ { field: jurisdictionChanged, op: eq, value: true } ] }, riskScoreDelta: 20, riskFlagsAdd: ["JURISDICTION_CHANGE"] }
+        - { id: R_URG, nameKo: 긴급, when: { all: [ { field: isUrgent, op: eq, value: true } ] }, riskScoreDelta: 20, riskFlagsAdd: ["URGENT"] }
+
+  assignmentPolicy:
+    version: v1
+    partnerEligibility:
+      allowedPartnerTypes: ["법무법인", "법률사무소"]
+      requiredCapabilities: ["corp_registry"]
+      regionConstraint: null
+    modeRules:
+      - { id: M_MANAGED, when: { all: [ { metric: depthScore, op: lt, value: 60 }, { metric: riskScore, op: lt, value: 50 } ] }, mode: managed }
+      - { id: M_BID, when: { any: [ { metric: depthScore, op: gte, value: 60 }, { metric: riskScore, op: gte, value: 50 } ] }, mode: restricted_bidding, bidding: { inviteCount: 3, responseWindowMinutes: 30 } }
+

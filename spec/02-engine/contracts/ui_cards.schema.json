@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/spec/ui_cards.schema.json",
+  "title": "UI Cards Contract (Mobile User)",
+  "description": "모바일 사용자 UX에서 엔진 출력이 렌더링되는 카드 단위 데이터 계약. 각 카드는 ‘확정 아님/광고 라벨/근거’를 표준으로 포함한다.",
+  "type": "object",
+  "required": ["version", "cards"],
+  "properties": {
+    "version": { "type": "string", "const": "v1" },
+    "cards": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Card" }
+    }
+  },
+  "$defs": {
+    "Confidence": { "type": "string", "enum": ["low", "medium", "high"] },
+    "Disclosure": {
+      "type": "object",
+      "required": ["type", "textKo"],
+      "properties": {
+        "type": { "type": "string", "enum": ["not_final", "sponsored", "requires_approval", "assumption", "warning"] },
+        "textKo": { "type": "string" }
+      }
+    },
+    "SourceRef": {
+      "type": "object",
+      "required": ["type", "ref"],
+      "properties": {
+        "type": { "type": "string", "enum": ["casepack_rule", "partner_profile", "pricing_rule", "stats", "document", "policy", "sop"] },
+        "ref": { "type": "string" },
+        "meta": { "type": "object" }
+      }
+    },
+    "CTA": {
+      "type": "object",
+      "required": ["id", "labelKo", "action"],
+      "properties": {
+        "id": { "type": "string" },
+        "labelKo": { "type": "string" },
+        "style": { "type": "string", "enum": ["primary", "secondary", "tertiary"], "default": "primary" },
+        "action": {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "type": "string", "enum": ["navigate", "event", "external_link"] },
+            "target": { "type": "string" },
+            "payload": { "type": "object" }
+          }
+        }
+      }
+    },
+    "MoneyRange": {
+      "type": "object",
+      "required": ["min", "max", "currency"],
+      "properties": {
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "currency": { "type": "string", "default": "KRW" }
+      }
+    },
+    "TimeRange": {
+      "type": "object",
+      "required": ["minHours", "maxHours"],
+      "properties": {
+        "minHours": { "type": "number" },
+        "maxHours": { "type": "number" }
+      }
+    },
+    "PartnerBadge": { "type": "string", "enum": ["basic", "verified", "pro", "visitable", "fast_start", "low_rework"] },
+    "PartnerSummary": {
+      "type": "object",
+      "required": ["partnerId", "nameKo", "type", "verification"],
+      "properties": {
+        "partnerId": { "type": "string" },
+        "nameKo": { "type": "string" },
+        "type": { "type": "string", "enum": ["법무사사무소", "법무법인", "법률사무소"] },
+        "verification": { "type": "string", "enum": ["basic", "verified", "pro"] },
+        "rating5": { "type": ["number", "null"], "minimum": 0, "maximum": 5 },
+        "badges": { "type": "array", "items": { "$ref": "#/$defs/PartnerBadge" } },
+        "addressShortKo": { "type": ["string", "null"] }
+      }
+    },
+    "CardBase": {
+      "type": "object",
+      "required": ["id", "type", "titleKo"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "titleKo": { "type": "string" },
+        "subtitleKo": { "type": ["string", "null"] },
+        "confidence": { "$ref": "#/$defs/Confidence" },
+        "disclosures": { "type": "array", "items": { "$ref": "#/$defs/Disclosure" } },
+        "reasonsKo": { "type": "array", "items": { "type": "string" }, "maxItems": 3 },
+        "sourceRefs": { "type": "array", "items": { "$ref": "#/$defs/SourceRef" } },
+        "ctas": { "type": "array", "items": { "$ref": "#/$defs/CTA" } }
+      }
+    },
+    "ValuePreviewCard": {
+      "allOf": [
+        { "$ref": "#/$defs/CardBase" },
+        {
+          "properties": {
+            "type": { "const": "value_preview" },
+            "priceRange": { "$ref": "#/$defs/MoneyRange" },
+            "etaRange": { "$ref": "#/$defs/TimeRange" },
+            "requiredDocsTop3": { "type": "array", "items": { "type": "string" }, "maxItems": 3 },
+            "assumptionsKo": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["priceRange", "etaRange"]
+        }
+      ]
+    },
+    "RecommendedPartnerCard": {
+      "allOf": [
+        { "$ref": "#/$defs/CardBase" },
+        {
+          "properties": {
+            "type": { "const": "recommended_partner" },
+            "partner": { "$ref": "#/$defs/PartnerSummary" },
+            "priceRange": { "$ref": "#/$defs/MoneyRange" },
+            "etaRange": { "$ref": "#/$defs/TimeRange" },
+            "sponsored": { "type": "boolean", "default": false }
+          },
+          "required": ["partner", "priceRange", "etaRange"]
+        }
+      ]
+    },
+    "CompareListCard": {
+      "allOf": [
+        { "$ref": "#/$defs/CardBase" },
+        {
+          "properties": {
+            "type": { "const": "compare_list_top3" },
+            "items": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "required": ["partner", "priceRange", "etaRange"],
+                "properties": {
+                  "partner": { "$ref": "#/$defs/PartnerSummary" },
+                  "priceRange": { "$ref": "#/$defs/MoneyRange" },
+                  "etaRange": { "$ref": "#/$defs/TimeRange" }
+                }
+              }
+            }
+          },
+          "required": ["items"]
+        }
+      ]
+    },
+    "SponsorCarouselCard": {
+      "allOf": [
+        { "$ref": "#/$defs/CardBase" },
+        {
+          "properties": {
+            "type": { "const": "sponsor_carousel" },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["partner", "sponsorLabelKo"],
+                "properties": {
+                  "partner": { "$ref": "#/$defs/PartnerSummary" },
+                  "sponsorLabelKo": { "type": "string", "const": "광고" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "DocSlotCard": {
+      "allOf": [
+        { "$ref": "#/$defs/CardBase" },
+        {
+          "properties": {
+            "type": { "const": "doc_slot" },
+            "slotId": { "type": "string" },
+            "slotNameKo": { "type": "string" },
+            "status": { "type": "string", "enum": ["미업로드", "검토중", "OK", "보완필요"] },
+            "latestDocumentId": { "type": ["string", "null"] }
+          },
+          "required": ["slotId", "slotNameKo", "status"]
+        }
+      ]
+    },
+    "AIReviewCard": {
+      "allOf": [
+        { "$ref": "#/$defs/CardBase" },
+        {
+          "properties": {
+            "type": { "const": "ai_review" },
+            "inconsistencies": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["severity", "messageKo"],
+                "properties": {
+                  "severity": { "type": "string", "enum": ["info", "warn", "critical"] },
+                  "messageKo": { "type": "string" },
+                  "evidenceRefs": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            },
+            "fixRecommendationsKo": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      ]
+    },
+    "Card": {
+      "oneOf": [
+        { "$ref": "#/$defs/ValuePreviewCard" },
+        { "$ref": "#/$defs/RecommendedPartnerCard" },
+        { "$ref": "#/$defs/CompareListCard" },
+        { "$ref": "#/$defs/SponsorCarouselCard" },
+        { "$ref": "#/$defs/DocSlotCard" },
+        { "$ref": "#/$defs/AIReviewCard" }
+      ]
+    }
+  }
+}
+

@@ -1,0 +1,1113 @@
+openapi: 3.0.3
+info:
+  title: 등기 대행 플랫폼 API (v1)
+  version: v1
+  description: |
+    본 OpenAPI는 `spec/02-engine/03-api-and-events.md`의 REST 예시를 “계약 파일”로 내린 버전입니다.
+    - UI 렌더링은 카드(JSON) 기반이며, 카드의 엄격한 계약은 `02-engine/contracts/ui_cards.schema.json`을 우선합니다.
+    - 결제/정산/리스크 등은 이벤트 저장소(`domain_events`)와 함께 동작합니다.
+servers:
+  - url: /
+tags:
+  - name: Funnel
+    description: 홈/진단/결과
+  - name: Cases
+    description: 케이스(사건) 생성/조회/진행
+  - name: Documents
+    description: 문서 업로드/검토
+  - name: Quotes
+    description: 견적 확정/동의
+  - name: Partners
+    description: 파트너 온보딩/프로필(입점)
+  - name: Ops
+    description: 운영자 전용(심사/정지/등급/승인)
+  - name: Meta
+    description: 공통/헬스
+
+paths:
+  /v1/intent:
+    post:
+      tags: [Funnel]
+      summary: 의도 제출 → 진단 시작
+      description: |
+        사용자의 자연어 의도(intentText)를 제출하고, 서버는 사건팩 후보 + 첫 질문 카드를 반환합니다.
+      operationId: postIntent
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntentRequest'
+      responses:
+        '200':
+          description: 초기 진단 카드 묶음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/diagnosis/answer:
+    post:
+      tags: [Funnel]
+      summary: 진단 문항 응답
+      operationId: postDiagnosisAnswer
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosisAnswerRequest'
+      responses:
+        '200':
+          description: 다음 질문 + 가치 프리뷰 업데이트
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/results:
+    get:
+      tags: [Funnel]
+      summary: 결과(추천/비교/광고) 카드 반환
+      operationId: getResults
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - name: sessionId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 결과 카드 묶음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/cases:
+    post:
+      tags: [Cases]
+      summary: 케이스 생성(파트너 선택 확정)
+      operationId: postCases
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseCreateRequest'
+      responses:
+        '200':
+          description: 케이스 생성 결과 + 초기 워크스페이스 카드
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseCreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/cases/{caseId}:
+    get:
+      tags: [Cases]
+      summary: 케이스 조회(요약+카드+타임라인)
+      operationId: getCaseById
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 케이스 상태/체크리스트/문서슬롯/타임라인/요약카드
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseGetResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/cases/{caseId}/documents:
+    post:
+      tags: [Documents]
+      summary: 문서 업로드(버전 생성)
+      operationId: postCaseDocuments
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+      responses:
+        '200':
+          description: 업로드 결과(문서/버전 식별자) + 워크스페이스 카드 업데이트(선택)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentUploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/cases/{caseId}/review/request:
+    post:
+      tags: [Documents]
+      summary: 문서 검토 요청(파트너/운영)
+      operationId: postReviewRequest
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentReviewRequest'
+      responses:
+        '200':
+          description: 검토 요청 생성
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/cases/{caseId}/review/decision:
+    post:
+      tags: [Documents]
+      summary: 문서 검토 결과 확정(OK/보완필요)
+      operationId: postReviewDecision
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentReviewDecisionRequest'
+      responses:
+        '200':
+          description: 확정 결과 반영(워크스페이스 카드 업데이트 가능)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/cases/{caseId}/quote/finalize:
+    post:
+      tags: [Quotes]
+      summary: 견적 확정(파트너/운영, 승인 게이트)
+      operationId: postQuoteFinalize
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteFinalizeRequest'
+      responses:
+        '200':
+          description: 확정 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/ApprovalRequired'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/cases/{caseId}/quote/accept:
+    post:
+      tags: [Quotes]
+      summary: 견적 수락(사용자 동의)
+      operationId: postQuoteAccept
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteAcceptRequest'
+      responses:
+        '200':
+          description: 수락 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/partners/onboarding/draft:
+    post:
+      tags: [Partners]
+      summary: 파트너 온보딩 draft 생성
+      operationId: postPartnerOnboardingDraft
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerOnboardingDraftRequest'
+      responses:
+        '200':
+          description: draft 생성 결과
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerOnboardingDraftResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/partners/onboarding/{onboardingId}:
+    get:
+      tags: [Partners]
+      summary: 파트너 온보딩 상태 조회
+      operationId: getPartnerOnboarding
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - name: onboardingId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 온보딩 상태
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerOnboardingGetResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Partners]
+      summary: 파트너 온보딩 섹션 업데이트
+      operationId: putPartnerOnboarding
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: onboardingId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerOnboardingUpdateRequest'
+      responses:
+        '200':
+          description: 업데이트 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/partners/onboarding/{onboardingId}/submit:
+    post:
+      tags: [Partners]
+      summary: 파트너 온보딩 제출(심사 대기)
+      operationId: postPartnerOnboardingSubmit
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: onboardingId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerOnboardingSubmitRequest'
+      responses:
+        '200':
+          description: 제출 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/ops/partners/onboarding:
+    get:
+      tags: [Ops]
+      summary: (Ops) 파트너 온보딩 심사 큐 조회
+      operationId: getOpsPartnerOnboardingQueue
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [submitted, under_review, needs_fix, approved, rejected]
+      responses:
+        '200':
+          description: 큐 목록
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/PartnerOnboardingQueueItem' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/ops/partners/onboarding/{onboardingId}/decision:
+    post:
+      tags: [Ops]
+      summary: (Ops) 파트너 온보딩 결정(approve/reject/needs_fix)
+      operationId: postOpsPartnerOnboardingDecision
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: onboardingId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsPartnerOnboardingDecisionRequest'
+      responses:
+        '200':
+          description: 결정 반영
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/ApprovalRequired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/ops/partners/{partnerId}/grade:
+    post:
+      tags: [Ops]
+      summary: (Ops) 파트너 등급 변경(basic/verified/pro)
+      operationId: postOpsPartnerGrade
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: partnerId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsPartnerGradeChangeRequest'
+      responses:
+        '200':
+          description: 변경 완료
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '412':
+          $ref: '#/components/responses/ApprovalRequired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/ops/partners/{partnerId}/suspend:
+    post:
+      tags: [Ops]
+      summary: (Ops) 파트너 정지
+      operationId: postOpsPartnerSuspend
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: partnerId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsPartnerSuspendRequest'
+      responses:
+        '200':
+          description: 정지 완료
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '412':
+          $ref: '#/components/responses/ApprovalRequired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/ops/partners/{partnerId}/reinstate:
+    post:
+      tags: [Ops]
+      summary: (Ops) 파트너 정지 해제
+      operationId: postOpsPartnerReinstate
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: partnerId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsPartnerReinstateRequest'
+      responses:
+        '200':
+          description: 해제 완료
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '412':
+          $ref: '#/components/responses/ApprovalRequired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/ops/approvals:
+    get:
+      tags: [Ops]
+      summary: (Ops) 승인 요청 큐 조회
+      operationId: getOpsApprovals
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, approved, rejected, cancelled, expired]
+        - name: gate
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 승인 요청 목록
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ApprovalQueueItem' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/ops/approvals/{approvalRequestId}/decision:
+    post:
+      tags: [Ops]
+      summary: (Ops) 승인/반려 결정
+      operationId: postOpsApprovalDecision
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XCorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: approvalRequestId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsApprovalDecisionRequest'
+      responses:
+        '200':
+          description: 결정 완료
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /health:
+    get:
+      tags: [Meta]
+      summary: 헬스 체크
+      operationId: getHealth
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    XRequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      schema: { type: string }
+      description: |
+        요청 추적용 ID. 클라이언트가 넣지 않으면 서버가 발급하며, 이벤트의 trace.requestId에 저장한다.
+    XCorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema: { type: string }
+      description: |
+        여러 요청/이벤트를 묶는 상위 상관관계 ID(선택).
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string }
+      description: |
+        멱등성 키. POST 계열(특히 결제/문서/케이스 생성)은 키 사용을 강권한다.
+
+  responses:
+    BadRequest:
+      description: 잘못된 요청
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: 권한 없음
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: 리소스 없음
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: 충돌(상태 불일치/중복 처리 등)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    PayloadTooLarge:
+      description: 업로드 용량 초과
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    RateLimited:
+      description: 레이트리밋 초과
+      headers:
+        Retry-After:
+          schema: { type: string }
+          description: 재시도까지 대기 시간(초 또는 HTTP-date)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ApprovalRequired:
+      description: 승인 게이트 필요(승인 대기/반려)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    InternalError:
+      description: 서버 오류
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [code, messageKo, requestId]
+      properties:
+        code:
+          type: string
+          description: "에러 코드(문서: 02-engine/06-api-error-and-idempotency.md)"
+        messageKo:
+          type: string
+        requestId:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    CardsResponse:
+      type: object
+      description: |
+        카드 응답의 OpenAPI 최소 스키마. 실제 검증은 `ui_cards.schema.json`을 사용한다.
+      required: [version, cards]
+      properties:
+        version: { type: string, example: v1 }
+        cards:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+
+    IntentRequest:
+      type: object
+      required: [intentText]
+      properties:
+        intentText: { type: string, minLength: 1 }
+        categoryHint: { type: string, nullable: true }
+        sessionId: { type: string, nullable: true, description: 게스트 세션 ID(없으면 서버 발급) }
+
+    DiagnosisAnswerRequest:
+      type: object
+      required: [sessionId, answerDelta]
+      properties:
+        sessionId: { type: string }
+        casePackId: { type: string, nullable: true }
+        answerDelta:
+          type: object
+          additionalProperties: true
+          description: 문항 단위 응답(사건팩/문항 정의에 따라 해석)
+
+    CaseCreateRequest:
+      type: object
+      required: [sessionId, selectedPartnerId, finalCasePackId, caseInput]
+      properties:
+        sessionId: { type: string }
+        selectedPartnerId: { type: string }
+        finalCasePackId: { type: string }
+        caseInput:
+          type: object
+          additionalProperties: true
+
+    CaseCreateResponse:
+      type: object
+      required: [caseId, cards]
+      properties:
+        caseId: { type: string }
+        cards:
+          $ref: '#/components/schemas/CardsResponse'
+
+    CaseGetResponse:
+      type: object
+      required: [caseId, status, cards]
+      properties:
+        caseId: { type: string }
+        status: { type: string }
+        cards: { $ref: '#/components/schemas/CardsResponse' }
+        timeline:
+          type: array
+          description: 케이스 이벤트 타임라인(요약). 원문은 별도 endpoint로 확장 가능.
+          items:
+            type: object
+            additionalProperties: true
+
+    DocumentUploadRequest:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+        slotId:
+          type: string
+          nullable: true
+          description: 사용자가 지정한 슬롯(없으면 AI/규칙이 추천)
+
+    DocumentUploadResponse:
+      type: object
+      required: [documentId, versionId]
+      properties:
+        documentId: { type: string }
+        versionId: { type: string }
+        cards:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CardsResponse'
+
+    DocumentReviewRequest:
+      type: object
+      required: [reviewRequestId]
+      properties:
+        reviewRequestId:
+          type: string
+          description: 클라이언트/서버가 생성. 멱등성 키 사용을 강권.
+        documentIds:
+          type: array
+          items: { type: string }
+        notesKo:
+          type: string
+          nullable: true
+
+    DocumentReviewDecisionRequest:
+      type: object
+      required: [reviewRequestId, decision]
+      properties:
+        reviewRequestId: { type: string }
+        decision:
+          type: string
+          enum: [OK, 보완필요]
+        issues:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    QuoteFinalizeRequest:
+      type: object
+      required: [quoteId, priceRange, etaRange]
+      properties:
+        quoteId: { type: string }
+        priceRange:
+          type: object
+          required: [min, max, currency]
+          properties:
+            min: { type: number }
+            max: { type: number }
+            currency: { type: string, example: KRW }
+        etaRange:
+          type: object
+          required: [minHours, maxHours]
+          properties:
+            minHours: { type: number }
+            maxHours: { type: number }
+        assumptionsKo:
+          type: array
+          items: { type: string }
+
+    QuoteAcceptRequest:
+      type: object
+      required: [quoteId, consented]
+      properties:
+        quoteId: { type: string }
+        consented: { type: boolean, description: true만 허용(동의 체크) }
+        consentTextVersion: { type: string, nullable: true }
+
+    PartnerOnboardingDraftRequest:
+      type: object
+      required: [partnerId]
+      properties:
+        partnerId: { type: string, description: 파트너 조직 ID }
+        partnerType:
+          type: string
+          nullable: true
+          enum: [법무사사무소, 법무법인, 법률사무소]
+
+    PartnerOnboardingDraftResponse:
+      type: object
+      required: [onboardingId, status]
+      properties:
+        onboardingId: { type: string }
+        status: { type: string, example: draft }
+
+    PartnerOnboardingUpdateRequest:
+      type: object
+      required: [section, payload]
+      properties:
+        section:
+          type: string
+          enum: [identity, license, payout, capabilities, pricing, sla, capacity, compliance]
+        payload:
+          type: object
+          additionalProperties: true
+
+    PartnerOnboardingSubmitRequest:
+      type: object
+      properties:
+        notesKo: { type: string, nullable: true }
+
+    PartnerOnboardingGetResponse:
+      type: object
+      required: [onboardingId, partnerId, status]
+      properties:
+        onboardingId: { type: string }
+        partnerId: { type: string }
+        status:
+          type: string
+          enum: [draft, submitted, under_review, needs_fix, approved, rejected, suspended]
+        decisionReasonKo: { type: string, nullable: true }
+        updatedAt: { type: string, nullable: true }
+
+    PartnerOnboardingQueueItem:
+      type: object
+      required: [onboardingId, partnerId, status, submittedAt]
+      properties:
+        onboardingId: { type: string }
+        partnerId: { type: string }
+        status: { type: string }
+        submittedAt: { type: string }
+
+    OpsPartnerOnboardingDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approve, reject, needs_fix]
+        reasonKo: { type: string, nullable: true }
+        grade:
+          type: string
+          nullable: true
+          enum: [basic, verified, pro]
+        requiredFields:
+          type: array
+          items: { type: string }
+        requiredDocs:
+          type: array
+          items: { type: string }
+
+    OpsPartnerGradeChangeRequest:
+      type: object
+      required: [to]
+      properties:
+        to:
+          type: string
+          enum: [basic, verified, pro]
+        reasonKo: { type: string, nullable: true }
+
+    OpsPartnerSuspendRequest:
+      type: object
+      required: [reasonKo]
+      properties:
+        reasonKo: { type: string }
+        until: { type: string, nullable: true, description: ISO datetime }
+
+    OpsPartnerReinstateRequest:
+      type: object
+      properties:
+        reasonKo: { type: string, nullable: true }
+
+    ApprovalQueueItem:
+      type: object
+      required: [approvalRequestId, approvalGate, status, targetType, createdAt]
+      properties:
+        approvalRequestId: { type: string }
+        approvalGate: { type: string }
+        status: { type: string }
+        targetType: { type: string }
+        targetRef: { type: string, nullable: true }
+        requiredRole: { type: string, nullable: true }
+        summaryKo: { type: string, nullable: true }
+        createdAt: { type: string }
+
+    OpsApprovalDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approve, reject]
+        reasonKo: { type: string, nullable: true }

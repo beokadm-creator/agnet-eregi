@@ -1,0 +1,36 @@
+// spec 기반 초안: spec/13-implementation/firebase.rules/storage.rules
+// 운영 적용 전, emulator rules test로 반드시 검증
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function role() { return signedIn() ? request.auth.token.role : null; }
+    function isOps() { return role() in ['ops_agent','ops_approver','system']; }
+    function partnerId() { return signedIn() ? request.auth.token.partnerId : null; }
+
+    match /cases/{caseId}/documents/{documentId}/{versionId} {
+      function canReadCase() {
+        return isOps()
+          || (signedIn() && get(/databases/$(database)/documents/cases/$(caseId)).data.ownerUid == request.auth.uid)
+          || (signedIn() && partnerId() != null && get(/databases/$(database)/documents/cases/$(caseId)).data.partnerId == partnerId());
+      }
+
+      allow read: if canReadCase();
+      // 업로드 정책(프로덕 안전 기본값)
+      // - 로그인 필요
+      // - 케이스 권한 필요
+      // - 파일 크기 제한 (10MB)
+      // - contentType 제한(이미지/ PDF/ 텍스트 데모)
+      function isAllowedContentType() {
+        return request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf'
+          || request.resource.contentType == 'text/plain';
+      }
+      allow write: if canReadCase()
+        && request.resource.size < 10 * 1024 * 1024
+        && isAllowedContentType();
+      allow delete: if isOps();
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@rp/firebase",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "echo \"firebase package: no build (ts consumed by Vite)\""
+  },
+  "dependencies": {
+    "firebase": "^10.12.4"
+  }
+}

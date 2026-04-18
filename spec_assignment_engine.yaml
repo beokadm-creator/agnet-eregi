@@ -1,0 +1,163 @@
+specVersion: 0.1
+title: Assignment Engine Spec (매칭/할당 엔진 스펙)
+description: >
+  사건팩(Case Pack)에서 산출한 depthScore/riskScore 및 파트너 capacity/품질 데이터를 입력으로
+  managed(중앙할당) / restricted_bidding(제한비딩) / manual_review(수동검토) 모드를 결정하고
+  최종 파트너를 선정한다.
+
+inputs:
+  case:
+    id: "CASE-2026-000001"
+    casePackId: "corp.incorporation"
+    depthScore: 0
+    riskScore: 0
+    region: null
+    deadlineHours: null
+    flags: []
+  supply:
+    partners:
+      - partnerId: "P-001"
+        active: true
+        capabilities: ["corp_registry"]
+        regions: ["SEOUL", "GYEONGGI"]
+        capacity:
+          dailyLimit: 10
+          currentOpenCases: 3
+        sla:
+          avgStartMinutes: 25
+          avgCompleteHours: 48
+          breachRate30d: 0.03
+        quality:
+          reworkRate30d: 0.12          # 보완/재작업 발생 비율
+          disputeRate90d: 0.01
+          rating5: 4.6
+        pricing:
+          expectedQuote: 0             # 사건 유형별 예상치(초기에는 rule-based로 산정 가능)
+
+outputs:
+  mode: "managed"
+  rankedPartners: []
+  selectedPartnerId: null
+  audit:
+    decisionLog: []                   # 규칙/가중치/근거를 기록(분쟁·개선용)
+
+modeDecision:
+  rules:
+    - id: "MODE_MANUAL_FOR_HIGH_RISK"
+      when:
+        any:
+          - metric: "riskScore"
+            op: "gte"
+            value: 80
+          - flag: "KYC_STRICT"
+            op: "exists"
+      mode: "manual_review"
+      rationaleKo: "고리스크/신원확인 강화 케이스는 운영자 검토 후 배정"
+
+    - id: "MODE_MANAGED_FOR_LOW_DEPTH"
+      when:
+        all:
+          - metric: "depthScore"
+            op: "lt"
+            value: 60
+          - metric: "riskScore"
+            op: "lt"
+            value: 50
+      mode: "managed"
+      rationaleKo: "표준/저위험 케이스는 자동할당으로 일관 UX 확보"
+
+    - id: "MODE_RESTRICTED_BIDDING_OTHERWISE"
+      when:
+        any:
+          - metric: "depthScore"
+            op: "gte"
+            value: 60
+          - metric: "riskScore"
+            op: "gte"
+            value: 50
+      mode: "restricted_bidding"
+      bidding:
+        inviteCount: 3
+        responseWindowMinutes: 30
+        awardRule: "recommend_then_confirm"   # 추천 1안 제시 후 고객/운영자 confirm
+      rationaleKo: "비표준/중·고위험은 제한비딩으로 맞춤 제안 확보"
+
+candidateFiltering:
+  # 사건팩의 partnerEligibility와 함께 적용
+  hardFilters:
+    - id: "ACTIVE_ONLY"
+      type: "boolean"
+      field: "active"
+      mustBe: true
+    - id: "CAPABILITY_MATCH"
+      type: "contains"
+      field: "capabilities"
+      mustContain: "${case.casePackRequiredCapability}"
+    - id: "REGION_MATCH_IF_SET"
+      type: "region"
+      caseField: "region"
+      partnerField: "regions"
+      behavior: "if_case_region_is_set_then_must_match"
+    - id: "CAPACITY_AVAILABLE"
+      type: "capacity"
+      formula: "currentOpenCases < dailyLimit"
+
+ranking:
+  # 0~100 점수로 정규화 후 합산
+  weights:
+    fit: 0.30
+    sla: 0.25
+    quality: 0.30
+    price: 0.10
+    capacity: 0.05
+  normalization:
+    sla:
+      startMinutes:
+        best: 10
+        worst: 240
+      completeHours:
+        best: 24
+        worst: 168
+    quality:
+      reworkRate30d:
+        best: 0.05
+        worst: 0.30
+      disputeRate90d:
+        best: 0.00
+        worst: 0.05
+      rating5:
+        best: 4.9
+        worst: 3.5
+    price:
+      expectedQuote:
+        # 초기엔 가격 덤핑을 막기 위해 "너무 싼" 것도 감점
+        mode: "band"
+        target: "${case.packExpectedPrice}"
+        tolerancePct: 15
+
+restrictedBidding:
+  invitePolicy:
+    # ranking 상위 N명에게 초대
+    inviteFromTopN: 10
+  proposalSchema:
+    mustInclude:
+      - "quotePrice"
+      - "estimatedCompleteHours"
+      - "riskNotes"
+      - "requiredExtraDocs"
+  award:
+    # 추천 점수 = rankingScore + 제안(완료시간/리스크) 보정
+    scoring:
+      weights:
+        rankingScore: 0.60
+        proposalTime: 0.25
+        proposalRisk: 0.15
+
+fallbacks:
+  - id: "NO_CANDIDATE"
+    when: "candidateCount == 0"
+    action: "route_to_ops_queue"
+    rationaleKo: "후보가 없으면 운영자 큐로 보내 수동 배정/파트너 추가"
+  - id: "BIDDING_TIMEOUT"
+    when: "mode == restricted_bidding AND noProposalWithinWindow"
+    action: "auto_award_best_ranked_or_ops_queue"

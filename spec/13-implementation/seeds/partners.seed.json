@@ -1,0 +1,217 @@
+{
+  "version": "v1",
+  "description": "로컬 개발/테스트용 파트너 시드(샘플). profileJson은 `spec/02-engine/contracts/partner_profile.schema.json` 최소 계약을 만족해야 한다.",
+  "partners": [
+    {
+      "partnerId": "p_demo_01",
+      "profileJson": {
+        "version": "v1",
+        "partnerId": "p_demo_01",
+        "nameKo": "등기패스트 법무사사무소",
+        "type": "법무사사무소",
+        "verification": "pro",
+        "rating5": 4.8,
+        "badges": ["pro", "fast_start", "low_rework", "visitable"],
+        "addressShortKo": "서울 강남구",
+        "location": { "addressKo": "서울특별시 강남구 테헤란로 123", "lat": 37.501, "lng": 127.039, "subwayHintKo": "강남역 3번 출구" },
+        "visitable": { "supported": true, "reservationRequired": true, "businessHoursKo": "평일 09:00~18:00" },
+        "serviceArea": { "regionsKo": ["서울", "경기"], "courtsKo": ["서울중앙지방법원"], "remoteSupported": true },
+        "capabilities": { "casePackIds": ["corp_officer_change_v1", "corp_hq_move_v1", "corp_incorporation_v1"], "specialtiesKo": ["임원변경", "본점이전"], "languages": ["ko"] },
+        "capacity": { "activeCaseLimit": 40, "availableNow": true },
+        "pricing": { "defaultPriceRange": { "min": 250000, "max": 450000, "currency": "KRW" } },
+        "qualitySignals": { "reworkRate": 0.05, "avgResponseMinutes": 30, "slaBreachRate": 0.01, "recentCaseCount": 120 },
+        "sponsor": { "active": true, "campaignId": "camp_demo_01", "labelKo": "광고" }
+      }
+    },
+    {
+      "partnerId": "p_demo_02",
+      "profileJson": {
+        "version": "v1",
+        "partnerId": "p_demo_02",
+        "nameKo": "정직한 등기 법무법인",
+        "type": "법무법인",
+        "verification": "verified",
+        "rating5": 4.5,
+        "badges": ["verified"],
+        "addressShortKo": "서울 종로구",
+        "location": { "addressKo": "서울특별시 종로구 세종대로 1", "lat": 37.572, "lng": 126.976, "subwayHintKo": "광화문역" },
+        "visitable": { "supported": true, "reservationRequired": true, "businessHoursKo": "평일 10:00~19:00" },
+        "serviceArea": { "regionsKo": ["서울"], "courtsKo": ["서울중앙지방법원"], "remoteSupported": true },
+        "capabilities": { "casePackIds": ["corp_incorporation_v1"], "specialtiesKo": ["설립등기"], "languages": ["ko"] },
+        "capacity": { "activeCaseLimit": 15, "availableNow": true },
+        "pricing": { "defaultPriceRange": { "min": 300000, "max": 600000, "currency": "KRW" } },
+        "qualitySignals": { "reworkRate": 0.09, "avgResponseMinutes": 90, "slaBreachRate": 0.03, "recentCaseCount": 45 },
+        "sponsor": null
+      }
+    },
+    {
+      "partnerId": "p_demo_03",
+      "profileJson": {
+        "version": "v1",
+        "partnerId": "p_demo_03",
+        "nameKo": "로컬 등기 파트너(기본)",
+        "type": "법무사사무소",
+        "verification": "basic",
+        "rating5": null,
+        "badges": ["basic"],
+        "addressShortKo": "부산 해운대구",
+        "location": { "addressKo": "부산광역시 해운대구 센텀중앙로 1", "lat": 35.170, "lng": 129.130, "subwayHintKo": null },
+        "visitable": { "supported": false },
+        "serviceArea": { "regionsKo": ["부산"], "courtsKo": [], "remoteSupported": true },
+        "capabilities": { "casePackIds": ["corp_officer_change_v1"], "specialtiesKo": [], "languages": ["ko"] },
+        "capacity": { "activeCaseLimit": 8, "availableNow": true },
+        "pricing": { "defaultPriceRange": { "min": 200000, "max": 350000, "currency": "KRW" } },
+        "qualitySignals": { "reworkRate": 0.15, "avgResponseMinutes": 240, "slaBreachRate": 0.08, "recentCaseCount": 12 },
+        "sponsor": null
+      }
+    }
+    ,
+    {
+      "partnerId": "p_demo_04",
+      "profileJson": {
+        "version": "v1",
+        "partnerId": "p_demo_04",
+        "nameKo": "경기 빠른등기 법무사사무소",
+        "type": "법무사사무소",
+        "verification": "verified",
+        "rating5": 4.2,
+        "badges": ["verified", "fast_start"],
+        "addressShortKo": "경기 성남시",
+        "location": { "addressKo": "경기도 성남시 분당구 판교로 45", "lat": 37.394, "lng": 127.112, "subwayHintKo": "판교역" },
+        "visitable": { "supported": true, "reservationRequired": true, "businessHoursKo": "평일 09:30~18:30" },
+        "serviceArea": { "regionsKo": ["경기"], "courtsKo": [], "remoteSupported": true },
+        "capabilities": { "casePackIds": ["corp_officer_change_v1", "corp_hq_move_v1"], "specialtiesKo": ["본점이전"], "languages": ["ko"] },
+        "capacity": { "activeCaseLimit": 20, "availableNow": true },
+        "pricing": { "defaultPriceRange": { "min": 220000, "max": 420000, "currency": "KRW" } },
+        "qualitySignals": { "reworkRate": 0.08, "avgResponseMinutes": 70, "slaBreachRate": 0.03, "recentCaseCount": 60 },
+        "sponsor": { "active": true, "campaignId": "camp_demo_02", "labelKo": "광고" }
+      }
+    },
+    {
+      "partnerId": "p_demo_05",
+      "profileJson": {
+        "version": "v1",
+        "partnerId": "p_demo_05",
+        "nameKo": "인천 실속등기 법률사무소",
+        "type": "법률사무소",
+        "verification": "verified",
+        "rating5": 4.1,
+        "badges": ["verified"],
+        "addressShortKo": "인천 연수구",
+        "location": { "addressKo": "인천광역시 연수구 송도국제대로 10", "lat": 37.389, "lng": 126.644, "subwayHintKo": null },
+        "visitable": { "supported": false },
+        "serviceArea": { "regionsKo": ["인천", "서울"], "courtsKo": [], "remoteSupported": true },
+        "capabilities": { "casePackIds": ["corp_incorporation_v1", "corp_officer_change_v1"], "specialtiesKo": ["설립등기"], "languages": ["ko"] },
+        "capacity": { "activeCaseLimit": 12, "availableNow": true },
+        "pricing": { "defaultPriceRange": { "min": 280000, "max": 520000, "currency": "KRW" } },
+        "qualitySignals": { "reworkRate": 0.11, "avgResponseMinutes": 110, "slaBreachRate": 0.04, "recentCaseCount": 30 },
+        "sponsor": null
+      }
+    },
+    {
+      "partnerId": "p_demo_06",
+      "profileJson": {
+        "version": "v1",
+        "partnerId": "p_demo_06",
+        "nameKo": "대전 등기센터 법무사사무소",
+        "type": "법무사사무소",
+        "verification": "basic",
+        "rating5": 3.9,
+        "badges": ["basic"],
+        "addressShortKo": "대전 서구",
+        "location": { "addressKo": "대전광역시 서구 둔산로 100", "lat": 36.351, "lng": 127.379, "subwayHintKo": null },
+        "visitable": { "supported": true, "reservationRequired": true, "businessHoursKo": "평일 10:00~17:00" },
+        "serviceArea": { "regionsKo": ["대전", "충남"], "courtsKo": [], "remoteSupported": true },
+        "capabilities": { "casePackIds": ["corp_hq_move_v1"], "specialtiesKo": [], "languages": ["ko"] },
+        "capacity": { "activeCaseLimit": 6, "availableNow": true },
+        "pricing": { "defaultPriceRange": { "min": 180000, "max": 320000, "currency": "KRW" } },
+        "qualitySignals": { "reworkRate": 0.18, "avgResponseMinutes": 300, "slaBreachRate": 0.1, "recentCaseCount": 8 },
+        "sponsor": null
+      }
+    },
+    {
+      "partnerId": "p_demo_07",
+      "profileJson": {
+        "version": "v1",
+        "partnerId": "p_demo_07",
+        "nameKo": "광주 신속등기 법무사사무소",
+        "type": "법무사사무소",
+        "verification": "basic",
+        "rating5": 4.0,
+        "badges": ["basic", "visitable"],
+        "addressShortKo": "광주 서구",
+        "location": { "addressKo": "광주광역시 서구 상무대로 50", "lat": 35.154, "lng": 126.853, "subwayHintKo": null },
+        "visitable": { "supported": true, "reservationRequired": false, "businessHoursKo": "평일 09:00~18:00" },
+        "serviceArea": { "regionsKo": ["광주", "전남"], "courtsKo": [], "remoteSupported": true },
+        "capabilities": { "casePackIds": ["corp_officer_change_v1"], "specialtiesKo": [], "languages": ["ko"] },
+        "capacity": { "activeCaseLimit": 10, "availableNow": true },
+        "pricing": { "defaultPriceRange": { "min": 190000, "max": 340000, "currency": "KRW" } },
+        "qualitySignals": { "reworkRate": 0.14, "avgResponseMinutes": 200, "slaBreachRate": 0.07, "recentCaseCount": 20 },
+        "sponsor": null
+      }
+    },
+    {
+      "partnerId": "p_demo_08",
+      "profileJson": {
+        "version": "v1",
+        "partnerId": "p_demo_08",
+        "nameKo": "제주 프리미엄등기 법무법인",
+        "type": "법무법인",
+        "verification": "pro",
+        "rating5": 4.6,
+        "badges": ["pro"],
+        "addressShortKo": "제주 제주시",
+        "location": { "addressKo": "제주특별자치도 제주시 중앙로 1", "lat": 33.499, "lng": 126.531, "subwayHintKo": null },
+        "visitable": { "supported": true, "reservationRequired": true, "businessHoursKo": "평일 10:00~18:00" },
+        "serviceArea": { "regionsKo": ["제주"], "courtsKo": [], "remoteSupported": true },
+        "capabilities": { "casePackIds": ["corp_incorporation_v1", "corp_hq_move_v1"], "specialtiesKo": ["설립등기", "본점이전"], "languages": ["ko"] },
+        "capacity": { "activeCaseLimit": 25, "availableNow": true },
+        "pricing": { "defaultPriceRange": { "min": 320000, "max": 650000, "currency": "KRW" } },
+        "qualitySignals": { "reworkRate": 0.06, "avgResponseMinutes": 60, "slaBreachRate": 0.02, "recentCaseCount": 70 },
+        "sponsor": { "active": true, "campaignId": "camp_demo_03", "labelKo": "광고" }
+      }
+    },
+    {
+      "partnerId": "p_demo_09",
+      "profileJson": {
+        "version": "v1",
+        "partnerId": "p_demo_09",
+        "nameKo": "세종 기업등기 법무사사무소",
+        "type": "법무사사무소",
+        "verification": "verified",
+        "rating5": 4.3,
+        "badges": ["verified", "low_rework"],
+        "addressShortKo": "세종시",
+        "location": { "addressKo": "세종특별자치시 도움1로 20", "lat": 36.504, "lng": 127.265, "subwayHintKo": null },
+        "visitable": { "supported": false },
+        "serviceArea": { "regionsKo": ["세종", "대전"], "courtsKo": [], "remoteSupported": true },
+        "capabilities": { "casePackIds": ["corp_incorporation_v1", "corp_officer_change_v1", "corp_hq_move_v1"], "specialtiesKo": ["설립등기"], "languages": ["ko"] },
+        "capacity": { "activeCaseLimit": 18, "availableNow": true },
+        "pricing": { "defaultPriceRange": { "min": 240000, "max": 480000, "currency": "KRW" } },
+        "qualitySignals": { "reworkRate": 0.07, "avgResponseMinutes": 80, "slaBreachRate": 0.025, "recentCaseCount": 55 },
+        "sponsor": null
+      }
+    },
+    {
+      "partnerId": "p_demo_10",
+      "profileJson": {
+        "version": "v1",
+        "partnerId": "p_demo_10",
+        "nameKo": "울산 등기파트너 법무사사무소",
+        "type": "법무사사무소",
+        "verification": "basic",
+        "rating5": 3.8,
+        "badges": ["basic"],
+        "addressShortKo": "울산 남구",
+        "location": { "addressKo": "울산광역시 남구 삼산로 80", "lat": 35.539, "lng": 129.311, "subwayHintKo": null },
+        "visitable": { "supported": false },
+        "serviceArea": { "regionsKo": ["울산", "부산"], "courtsKo": [], "remoteSupported": true },
+        "capabilities": { "casePackIds": ["corp_officer_change_v1"], "specialtiesKo": [], "languages": ["ko"] },
+        "capacity": { "activeCaseLimit": 9, "availableNow": true },
+        "pricing": { "defaultPriceRange": { "min": 170000, "max": 330000, "currency": "KRW" } },
+        "qualitySignals": { "reworkRate": 0.16, "avgResponseMinutes": 260, "slaBreachRate": 0.09, "recentCaseCount": 10 },
+        "sponsor": null
+      }
+    }
+  ]
+}

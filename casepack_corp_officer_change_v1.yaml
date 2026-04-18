@@ -1,0 +1,120 @@
+casePack:
+  id: corp.officer_change
+  nameKo: "임원변경 등기(대표/이사/감사)"
+  version: v1
+
+  scope:
+    includes:
+      - "대표이사/이사/감사 변경(선임/중임/사임)"
+    excludes:
+      - "분쟁 중(직무집행정지/가처분) 관련은 manual_review"
+      - "외국 법인/해외 지배구조는 별도 사건팩"
+    legalNotes:
+      - "변경 유형(선임/사임/중임)과 회사 정관/주주총회·이사회 요건에 따라 분기"
+
+  inputForm:
+    version: v1
+    fields:
+      - { key: changeType, labelKo: 변경유형, type: enum, required: true, enum: ["선임", "사임", "중임", "복합"] }
+      - { key: roles, labelKo: 대상 직위, type: array, required: true, helpKo: "예: 대표이사, 이사, 감사" }
+      - { key: hasForeignOfficer, labelKo: 외국인/재외국민 임원 포함, type: boolean, required: true }
+      - { key: hasDispute, labelKo: 분쟁/소송/가처분 진행 중, type: boolean, required: true }
+      - { key: deadlineHours, labelKo: 희망 완료까지 남은 시간(시간), type: number, required: false }
+    derivedFields:
+      - { key: isUrgent, formula: "deadlineHours != null && deadlineHours <= 72" }
+      - { key: isHighRisk, formula: "hasDispute == true" }
+
+  decisionTree:
+    version: v1
+    branches:
+      - id: B_DISPUTE
+        nameKo: "분쟁/가처분"
+        when: { all: [ { field: hasDispute, op: eq, value: true } ] }
+        effects:
+          depthScoreDelta: 40
+          riskFlagsAdd: ["LEGAL_DISPUTE"]
+          slaDeltaHours: 48
+          checklistAdd: ["운영자 사전 검토/수임 가능성 판단"]
+          documentsAdd: ["관련 결정문/소장/가처분 서류(해당 시)"]
+
+      - id: B_URGENT
+        nameKo: "긴급(72시간 이내)"
+        when: { all: [ { field: isUrgent, op: eq, value: true } ] }
+        effects:
+          depthScoreDelta: 20
+          riskFlagsAdd: ["URGENT"]
+          slaDeltaHours: -24
+          checklistAdd: ["긴급 진행 동의"]
+          documentsAdd: []
+
+      - id: B_FOREIGN
+        nameKo: "외국인/재외국민 임원"
+        when: { all: [ { field: hasForeignOfficer, op: eq, value: true } ] }
+        effects:
+          depthScoreDelta: 25
+          riskFlagsAdd: ["KYC_STRICT", "DOC_TRANSLATION"]
+          slaDeltaHours: 24
+          checklistAdd: ["신원/주소/서명 방식 확인"]
+          documentsAdd: ["여권/주소 증빙(해당 시)"]
+
+  documents:
+    version: v1
+    required:
+      - { id: D_MINUTES, nameKo: 주주총회/이사회 의사록(해당), type: file, required: true, condition: null, notesKo: "정관/사안에 따라 달라짐" }
+      - { id: D_CONSENT, nameKo: 취임승낙서/사임서(해당), type: file, required: true, condition: null, notesKo: "" }
+      - { id: D_SEAL, nameKo: 인감/서명 관련 서류(케이스별), type: file, required: true, condition: null, notesKo: "" }
+    optional: []
+
+  checklist:
+    version: v1
+    items:
+      - { id: C_SCOPE, phase: 접수, titleKo: "변경 범위 확정(직위/유형)", required: true, acceptanceCriteriaKo: "선임/사임/중임 및 직위 목록 확정" }
+      - { id: C_DOCS, phase: 서류수집, titleKo: "필수 서류 업로드", required: true, acceptanceCriteriaKo: "누락 없음" }
+      - { id: C_REVIEW, phase: 검토, titleKo: "정관/결의 요건 검토", required: true, acceptanceCriteriaKo: "요건 충족 확인" }
+      - { id: C_SUBMIT, phase: 제출, titleKo: "제출 완료", required: true, acceptanceCriteriaKo: "접수번호 확보" }
+
+  workflow:
+    version: v1
+    states:
+      - { id: RECEIVED, nameKo: 접수 }
+      - { id: DOC_REQUEST, nameKo: 서류요청 }
+      - { id: DOC_RECEIVED, nameKo: 서류수령 }
+      - { id: REVIEW, nameKo: 검토/보완 }
+      - { id: FILE_SUBMIT, nameKo: 신청/제출 }
+      - { id: IN_PROGRESS, nameKo: 처리중 }
+      - { id: DONE, nameKo: 완료 }
+    transitions:
+      - { from: RECEIVED, to: DOC_REQUEST, guard: always }
+      - { from: DOC_REQUEST, to: DOC_RECEIVED, guard: allRequiredDocsUploaded }
+      - { from: DOC_RECEIVED, to: REVIEW, guard: always }
+      - { from: REVIEW, to: FILE_SUBMIT, guard: reviewPassed }
+      - { from: FILE_SUBMIT, to: IN_PROGRESS, guard: submissionAccepted }
+      - { from: IN_PROGRESS, to: DONE, guard: completionConfirmed }
+
+  sla:
+    version: v1
+    timers:
+      - { id: T_START, nameKo: 착수 SLA, targetHours: 1, breachAction: ESCALATE_OPS }
+      - { id: T_COMPLETE, nameKo: 완료 SLA, targetHours: 72, breachAction: ESCALATE_PARTNER }
+
+  scoring:
+    version: v1
+    baseDepthScore: 45
+    riskModel:
+      baseRiskScore: 25
+      rules:
+        - { id: R_DISPUTE, nameKo: 분쟁, when: { all: [ { field: hasDispute, op: eq, value: true } ] }, riskScoreDelta: 55, riskFlagsAdd: ["LEGAL_DISPUTE"] }
+        - { id: R_URGENT, nameKo: 긴급, when: { all: [ { field: isUrgent, op: eq, value: true } ] }, riskScoreDelta: 20, riskFlagsAdd: ["URGENT"] }
+        - { id: R_FOREIGN, nameKo: 외국인, when: { all: [ { field: hasForeignOfficer, op: eq, value: true } ] }, riskScoreDelta: 25, riskFlagsAdd: ["KYC_STRICT"] }
+
+  assignmentPolicy:
+    version: v1
+    partnerEligibility:
+      allowedPartnerTypes: ["법무법인", "법률사무소"]
+      requiredCapabilities: ["corp_registry"]
+      regionConstraint: null
+    modeRules:
+      - { id: M_MANUAL, when: { any: [ { metric: riskScore, op: gte, value: 80 }, { flag: LEGAL_DISPUTE, op: exists } ] }, mode: manual_review }
+      - { id: M_MANAGED, when: { all: [ { metric: depthScore, op: lt, value: 60 }, { metric: riskScore, op: lt, value: 50 } ] }, mode: managed }
+      - { id: M_BID, when: { any: [ { metric: depthScore, op: gte, value: 60 }, { metric: riskScore, op: gte, value: 50 } ] }, mode: restricted_bidding, bidding: { inviteCount: 3, responseWindowMinutes: 30 } }
+

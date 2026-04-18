@@ -1,0 +1,55 @@
+{
+  "version": "v1",
+  "description": "로컬 개발/테스트용 광고(스폰서) 캠페인 시드(샘플). Verified/Pro 파트너만 active 캠페인을 가질 수 있다는 정책을 가정한다.",
+  "campaigns": [
+    {
+      "campaignId": "camp_demo_01",
+      "partnerId": "p_demo_01",
+      "status": "active",
+      "budgetAmount": 500000,
+      "currency": "KRW",
+      "startsAt": "2026-04-01T00:00:00Z",
+      "endsAt": "2026-06-30T23:59:59Z",
+      "placementRules": { "allowedPlacements": ["sponsor_carousel"], "maxImpressionsPerSession": 3 }
+    },
+    {
+      "campaignId": "camp_demo_02",
+      "partnerId": "p_demo_04",
+      "status": "active",
+      "budgetAmount": 300000,
+      "currency": "KRW",
+      "startsAt": "2026-04-15T00:00:00Z",
+      "endsAt": "2026-05-31T23:59:59Z",
+      "placementRules": { "allowedPlacements": ["sponsor_carousel"], "maxImpressionsPerSession": 2 }
+    },
+    {
+      "campaignId": "camp_demo_03",
+      "partnerId": "p_demo_08",
+      "status": "paused",
+      "budgetAmount": 400000,
+      "currency": "KRW",
+      "startsAt": "2026-04-01T00:00:00Z",
+      "endsAt": "2026-06-30T23:59:59Z",
+      "placementRules": { "allowedPlacements": ["sponsor_carousel"], "maxImpressionsPerSession": 2 }
+    }
+  ],
+  "sampleEvents": [
+    {
+      "type": "SPONSOR_IMPRESSION",
+      "campaignId": "camp_demo_01",
+      "partnerId": "p_demo_01",
+      "sessionId": "s_demo_01",
+      "placement": "sponsor_carousel",
+      "position": 1
+    },
+    {
+      "type": "SPONSOR_CLICKED",
+      "campaignId": "camp_demo_01",
+      "partnerId": "p_demo_01",
+      "sessionId": "s_demo_01",
+      "placement": "sponsor_carousel",
+      "position": 1
+    }
+  ]
+}
+

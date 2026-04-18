@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <defs>
+    <style>
+      .title { font: 700 28px 'Noto Sans CJK KR', 'Noto Sans KR', Arial, sans-serif; fill: #111; }
+      .label { font: 700 20px 'Noto Sans CJK KR', 'Noto Sans KR', Arial, sans-serif; fill: #111; }
+      .small { font: 400 18px 'Noto Sans CJK KR', 'Noto Sans KR', Arial, sans-serif; fill: #111; }
+      .boxtext { font: 700 18px 'Noto Sans CJK KR', 'Noto Sans KR', Arial, sans-serif; fill: #0b1a2b; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="760" fill="#ffffff"/>
+  <text x="40" y="60" class="title">프롬프팅 패러다임 비교(개념도)</text>
+
+  <!-- cells -->
+  <rect x="60" y="110" width="520" height="270" rx="18" fill="#F6F6F6" stroke="#444" stroke-width="2"/>
+  <text x="90" y="160" class="label">Standard</text>
+  <text x="100" y="205" class="small">• 한 번에 답/행동 생성</text>
+  <text x="100" y="240" class="small">• 근거가 불투명</text>
+  <text x="100" y="275" class="small">• 환각/오류 전파 위험</text>
+
+  <rect x="620" y="110" width="520" height="270" rx="18" fill="#FFF3E6" stroke="#444" stroke-width="2"/>
+  <text x="650" y="160" class="label">CoT (Reason-only)</text>
+  <text x="660" y="205" class="small">• 추론(Thought) 공개</text>
+  <text x="660" y="240" class="small">• 외부 근거 갱신 어려움</text>
+  <text x="660" y="275" class="small">• 긴 추론의 오류 전파</text>
+
+  <rect x="60" y="420" width="520" height="270" rx="18" fill="#EAF7EA" stroke="#444" stroke-width="2"/>
+  <text x="90" y="470" class="label">Act-only</text>
+  <text x="100" y="515" class="small">• 도구/행동 위주</text>
+  <text x="100" y="550" class="small">• 계획/기억 부족</text>
+  <text x="100" y="585" class="small">• 불필요한 탐색 발생</text>
+
+  <rect x="620" y="420" width="520" height="270" rx="18" fill="#E8F1FF" stroke="#444" stroke-width="2"/>
+  <text x="650" y="470" class="label">ReAct (Reason+Act)</text>
+  <text x="660" y="515" class="small">• 추론↔행동 교차</text>
+  <text x="660" y="550" class="small">• 외부 근거로 환각 감소</text>
+  <text x="660" y="585" class="small">• 사람이 읽기 쉬운 궤적</text>
+
+</svg>

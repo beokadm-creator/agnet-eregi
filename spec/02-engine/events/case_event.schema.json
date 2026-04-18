@@ -1,0 +1,1387 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/spec/events/case_event.schema.json",
+  "title": "Case Domain Event Envelope (v1)",
+  "description": "플랫폼 전반(UX/문서/견적/결제/정산/리스크)에서 사용되는 공통 이벤트 envelope + 주요 이벤트 페이로드 계약. 이벤트 저장소는 append-only를 전제한다.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/IntentSubmittedEvent" },
+    { "$ref": "#/$defs/DiagnosisAnsweredEvent" },
+    { "$ref": "#/$defs/ResultsViewedEvent" },
+    { "$ref": "#/$defs/PartnerSelectedEvent" },
+    { "$ref": "#/$defs/CaseCreatedEvent" },
+    { "$ref": "#/$defs/CaseAcceptedEvent" },
+    { "$ref": "#/$defs/CaseCompletedEvent" },
+    { "$ref": "#/$defs/CaseCancelledEvent" },
+    { "$ref": "#/$defs/CaseReassignedEvent" },
+    { "$ref": "#/$defs/CaseFrozenEvent" },
+    { "$ref": "#/$defs/CaseUnfrozenEvent" },
+    { "$ref": "#/$defs/PartnerRankedEvent" },
+    { "$ref": "#/$defs/PartnerOnboardingSubmittedEvent" },
+    { "$ref": "#/$defs/PartnerOnboardingNeedsFixEvent" },
+    { "$ref": "#/$defs/PartnerOnboardingApprovedEvent" },
+    { "$ref": "#/$defs/PartnerOnboardingRejectedEvent" },
+    { "$ref": "#/$defs/PartnerGradeChangedEvent" },
+    { "$ref": "#/$defs/PartnerSuspendedEvent" },
+    { "$ref": "#/$defs/PartnerReinstatedEvent" },
+    { "$ref": "#/$defs/PartnerProfileUpdatedEvent" },
+    { "$ref": "#/$defs/DocumentUploadedEvent" },
+    { "$ref": "#/$defs/DocumentClassifiedEvent" },
+    { "$ref": "#/$defs/DocumentReviewRequestedEvent" },
+    { "$ref": "#/$defs/DocumentReviewedEvent" },
+    { "$ref": "#/$defs/FixRequestSentEvent" },
+    { "$ref": "#/$defs/FixSubmittedEvent" },
+    { "$ref": "#/$defs/QuoteRequestedEvent" },
+    { "$ref": "#/$defs/QuoteFinalizedEvent" },
+    { "$ref": "#/$defs/QuoteAcceptedEvent" },
+    { "$ref": "#/$defs/QuoteExpiredEvent" },
+    { "$ref": "#/$defs/PaymentAuthorizedEvent" },
+    { "$ref": "#/$defs/PaymentCapturedEvent" },
+    { "$ref": "#/$defs/PaymentFailedEvent" },
+    { "$ref": "#/$defs/PaymentCancelledEvent" },
+    { "$ref": "#/$defs/RefundRequestedEvent" },
+    { "$ref": "#/$defs/RefundApprovedEvent" },
+    { "$ref": "#/$defs/RefundExecutedEvent" },
+    { "$ref": "#/$defs/RefundRejectedEvent" },
+    { "$ref": "#/$defs/SettlementToPartnerCreatedEvent" },
+    { "$ref": "#/$defs/SettlementToPartnerPaidEvent" },
+    { "$ref": "#/$defs/PartnerReceivableCreatedEvent" },
+    { "$ref": "#/$defs/PartnerReceivableOffsetAppliedEvent" },
+    { "$ref": "#/$defs/SettlementVoidedEvent" },
+    { "$ref": "#/$defs/ApprovalRequestedEvent" },
+    { "$ref": "#/$defs/ApprovalApprovedEvent" },
+    { "$ref": "#/$defs/ApprovalRejectedEvent" },
+    { "$ref": "#/$defs/SlaAtRiskDetectedEvent" },
+    { "$ref": "#/$defs/SlaBreachDetectedEvent" },
+    { "$ref": "#/$defs/RiskFlaggedEvent" },
+    { "$ref": "#/$defs/CaseEscalatedToOpsEvent" }
+  ],
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "IsoDateTime": { "type": "string", "format": "date-time" },
+    "EventName": {
+      "type": "string",
+      "enum": [
+        "INTENT_SUBMITTED",
+        "DIAGNOSIS_ANSWERED",
+        "RESULTS_VIEWED",
+        "PARTNER_SELECTED",
+        "CASE_CREATED",
+        "CASE_ACCEPTED",
+        "CASE_COMPLETED",
+        "CASE_CANCELLED",
+        "CASE_REASSIGNED",
+        "CASE_FROZEN",
+        "CASE_UNFROZEN",
+        "PARTNER_ONBOARDING_SUBMITTED",
+        "PARTNER_ONBOARDING_NEEDS_FIX",
+        "PARTNER_ONBOARDING_APPROVED",
+        "PARTNER_ONBOARDING_REJECTED",
+        "PARTNER_GRADE_CHANGED",
+        "PARTNER_SUSPENDED",
+        "PARTNER_REINSTATED",
+        "PARTNER_PROFILE_UPDATED",
+        "PARTNER_RANKED",
+        "DOCUMENT_UPLOADED",
+        "DOCUMENT_CLASSIFIED",
+        "DOCUMENT_REVIEW_REQUESTED",
+        "DOCUMENT_REVIEWED",
+        "FIX_REQUEST_SENT",
+        "FIX_SUBMITTED",
+        "QUOTE_REQUESTED",
+        "QUOTE_FINALIZED",
+        "QUOTE_ACCEPTED",
+        "QUOTE_EXPIRED",
+        "PAYMENT_AUTHORIZED",
+        "PAYMENT_CAPTURED",
+        "PAYMENT_FAILED",
+        "PAYMENT_CANCELLED",
+        "REFUND_REQUESTED",
+        "REFUND_APPROVED",
+        "REFUND_EXECUTED",
+        "REFUND_REJECTED",
+        "SETTLEMENT_TO_PARTNER_CREATED",
+        "SETTLEMENT_TO_PARTNER_PAID",
+        "PARTNER_RECEIVABLE_CREATED",
+        "PARTNER_RECEIVABLE_OFFSET_APPLIED",
+        "SLA_BREACH_DETECTED",
+        "SLA_AT_RISK_DETECTED",
+        "RISK_FLAGGED",
+        "CASE_ESCALATED_TO_OPS",
+        "SETTLEMENT_VOIDED",
+        "APPROVAL_REQUESTED",
+        "APPROVAL_APPROVED",
+        "APPROVAL_REJECTED"
+      ]
+    },
+    "ActorType": { "type": "string", "enum": ["user", "partner", "ops", "system"] },
+    "Actor": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "$ref": "#/$defs/ActorType" },
+        "id": { "type": ["string", "null"] },
+        "displayNameKo": { "type": ["string", "null"] },
+        "ip": { "type": ["string", "null"] },
+        "userAgent": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "Producer": {
+      "type": "object",
+      "required": ["service", "version"],
+      "properties": {
+        "service": {
+          "type": "string",
+          "description": "event를 발행한 서비스/엔진 식별자. 예: api_gateway, casepack_rule_engine, doc_review_engine"
+        },
+        "version": { "type": "string" },
+        "node": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "Trace": {
+      "type": "object",
+      "properties": {
+        "requestId": { "type": ["string", "null"] },
+        "correlationId": { "type": ["string", "null"] },
+        "causationId": { "type": ["string", "null"] },
+        "spanId": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "EnvelopeBase": {
+      "type": "object",
+      "required": ["eventId", "eventType", "version", "occurredAt", "producer", "actor", "data"],
+      "properties": {
+        "eventId": { "$ref": "#/$defs/Uuid" },
+        "eventType": { "$ref": "#/$defs/EventName" },
+        "version": { "type": "string", "const": "v1" },
+        "occurredAt": { "$ref": "#/$defs/IsoDateTime" },
+        "producer": { "$ref": "#/$defs/Producer" },
+        "actor": { "$ref": "#/$defs/Actor" },
+        "trace": { "$ref": "#/$defs/Trace" },
+        "tenantId": { "type": ["string", "null"] },
+        "sessionId": { "type": ["string", "null"] },
+        "caseId": { "type": ["string", "null"] },
+        "partnerId": { "type": ["string", "null"] },
+        "data": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "Money": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": { "type": "number" },
+        "currency": { "type": "string", "default": "KRW" }
+      },
+      "additionalProperties": false
+    },
+    "MoneyRange": {
+      "type": "object",
+      "required": ["min", "max", "currency"],
+      "properties": {
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "currency": { "type": "string", "default": "KRW" }
+      },
+      "additionalProperties": false
+    },
+    "TimeRange": {
+      "type": "object",
+      "required": ["minHours", "maxHours"],
+      "properties": {
+        "minHours": { "type": "number" },
+        "maxHours": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "DocSlotStatus": { "type": "string", "enum": ["미업로드", "검토중", "OK", "보완필요"] },
+    "RiskSeverity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+
+    "IntentSubmittedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "INTENT_SUBMITTED" },
+            "data": {
+              "type": "object",
+              "required": ["intentText"],
+              "properties": {
+                "intentText": { "type": "string", "minLength": 1 },
+                "categoryHint": { "type": ["string", "null"] },
+                "language": { "type": ["string", "null"], "default": "ko" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "DiagnosisAnsweredEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "DIAGNOSIS_ANSWERED" },
+            "data": {
+              "type": "object",
+              "required": ["questionId", "answer"],
+              "properties": {
+                "casePackId": { "type": ["string", "null"] },
+                "questionId": { "type": "string" },
+                "answer": { "type": "object", "description": "문항별 자유형 answer payload (casepack schema에 따라 해석)" },
+                "caseInputSnapshot": {
+                  "type": ["object", "null"],
+                  "description": "재현/감사를 위한 누적 입력 스냅샷(선택, 크면 외부 저장 후 ref로 대체)"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "ResultsViewedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "RESULTS_VIEWED" },
+            "data": {
+              "type": "object",
+              "required": ["resultSetId"],
+              "properties": {
+                "resultSetId": { "type": "string", "description": "랭킹 결과/AB 실험 묶음 식별자" },
+                "ab": { "type": ["object", "null"], "description": "실험 키/버킷 등" },
+                "topPartnerIds": { "type": "array", "items": { "type": "string" } }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PartnerSelectedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "PARTNER_SELECTED" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["resultSetId", "selectedPartnerId"],
+              "properties": {
+                "resultSetId": { "type": "string" },
+                "selectedPartnerId": { "type": "string" },
+                "selectionReasonKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "CaseCreatedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "CASE_CREATED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["casePackId"],
+              "properties": {
+                "casePackId": { "type": "string" },
+                "selectedPartnerId": { "type": ["string", "null"] },
+                "caseInput": { "type": ["object", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "CaseAcceptedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId", "partnerId"],
+          "properties": {
+            "eventType": { "const": "CASE_ACCEPTED" },
+            "caseId": { "type": "string" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "properties": {
+                "acceptedByPartnerUserId": { "type": ["string", "null"] },
+                "notesKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "CaseCompletedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "CASE_COMPLETED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "properties": {
+                "completionType": { "type": ["string", "null"], "description": "예: 제출완료/등기완료 등 사건팩 기준" },
+                "notesKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "CaseCancelledEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "CASE_CANCELLED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["reasonKo"],
+              "properties": {
+                "reasonKo": { "type": "string" },
+                "cancelledBy": { "$ref": "#/$defs/ActorType" },
+                "refundPolicyApplied": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "CaseReassignedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "CASE_REASSIGNED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["toPartnerId", "reasonKo"],
+              "properties": {
+                "fromPartnerId": { "type": ["string", "null"] },
+                "toPartnerId": { "type": "string" },
+                "reasonKo": { "type": "string" },
+                "resultSetId": { "type": ["string", "null"], "description": "재랭킹/재매칭 결과 참조(선택)" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "CaseFrozenEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "CASE_FROZEN" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["reasonKo"],
+              "properties": {
+                "reasonKo": { "type": "string" },
+                "until": { "type": ["string", "null"], "format": "date-time" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "CaseUnfrozenEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "CASE_UNFROZEN" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "properties": {
+                "reasonKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PartnerRankedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "PARTNER_RANKED" },
+            "data": {
+              "type": "object",
+              "required": ["resultSetId", "casePackId", "rankedPartnerIds"],
+              "properties": {
+                "resultSetId": { "type": "string" },
+                "casePackId": { "type": "string" },
+                "rankedPartnerIds": { "type": "array", "items": { "type": "string" } },
+                "rankingExplain": { "type": ["object", "null"], "description": "감사용 요약(특정 파트너 점수/필터링 이유 등)" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "PartnerOnboardingSubmittedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "PARTNER_ONBOARDING_SUBMITTED" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["onboardingId"],
+              "properties": {
+                "onboardingId": { "type": "string" },
+                "partnerType": { "type": ["string", "null"], "enum": ["법무사사무소", "법무법인", "법률사무소", null] },
+                "submittedAt": { "$ref": "#/$defs/IsoDateTime" },
+                "notesKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PartnerOnboardingNeedsFixEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "PARTNER_ONBOARDING_NEEDS_FIX" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["onboardingId", "reasonKo"],
+              "properties": {
+                "onboardingId": { "type": "string" },
+                "reasonKo": { "type": "string" },
+                "requiredFields": { "type": "array", "items": { "type": "string" } },
+                "requiredDocs": { "type": "array", "items": { "type": "string" } }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PartnerOnboardingApprovedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "PARTNER_ONBOARDING_APPROVED" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["onboardingId", "approvedAt"],
+              "properties": {
+                "onboardingId": { "type": "string" },
+                "approvedAt": { "$ref": "#/$defs/IsoDateTime" },
+                "grade": { "type": ["string", "null"], "enum": ["basic", "verified", "pro", null] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PartnerOnboardingRejectedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "PARTNER_ONBOARDING_REJECTED" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["onboardingId", "reasonKo"],
+              "properties": {
+                "onboardingId": { "type": "string" },
+                "reasonKo": { "type": "string" },
+                "rejectedAt": { "$ref": "#/$defs/IsoDateTime" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PartnerGradeChangedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "PARTNER_GRADE_CHANGED" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["from", "to", "changedAt"],
+              "properties": {
+                "from": { "type": ["string", "null"], "enum": ["basic", "verified", "pro", null] },
+                "to": { "type": "string", "enum": ["basic", "verified", "pro"] },
+                "changedAt": { "$ref": "#/$defs/IsoDateTime" },
+                "reasonKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PartnerSuspendedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "PARTNER_SUSPENDED" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["reasonKo", "suspendedAt"],
+              "properties": {
+                "reasonKo": { "type": "string" },
+                "suspendedAt": { "$ref": "#/$defs/IsoDateTime" },
+                "until": { "type": ["string", "null"], "format": "date-time" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PartnerReinstatedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "PARTNER_REINSTATED" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["reinstatedAt"],
+              "properties": {
+                "reinstatedAt": { "$ref": "#/$defs/IsoDateTime" },
+                "reasonKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PartnerProfileUpdatedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "PARTNER_PROFILE_UPDATED" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["changedAt"],
+              "properties": {
+                "changedAt": { "$ref": "#/$defs/IsoDateTime" },
+                "changedFields": { "type": "array", "items": { "type": "string" } },
+                "summaryKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "DocumentUploadedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "DOCUMENT_UPLOADED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["documentId", "versionId", "fileName", "mimeType", "sizeBytes"],
+              "properties": {
+                "documentId": { "type": "string" },
+                "versionId": { "type": "string" },
+                "slotId": { "type": ["string", "null"] },
+                "fileName": { "type": "string" },
+                "mimeType": { "type": "string" },
+                "sizeBytes": { "type": "integer", "minimum": 0 },
+                "sha256": { "type": ["string", "null"] },
+                "storageRef": { "type": ["string", "null"], "description": "S3/GCS 등 외부 저장소 key" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "DocumentClassifiedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "DOCUMENT_CLASSIFIED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["documentId", "slotId", "confidence"],
+              "properties": {
+                "documentId": { "type": "string" },
+                "slotId": { "type": "string" },
+                "confidence": { "type": "string", "enum": ["low", "medium", "high"] },
+                "method": { "type": "string", "enum": ["ai", "user", "partner", "ops"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "DocumentReviewRequestedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "DOCUMENT_REVIEW_REQUESTED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["reviewRequestId"],
+              "properties": {
+                "reviewRequestId": { "type": "string" },
+                "documentIds": { "type": "array", "items": { "type": "string" } },
+                "slots": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["slotId", "status"],
+                    "properties": {
+                      "slotId": { "type": "string" },
+                      "status": { "$ref": "#/$defs/DocSlotStatus" }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "notesKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "DocumentReviewedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "DOCUMENT_REVIEWED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["reviewRequestId", "decision"],
+              "properties": {
+                "reviewRequestId": { "type": "string" },
+                "decision": { "type": "string", "enum": ["OK", "보완필요"] },
+                "issues": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["severity", "messageKo"],
+                    "properties": {
+                      "severity": { "type": "string", "enum": ["info", "warn", "critical"] },
+                      "messageKo": { "type": "string" },
+                      "evidenceRefs": { "type": "array", "items": { "type": "string" } }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "FixRequestSentEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "FIX_REQUEST_SENT" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["messageId", "channel", "summaryKo"],
+              "properties": {
+                "messageId": { "type": "string" },
+                "channel": { "type": "string", "enum": ["sms", "kakao", "email", "in_app"] },
+                "summaryKo": { "type": "string" },
+                "approval": {
+                  "type": "object",
+                  "required": ["required", "approved"],
+                  "properties": {
+                    "required": { "type": "boolean" },
+                    "approved": { "type": "boolean" },
+                    "approverType": { "$ref": "#/$defs/ActorType" },
+                    "approverId": { "type": ["string", "null"] },
+                    "approvedAt": { "type": ["string", "null"], "format": "date-time" }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "FixSubmittedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "FIX_SUBMITTED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "properties": {
+                "relatedMessageId": { "type": ["string", "null"] },
+                "documentIds": { "type": "array", "items": { "type": "string" } },
+                "commentKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "QuoteRequestedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "QUOTE_REQUESTED" },
+            "data": {
+              "type": "object",
+              "required": ["casePackId"],
+              "properties": {
+                "casePackId": { "type": "string" },
+                "partnerIdHint": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "QuoteFinalizedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "QUOTE_FINALIZED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["quoteId", "priceRange", "etaRange"],
+              "properties": {
+                "quoteId": { "type": "string" },
+                "priceRange": { "$ref": "#/$defs/MoneyRange" },
+                "etaRange": { "$ref": "#/$defs/TimeRange" },
+                "assumptionsKo": { "type": "array", "items": { "type": "string" } },
+                "userConsent": {
+                  "type": "object",
+                  "required": ["consented", "consentedAt"],
+                  "properties": {
+                    "consented": { "type": "boolean" },
+                    "consentedAt": { "$ref": "#/$defs/IsoDateTime" },
+                    "consentTextVersion": { "type": ["string", "null"] }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "QuoteAcceptedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "QUOTE_ACCEPTED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["quoteId", "consentedAt"],
+              "properties": {
+                "quoteId": { "type": "string" },
+                "consentedAt": { "$ref": "#/$defs/IsoDateTime" },
+                "consentTextVersion": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "QuoteExpiredEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "QUOTE_EXPIRED" },
+            "data": {
+              "type": "object",
+              "required": ["quoteId"],
+              "properties": {
+                "caseId": { "type": ["string", "null"] },
+                "quoteId": { "type": "string" },
+                "expiredAt": { "$ref": "#/$defs/IsoDateTime" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "PaymentAuthorizedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "PAYMENT_AUTHORIZED" },
+            "data": {
+              "type": "object",
+              "required": ["paymentId", "amount", "method", "pg"],
+              "properties": {
+                "caseId": { "type": ["string", "null"], "description": "정산/대사 엔진에서 사용(권장). envelope의 caseId와 동일해야 함." },
+                "paymentId": { "type": "string" },
+                "quoteId": { "type": ["string", "null"] },
+                "amount": { "$ref": "#/$defs/Money" },
+                "method": { "type": "string", "enum": ["card", "transfer", "vbank", "easy_pay"] },
+                "pg": { "type": "string", "description": "결제대행사 식별자" },
+                "pgAuthKey": { "type": ["string", "null"] },
+                "authorizedAt": { "$ref": "#/$defs/IsoDateTime" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PaymentCapturedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "PAYMENT_CAPTURED" },
+            "data": {
+              "type": "object",
+              "required": ["paymentId", "amount"],
+              "properties": {
+                "caseId": { "type": ["string", "null"], "description": "정산/대사 엔진에서 사용(권장). envelope의 caseId와 동일해야 함." },
+                "paymentId": { "type": "string" },
+                "amount": { "$ref": "#/$defs/Money" },
+                "capturedAt": { "$ref": "#/$defs/IsoDateTime" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PaymentFailedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "PAYMENT_FAILED" },
+            "data": {
+              "type": "object",
+              "required": ["paymentId", "reasonKo"],
+              "properties": {
+                "caseId": { "type": ["string", "null"] },
+                "paymentId": { "type": "string" },
+                "pg": { "type": ["string", "null"] },
+                "reasonKo": { "type": "string" },
+                "pgErrorCode": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PaymentCancelledEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "PAYMENT_CANCELLED" },
+            "data": {
+              "type": "object",
+              "required": ["paymentId", "cancelledAt"],
+              "properties": {
+                "caseId": { "type": ["string", "null"] },
+                "paymentId": { "type": "string" },
+                "cancelledAt": { "$ref": "#/$defs/IsoDateTime" },
+                "reasonKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "RefundRequestedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "REFUND_REQUESTED" },
+            "data": {
+              "type": "object",
+              "required": ["refundId", "paymentId", "amount", "reasonKo"],
+              "properties": {
+                "caseId": { "type": ["string", "null"], "description": "정산/대사 엔진에서 사용(권장). envelope의 caseId와 동일해야 함." },
+                "refundId": { "type": "string" },
+                "paymentId": { "type": "string" },
+                "amount": { "$ref": "#/$defs/Money" },
+                "reasonKo": { "type": "string" },
+                "requestedAt": { "$ref": "#/$defs/IsoDateTime" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "RefundApprovedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "REFUND_APPROVED" },
+            "data": {
+              "type": "object",
+              "required": ["refundId", "approved"],
+              "properties": {
+                "refundId": { "type": "string" },
+                "approved": { "type": "boolean" },
+                "approvedAt": { "type": ["string", "null"], "format": "date-time" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "RefundExecutedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "REFUND_EXECUTED" },
+            "data": {
+              "type": "object",
+              "required": ["refundId", "paymentId", "amount"],
+              "properties": {
+                "caseId": { "type": ["string", "null"], "description": "정산/대사 엔진에서 사용(권장). envelope의 caseId와 동일해야 함." },
+                "refundId": { "type": "string" },
+                "paymentId": { "type": "string" },
+                "amount": { "$ref": "#/$defs/Money" },
+                "executedAt": { "$ref": "#/$defs/IsoDateTime" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "RefundRejectedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "REFUND_REJECTED" },
+            "data": {
+              "type": "object",
+              "required": ["refundId", "reasonKo"],
+              "properties": {
+                "refundId": { "type": "string" },
+                "reasonKo": { "type": "string" },
+                "rejectedAt": { "type": ["string", "null"], "format": "date-time" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "SettlementToPartnerCreatedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId", "partnerId"],
+          "properties": {
+            "eventType": { "const": "SETTLEMENT_TO_PARTNER_CREATED" },
+            "caseId": { "type": "string" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["settlementId", "caseId", "partnerId", "grossAmount", "platformFee", "netAmount", "period", "createdAt"],
+              "properties": {
+                "settlementId": { "type": "string" },
+                "caseId": { "type": "string" },
+                "partnerId": { "type": "string" },
+                "grossAmount": { "$ref": "#/$defs/Money" },
+                "platformFee": { "$ref": "#/$defs/Money" },
+                "netAmount": { "$ref": "#/$defs/Money" },
+                "period": {
+                  "type": "object",
+                  "required": ["from", "to"],
+                  "properties": {
+                    "from": { "$ref": "#/$defs/IsoDateTime" },
+                    "to": { "$ref": "#/$defs/IsoDateTime" }
+                  },
+                  "additionalProperties": false
+                },
+                "createdAt": { "$ref": "#/$defs/IsoDateTime" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "SettlementToPartnerPaidEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "SETTLEMENT_TO_PARTNER_PAID" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["settlementId", "partnerId", "netAmount", "paidAt", "payoutMethod"],
+              "properties": {
+                "settlementId": { "type": "string" },
+                "partnerId": { "type": "string" },
+                "netAmount": { "$ref": "#/$defs/Money" },
+                "paidAt": { "$ref": "#/$defs/IsoDateTime" },
+                "payoutMethod": { "type": "string" },
+                "bankRef": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "PartnerReceivableCreatedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "PARTNER_RECEIVABLE_CREATED" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["receivableId", "partnerId", "amount", "reasonKo", "createdAt"],
+              "properties": {
+                "receivableId": { "type": "string" },
+                "partnerId": { "type": "string" },
+                "caseId": { "type": ["string", "null"] },
+                "amount": { "$ref": "#/$defs/Money" },
+                "reasonKo": { "type": "string" },
+                "sourceEventId": { "type": ["string", "null"] },
+                "createdAt": { "$ref": "#/$defs/IsoDateTime" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "PartnerReceivableOffsetAppliedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["partnerId"],
+          "properties": {
+            "eventType": { "const": "PARTNER_RECEIVABLE_OFFSET_APPLIED" },
+            "partnerId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["partnerId", "receivableId", "settlementId", "amount", "appliedAt"],
+              "properties": {
+                "partnerId": { "type": "string" },
+                "receivableId": { "type": "string" },
+                "settlementId": { "type": "string" },
+                "amount": { "$ref": "#/$defs/Money" },
+                "appliedAt": { "$ref": "#/$defs/IsoDateTime" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "SettlementVoidedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "SETTLEMENT_VOIDED" },
+            "data": {
+              "type": "object",
+              "required": ["settlementId", "reasonKo"],
+              "properties": {
+                "settlementId": { "type": "string" },
+                "partnerId": { "type": ["string", "null"] },
+                "reasonKo": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "ApprovalRequestedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "APPROVAL_REQUESTED" },
+            "data": {
+              "type": "object",
+              "required": ["approvalRequestId", "approvalGate", "targetType"],
+              "properties": {
+                "approvalRequestId": { "type": "string" },
+                "approvalGate": {
+                  "type": "string",
+                  "enum": [
+                    "message_send",
+                    "quote_finalize",
+                    "refund_approve",
+                    "case_reassign",
+                    "pii_view",
+                    "partner_onboarding_approve",
+                    "partner_grade_change",
+                    "partner_suspend"
+                  ]
+                },
+                "targetType": { "type": "string", "enum": ["case", "quote", "refund", "message", "pii"] },
+                "targetRef": { "type": ["string", "null"] },
+                "requiredRole": { "type": ["string", "null"] },
+                "payloadHash": { "type": ["string", "null"] },
+                "summaryKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "ApprovalApprovedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "APPROVAL_APPROVED" },
+            "data": {
+              "type": "object",
+              "required": ["approvalRequestId", "approvedAt"],
+              "properties": {
+                "approvalRequestId": { "type": "string" },
+                "approvedAt": { "$ref": "#/$defs/IsoDateTime" },
+                "notesKo": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "ApprovalRejectedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "properties": {
+            "eventType": { "const": "APPROVAL_REJECTED" },
+            "data": {
+              "type": "object",
+              "required": ["approvalRequestId", "reasonKo"],
+              "properties": {
+                "approvalRequestId": { "type": "string" },
+                "reasonKo": { "type": "string" },
+                "rejectedAt": { "type": ["string", "null"], "format": "date-time" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "SlaAtRiskDetectedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "SLA_AT_RISK_DETECTED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["slaName", "riskAt", "targetAt"],
+              "properties": {
+                "slaName": { "type": "string" },
+                "riskAt": { "$ref": "#/$defs/IsoDateTime" },
+                "targetAt": { "$ref": "#/$defs/IsoDateTime" },
+                "details": { "type": ["object", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "SlaBreachDetectedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "SLA_BREACH_DETECTED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["slaName", "breachAt"],
+              "properties": {
+                "slaName": { "type": "string" },
+                "breachAt": { "$ref": "#/$defs/IsoDateTime" },
+                "details": { "type": ["object", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "RiskFlaggedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "RISK_FLAGGED" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["severity", "reasonKo"],
+              "properties": {
+                "severity": { "$ref": "#/$defs/RiskSeverity" },
+                "reasonKo": { "type": "string" },
+                "signals": { "type": ["object", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "CaseEscalatedToOpsEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/EnvelopeBase" },
+        {
+          "required": ["caseId"],
+          "properties": {
+            "eventType": { "const": "CASE_ESCALATED_TO_OPS" },
+            "caseId": { "type": "string" },
+            "data": {
+              "type": "object",
+              "required": ["queue", "reasonKo"],
+              "properties": {
+                "queue": { "type": "string", "default": "ops_manual_review" },
+                "reasonKo": { "type": "string" },
+                "suggestedActionsKo": { "type": "array", "items": { "type": "string" } }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    }
+  }
+}

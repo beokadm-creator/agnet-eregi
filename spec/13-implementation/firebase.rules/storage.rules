@@ -1,0 +1,32 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function role() { return signedIn() ? request.auth.token.role : null; }
+    function isOps() { return role() in ['ops_agent','ops_approver','system']; }
+    function partnerId() { return signedIn() ? request.auth.token.partnerId : null; }
+
+    // 문서 업로드 경로: cases/{caseId}/documents/{documentId}/{versionId}
+    match /cases/{caseId}/documents/{documentId}/{versionId} {
+      // read/write는 Firestore cases/{caseId} 권한과 동치가 되도록 해야 한다.
+      // Storage Rules에서 Firestore를 조회(get)할 수 있으므로, cases 문서로 권한을 판정.
+      function canReadCase() {
+        return isOps()
+          || (signedIn() && get(/databases/$(database)/documents/cases/$(caseId)).data.ownerUid == request.auth.uid)
+          || (signedIn() && partnerId() != null && get(/databases/$(database)/documents/cases/$(caseId)).data.partnerId == partnerId());
+      }
+
+      allow read: if canReadCase();
+      // 업로드는 user/partner 모두 허용(본인 케이스/배정 케이스에 한함)
+      function isAllowedContentType() {
+        return request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf'
+          || request.resource.contentType == 'text/plain';
+      }
+      allow write: if canReadCase()
+        && request.resource.size < 10 * 1024 * 1024
+        && isAllowedContentType();
+      allow delete: if isOps();
+    }
+  }
+}

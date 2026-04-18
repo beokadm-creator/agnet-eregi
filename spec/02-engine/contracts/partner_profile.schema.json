@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/spec/contracts/partner_profile.schema.json",
+  "title": "Partner Profile Contract (Minimal for Rendering + Ranking) — v1",
+  "description": "모바일 카드 렌더링(Recommended/Compare/Sponsor)과 1차 랭킹에 필요한 ‘최소’ 파트너 데이터 계약. (전체 프로필은 YAML 단일 소스에서 관리 가능)",
+  "type": "object",
+  "required": ["version", "partnerId", "nameKo", "type", "verification", "serviceArea", "capabilities", "qualitySignals"],
+  "properties": {
+    "version": { "type": "string", "const": "v1" },
+    "partnerId": { "type": "string" },
+    "nameKo": { "type": "string" },
+    "type": { "type": "string", "enum": ["법무사사무소", "법무법인", "법률사무소"] },
+    "verification": { "type": "string", "enum": ["basic", "verified", "pro"] },
+    "rating5": { "type": ["number", "null"], "minimum": 0, "maximum": 5 },
+    "badges": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["basic", "verified", "pro", "visitable", "fast_start", "low_rework"] },
+      "default": []
+    },
+    "addressShortKo": { "type": ["string", "null"] },
+    "location": {
+      "type": ["object", "null"],
+      "description": "지도/방문 옵션에 필요한 최소 위치 정보(선택).",
+      "required": ["addressKo"],
+      "properties": {
+        "addressKo": { "type": "string" },
+        "lat": { "type": ["number", "null"] },
+        "lng": { "type": ["number", "null"] },
+        "subwayHintKo": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "visitable": {
+      "type": "object",
+      "required": ["supported"],
+      "properties": {
+        "supported": { "type": "boolean" },
+        "reservationRequired": { "type": "boolean", "default": true },
+        "businessHoursKo": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "serviceArea": {
+      "type": "object",
+      "required": ["regionsKo"],
+      "properties": {
+        "regionsKo": { "type": "array", "items": { "type": "string" } },
+        "courtsKo": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "remoteSupported": { "type": "boolean", "default": true }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["casePackIds"],
+      "properties": {
+        "casePackIds": { "type": "array", "items": { "type": "string" } },
+        "specialtiesKo": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "languages": { "type": "array", "items": { "type": "string" }, "default": ["ko"] }
+      },
+      "additionalProperties": false
+    },
+    "capacity": {
+      "type": ["object", "null"],
+      "description": "할당/비딩 정책에서 용량 제약을 거는 최소 정보(선택).",
+      "properties": {
+        "activeCaseLimit": { "type": ["integer", "null"], "minimum": 0 },
+        "availableNow": { "type": "boolean", "default": true }
+      },
+      "additionalProperties": false
+    },
+    "pricing": {
+      "type": ["object", "null"],
+      "description": "견적 엔진이 계산한 ‘노출용’ 가격 범위(정확한 계산은 quote 엔진/정산 엔진이 담당).",
+      "properties": {
+        "defaultPriceRange": {
+          "type": "object",
+          "required": ["min", "max", "currency"],
+          "properties": {
+            "min": { "type": "number" },
+            "max": { "type": "number" },
+            "currency": { "type": "string", "default": "KRW" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "qualitySignals": {
+      "type": "object",
+      "required": ["reworkRate", "avgResponseMinutes", "slaBreachRate"],
+      "properties": {
+        "reworkRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "avgResponseMinutes": { "type": "number", "minimum": 0 },
+        "slaBreachRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "recentCaseCount": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "sponsor": {
+      "type": ["object", "null"],
+      "description": "광고/스폰서 영역 노출을 위한 최소 정보(정렬/추천과 분리).",
+      "properties": {
+        "active": { "type": "boolean" },
+        "campaignId": { "type": ["string", "null"] },
+        "labelKo": { "type": "string", "const": "광고" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+

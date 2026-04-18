@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install
+        run: npm ci
+
+      - name: Build (workspaces)
+        run: npm -ws run build
+
+      - name: Rules tests (emulators)
+        env:
+          FIREBASE_PROJECT_ID: demo-rp
+        run: npm run test:rules:exec
+

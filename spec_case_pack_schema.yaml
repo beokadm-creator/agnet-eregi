@@ -1,0 +1,186 @@
+schemaVersion: 0.1
+title: Case Pack Schema (등기 사건팩 스키마)
+description: >
+  등기 대행 플랫폼이 사건을 "정의/분기/서류/상태/SLA/리스크/가격/할당"까지
+  일관되게 운영하기 위한 표준 스키마. 사건 1개 = Case Pack 1개.
+
+casePack:
+  id: "corp.incorporation"          # 예: corp.incorporation, corp.officer_change, corp.hq_move
+  nameKo: "주식회사 설립등기"
+  scope:
+    includes: []                    # 포함 케이스(서술)
+    excludes: []                    # 제외 케이스(서술)
+    legalNotes: []                  # 준수/주의사항(법령/관행 레벨; 고정 문구)
+
+  inputForm:
+    version: "v1"
+    fields:
+      - key: "corpType"
+        labelKo: "법인 형태"
+        type: "enum"                # enum|string|number|date|boolean|file|object|array
+        required: true
+        enum: ["주식회사", "유한회사", "기타"]
+        validation:
+          regex: null
+          min: null
+          max: null
+        helpKo: "법인 형태에 따라 첨부서류/등기사항이 달라질 수 있습니다."
+    derivedFields: []               # 계산 필드(예: 관할변경 여부)
+
+  decisionTree:
+    version: "v1"
+    # 분기 노드: 조건이 true면 해당 branch 적용
+    # 분기는 (1) 체크리스트/서류 (2) SLA (3) 난이도 점수 (4) 리스크 플래그에 영향을 준다
+    branches:
+      - id: "B1"
+        nameKo: "외국인/재외국민 포함"
+        when:
+          any:
+            - field: "hasForeignOfficer"
+              op: "eq"              # eq|ne|gt|gte|lt|lte|in|contains|exists
+              value: true
+        effects:
+          depthScoreDelta: 25
+          riskFlagsAdd: ["KYC_STRICT", "DOC_TRANSLATION"]
+          slaDeltaHours: 24
+          checklistAdd: ["외국인 신원/주소 확인 절차 강화"]
+          documentsAdd: ["여권/체류자격 서류(해당 시)"]
+
+  checklist:
+    version: "v1"
+    items:
+      - id: "C1"
+        phase: "서류수집"           # 서류수집|검토|제출|사후
+        titleKo: "필수 서류 업로드 완료"
+        required: true
+        acceptanceCriteriaKo: "필수 서류가 모두 업로드되고 식별 가능(스캔 품질)해야 함"
+
+  documents:
+    version: "v1"
+    required:
+      - id: "D1"
+        nameKo: "정관"
+        type: "file"
+        required: true
+        condition: null             # 분기 조건(없으면 항상)
+        notesKo: "원본/사본 여부 및 공증 필요 여부를 사건별로 명시"
+    optional: []
+
+  workflow:
+    version: "v1"
+    states:
+      - id: "RECEIVED"
+        nameKo: "접수"
+        onEnter:
+          startSlaTimers: ["T_START"]
+          notifications: ["CUSTOMER_ACK"]
+      - id: "DOC_REQUEST"
+        nameKo: "서류요청"
+      - id: "DOC_RECEIVED"
+        nameKo: "서류수령"
+      - id: "REVIEW"
+        nameKo: "검토/보완"
+      - id: "FILE_SUBMIT"
+        nameKo: "신청/제출"
+      - id: "IN_PROGRESS"
+        nameKo: "처리중"
+      - id: "DONE"
+        nameKo: "완료"
+    transitions:
+      - from: "RECEIVED"
+        to: "DOC_REQUEST"
+        guard: "always"
+      - from: "DOC_REQUEST"
+        to: "DOC_RECEIVED"
+        guard: "allRequiredDocsUploaded"
+      - from: "DOC_RECEIVED"
+        to: "REVIEW"
+        guard: "always"
+      - from: "REVIEW"
+        to: "FILE_SUBMIT"
+        guard: "reviewPassed"
+      - from: "FILE_SUBMIT"
+        to: "IN_PROGRESS"
+        guard: "submissionAccepted"
+      - from: "IN_PROGRESS"
+        to: "DONE"
+        guard: "completionConfirmed"
+
+  sla:
+    version: "v1"
+    timers:
+      - id: "T_START"
+        nameKo: "착수 SLA"
+        targetHours: 1
+        breachAction: "ESCALATE_OPS"
+      - id: "T_COMPLETE"
+        nameKo: "완료 SLA"
+        targetHours: 72
+        breachAction: "ESCALATE_PARTNER"
+
+  scoring:
+    version: "v1"
+    baseDepthScore: 40              # 사건 기본 난이도
+    riskModel:
+      # 리스크는 0~100
+      baseRiskScore: 20
+      rules:
+        - id: "R1"
+          nameKo: "기한 임박"
+          when:
+            all:
+              - field: "deadlineHours"
+                op: "lte"
+                value: 72
+          riskScoreDelta: 20
+          riskFlagsAdd: ["URGENT"]
+
+  pricing:
+    version: "v1"
+    components:
+      - id: "LEGAL_FEES"
+        nameKo: "법정비용(인지/수수료 등)"
+        pricingType: "pass_through" # pass_through|fixed|rule_based
+      - id: "PROFESSIONAL_FEE"
+        nameKo: "수행자 보수"
+        pricingType: "rule_based"
+      - id: "PLATFORM_FEE"
+        nameKo: "플랫폼 관리 수수료"
+        pricingType: "fixed"
+        amount: 0
+        currency: "KRW"
+    adders: []                      # 가산(예: 긴급, 외국인 포함 등)
+    refunds: []                     # 환불/취소 규칙
+
+  assignmentPolicy:
+    version: "v1"
+    # 매칭 엔진에 전달되는 힌트(후보군 필터, 비딩 조건 등)
+    partnerEligibility:
+      allowedPartnerTypes: ["법무법인", "법률사무소", "법무사사무소"]
+      requiredCapabilities: ["corp_registry"]
+      regionConstraint: null
+    modeRules:
+      # depth/risk/capacity로 managed vs bidding 선택
+      - id: "M1"
+        when:
+          all:
+            - metric: "depthScore"
+              op: "lt"
+              value: 60
+            - metric: "riskScore"
+              op: "lt"
+              value: 50
+        mode: "managed"
+      - id: "M2"
+        when:
+          any:
+            - metric: "depthScore"
+              op: "gte"
+              value: 60
+            - metric: "riskScore"
+              op: "gte"
+              value: 50
+        mode: "restricted_bidding"
+        bidding:
+          inviteCount: 3
+          responseWindowMinutes: 30

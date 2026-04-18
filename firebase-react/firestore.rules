@@ -1,0 +1,174 @@
+// spec 기반 초안: spec/13-implementation/firebase.rules/firestore.rules
+// 운영 적용 전, emulator rules test로 반드시 검증
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function role() { return signedIn() ? request.auth.token.role : null; }
+    function isOps() { return role() in ['ops_agent', 'ops_approver', 'system']; }
+    function isApprover() { return role() in ['ops_approver', 'system']; }
+    function partnerId() { return signedIn() ? request.auth.token.partnerId : null; }
+
+    function isCaseOwnerCase(caseId) {
+      return signedIn() && get(/databases/$(database)/documents/cases/$(caseId)).data.ownerUid == request.auth.uid;
+    }
+    function isCasePartnerCase(caseId) {
+      return signedIn()
+        && partnerId() != null
+        && get(/databases/$(database)/documents/cases/$(caseId)).data.partnerId == partnerId();
+    }
+    function canReadCaseById(caseId) {
+      return isOps() || isCaseOwnerCase(caseId) || isCasePartnerCase(caseId);
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    match /partners/{pid} {
+      allow read: if true;
+      allow write: if isOps();
+
+      match /users/{uid} {
+        allow read: if isOps() || (signedIn() && partnerId() == pid && request.auth.uid == uid);
+        allow write: if isOps();
+      }
+
+      match /receivables/{rid} {
+        allow read: if isOps() || (signedIn() && partnerId() == pid);
+        allow write: if isOps();
+
+        match /offsets/{oid} {
+          allow read: if isOps() || (signedIn() && partnerId() == pid);
+          allow write: if isOps() || role() == 'system';
+          allow delete: if false;
+        }
+      }
+
+      match /payables/{docId} {
+        allow read: if isOps() || (signedIn() && partnerId() == pid);
+        allow write: if isOps() || role() == 'system';
+        allow delete: if false;
+      }
+    }
+
+    match /sessions/{sid} {
+      allow read: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if false;
+      match /events/{eid} {
+        // sessions/{sid} 소유자만 read/write
+        allow read, write: if signedIn()
+          && get(/databases/$(database)/documents/sessions/$(sid)).data.ownerUid == request.auth.uid;
+      }
+    }
+
+    match /cases/{caseId} {
+      allow read: if isOps()
+        || (signedIn() && resource.data.ownerUid == request.auth.uid)
+        || (signedIn() && partnerId() != null && resource.data.partnerId == partnerId());
+      allow create: if false;
+      // 상태/결제/정산 등 핵심 변경은 Functions에서만 수행 (클라이언트 직접 update 금지)
+      allow update: if false;
+      allow delete: if false;
+
+      match /timeline/{eventId} {
+        allow read: if canReadCaseById(caseId);
+        allow write: if isOps() || role() == 'system';
+      }
+
+      match /documents/{documentId} {
+        // documents는 케이스 참여자만 read (collectionGroup 쿼리도 caseId 기반으로 판정)
+        allow read: if canReadCaseById(caseId);
+        allow write: if isOps() || role() == 'system';
+      }
+
+      match /quotes/{quoteId} {
+        allow read: if canReadCaseById(caseId);
+        allow write: if isOps() || role() == 'system';
+      }
+
+      match /payments/{paymentId} {
+        allow read: if canReadCaseById(caseId);
+        allow write: if isOps() || role() == 'system';
+
+        match /events/{eventId} {
+          allow read: if canReadCaseById(caseId);
+          allow write: if isOps() || role() == 'system';
+          allow delete: if false;
+        }
+      }
+
+      match /refunds/{refundId} {
+        allow read: if canReadCaseById(caseId);
+        allow write: if isOps() || role() == 'system';
+      }
+
+      match /workflow/{workflowId} {
+        allow read: if canReadCaseById(caseId);
+        allow write: if isOps() || role() == 'system';
+        allow delete: if false;
+      }
+
+      match /tasks/{taskId} {
+        allow read: if canReadCaseById(caseId);
+        allow write: if isOps() || role() == 'system';
+        allow delete: if false;
+      }
+
+      match /filing/{docId} {
+        allow read: if canReadCaseById(caseId);
+        allow write: if isOps() || role() == 'system';
+        allow delete: if false;
+      }
+
+      match /forms/{formId} {
+        allow read: if canReadCaseById(caseId);
+        allow write: if isOps() || role() == 'system';
+        allow delete: if false;
+      }
+    }
+
+    match /approvals/{approvalId} {
+      allow read: if isOps();
+      allow create: if isOps() || role() == 'system';
+      allow update: if isApprover() || role() == 'system';
+      allow delete: if false;
+    }
+
+    // idempotency store (server-only 권장)
+    match /idempotencyKeys/{docId} {
+      allow read, write: if isOps() || role() == 'system';
+      allow delete: if false;
+    }
+
+    match /settlements/{sid} {
+      allow read: if isOps() || (signedIn() && partnerId() != null && resource.data.partnerId == partnerId());
+      allow write: if isOps() || role() == 'system';
+      allow delete: if false;
+
+      match /items/{itemId} {
+        allow read: if isOps() || (signedIn() && partnerId() != null && get(/databases/$(database)/documents/settlements/$(sid)).data.partnerId == partnerId());
+        allow write: if isOps() || role() == 'system';
+        allow delete: if false;
+      }
+
+      match /payouts/{payoutId} {
+        allow read: if isOps() || (signedIn() && partnerId() != null && get(/databases/$(database)/documents/settlements/$(sid)).data.partnerId == partnerId());
+        allow write: if isOps() || role() == 'system';
+        allow delete: if false;
+      }
+    }
+
+    match /auditLogs/{id} {
+      allow read, write: if isOps() || role() == 'system';
+    }
+  }
+}

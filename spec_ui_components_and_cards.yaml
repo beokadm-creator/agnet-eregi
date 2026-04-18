@@ -1,0 +1,152 @@
+specVersion: 0.1
+title: "UI 컴포넌트 & 카드 스펙(모바일 사용자) — 엔진 출력 연동"
+description: >
+  엔진(orchestration) 출력이 실제 UX 컴포넌트로 어떻게 표현되는지 정의한다.
+  목표는 (1) 이탈 감소(가치 선제공), (2) 선택 피로 감소(추천 1안+Top3),
+  (3) 신뢰(근거/라벨/승인게이트)이다.
+
+cardStandards:
+  # 모든 카드 공통: ‘근거/확정여부/광고여부’ 표준
+  commonFields:
+    - id
+    - type
+    - titleKo
+    - subtitleKo
+    - badges[]           # ex) 방문가능, Verified, 긴급
+    - disclosures[]      # ex) "확정 아님", "광고"
+    - reasonsKo[]        # 추천 근거 1~3줄
+    - confidence         # low|medium|high
+    - sourceRefs[]       # casepack_rule / partner_profile / pricing_rule / stats
+    - ctas[]             # primary/secondary actions
+
+components:
+  - id: SearchBar
+    screen: Home
+    purposeKo: "자연어 1줄 입력"
+    props:
+      placeholderKo: "무엇을 하시려나요? 편하게 적어보세요"
+      examplesKo: ["대표이사 바꾸고 싶어요", "본점 옮겼어요", "채권담보 설정하고 싶어요"]
+    engineBindings:
+      onSubmit:
+        engine: intent_router
+        input: { intentText: "string", categoryHint: "optional" }
+        outputTo: "DiagnosisStart"
+
+  - id: CategoryChips
+    screen: Home
+    purposeKo: "모르는 사용자를 위한 안전망(카테고리 선택)"
+    props:
+      chipsKo: ["법인등기", "기타등기(동산·채권담보)"]
+    engineBindings:
+      onSelect:
+        affects: ["intent_router.categoryHint", "autoCompleteExamples"]
+
+  - id: DiagnosisQuestionCard
+    screen: MiniDiagnosis
+    purposeKo: "필수 분기 질문 1~2개를 대화형으로 제공"
+    props:
+      maxQuestions: 7
+      layout: "one_question_per_screen"
+    engineBindings:
+      onAnswer:
+        engine: casepack_rule_engine
+        input: { casePackId: "selected", caseInputDelta: "answer" }
+        outputTo: ["ValuePreviewCard", "NextQuestion"]
+
+  - id: ValuePreviewCard
+    screen: MiniDiagnosis
+    purposeKo: "질문에 답하는 즉시 ‘예상 비용/시간/준비물’을 범위로 노출(가치 선제공)"
+    fields:
+      - priceRange
+      - etaRange
+      - requiredDocsTop3
+      - assumptions
+    engineBindings:
+      sources: ["casepack_rule_engine", "eta_engine(optional)", "pricing_engine(optional)"]
+    guardrails:
+      - "확정 표현 금지(항상 범위 + 전제조건)"
+      - "confidence 낮으면 ‘추가 질문 필요’ 배지 표시"
+
+  - id: RecommendedPartnerCard
+    screen: Results
+    purposeKo: "추천 1안(선택 피로 감소)"
+    fields:
+      - partnerSummary
+      - priceRange
+      - etaRange
+      - reasonsKoTop3
+      - visitableBadge
+      - sponsorDisclosure
+    engineBindings:
+      sources: ["partner_search_ranker", "pricing_engine", "eta_engine"]
+    ctas:
+      primary: "온라인으로 진행"
+      secondary: "방문 예약(가능 시)"
+
+  - id: CompareListTop3
+    screen: Results
+    purposeKo: "상위 3개만 우선 노출(스크롤 피로 감소)"
+    fields:
+      - items[]: { partnerId, priceRange, etaRange, badges[] }
+    engineBindings:
+      sources: ["partner_search_ranker", "pricing_engine", "eta_engine"]
+
+  - id: SponsorCarousel
+    screen: Results
+    purposeKo: "광고/스폰서 노출(라벨 고정)"
+    rules:
+      - "‘광고’ 라벨 고정"
+      - "Verified/Pro만 노출"
+      - "적합/가용성 없으면 노출 제한"
+    engineBindings:
+      sources: ["partner_search_ranker.sponsorPartners"]
+
+  - id: PartnerDetailHeader
+    screen: PartnerDetail
+    purposeKo: "직방/다방 감성: 지도/주소/방문 가능 + 온라인 진행"
+    fields:
+      - rating
+      - completionRate
+      - reworkRate
+      - map
+      - officeHours
+    engineBindings:
+      sources: ["partner_profile_schema", "stats"]
+
+  - id: CaseWorkspaceTabs
+    screen: CaseWorkspace
+    tabsKo: ["요약", "준비물", "업로드", "진행", "메시지", "결제"]
+
+  - id: DocSlotCard
+    screen: CaseWorkspace/Upload
+    purposeKo: "서류 슬롯 단위 업로드/상태/버전"
+    fields:
+      - slotName
+      - status: "미업로드|검토중|OK|보완필요"
+      - latestVersion
+    engineBindings:
+      sources: ["casepack_rule_engine.requiredDocuments", "doc_review_engine(on upload)"]
+
+  - id: AIReviewCard
+    screen: CaseWorkspace/Summary
+    purposeKo: "AI 검토 결과(초안) 노출 + 근거/확정아님 표시"
+    fields:
+      - inconsistencies
+      - fixRecommendations
+      - disclaimer: "AI 초안/확정 아님"
+    approvals:
+      messageSend:
+        required: true
+        approver: "partner_or_ops"
+
+statesAndErrors:
+  global:
+    loading:
+      rule: "엔진 호출 중 스켈레톤 표시"
+    emptyResults:
+      rule: "후보 0개면 수동검토/문의 CTA"
+    retry:
+      rule: "네트워크/엔진 실패 시 ‘다시 시도’ + 마지막 입력 유지"
+  reentry:
+    rule: "진단 중 이탈 시 마지막 문항 저장 후 복귀"
+
