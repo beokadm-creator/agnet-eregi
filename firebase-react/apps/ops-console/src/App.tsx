@@ -238,6 +238,57 @@ ${acLines}
     }
   }
 
+  async function doSev1HotfixFull() {
+    setBusy(true);
+    setSev1Log({});
+    try {
+      // 1. 패키지 재생성
+      setLog("Sev1 핫픽스: 패키지 재생성 시작...");
+      await apiPost(`/v1/ops/cases/${caseId}/packages/regenerate`, {});
+      setSev1Log(prev => ({ ...prev, regenerateOk: true }));
+
+      // 2. Gate 재검증
+      setLog("Sev1 핫픽스: 패키지 재생성 완료. Gate 재검증 시작...");
+      const token = await ensureLogin();
+      const resp = await fetch(`${apiBase}/v1/cases/${caseId}/packages/validate`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const reqId = resp.headers.get("X-Request-Id") || "unknown";
+      const json = await resp.json();
+      
+      if (!resp.ok || !json.ok) {
+         setSev1Log(prev => ({ ...prev, validateData: null, reqId: json.error?.requestId || reqId }));
+         throw new Error(json.error?.messageKo || "검증 요청 실패");
+      }
+      
+      setSev1Log(prev => ({ ...prev, validateData: json.data, reqId }));
+      
+      // 3. 복사 텍스트 생성
+      const text = `[Sev1 핫픽스 대응] caseId: ${caseId}
+- 패키지 재생성: 성공
+- 재검증 결과: ok(${json.data?.ok}), evidenceId: ${json.data?.evidenceId}
+- Request ID: ${reqId}`;
+      await navigator.clipboard.writeText(text);
+      
+      setLog(`Sev1 핫픽스 완료! 재검증 성공 (evidenceId: ${json.data?.evidenceId}). 클립보드에 결과가 복사되었습니다.`);
+      await loadCaseDetailWithId(caseId);
+    } catch (e: any) {
+      setLog(`Sev1 핫픽스 실패: ${e?.message || e}`);
+      
+      // 실패 시에도 복사 텍스트 생성 시도 (현재 상태 기반)
+      setSev1Log(prev => {
+        const text = `[Sev1 핫픽스 대응] caseId: ${caseId}
+- 패키지 재생성: ${prev.regenerateOk ? "성공" : "실패/미수행"}
+- 재검증 결과: 실패
+- Request ID: ${prev.reqId || "N/A"}`;
+        navigator.clipboard.writeText(text).catch(() => {});
+        return prev;
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function handleLoadCaseFromBacklog(cid: string) {
     setCaseId(cid);
     loadCaseDetailWithId(cid);
@@ -616,6 +667,9 @@ ${acLines}
             {gateEvidences?.[0]?.missing?.includes("slot_filing_receipt") && (
               <div style={{ padding: 12, background: "#ffebee", borderRadius: 6, border: "1px solid #ffcdd2" }}>
                 <h3 style={{ margin: "0 0 8px 0", color: "#d32f2f" }}>E. Sev1 핫픽스 (접수증 누락 대응)</h3>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
+                  <button disabled={busy} onClick={doSev1HotfixFull} style={{ background: "#4caf50", color: "white", border: "none", padding: "8px 16px", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>⚡️ 원클릭 자동 핫픽스 (재생성 + 재검증 + 복사)</button>
+                </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                   <button disabled={busy} onClick={doRegenerate} style={{ background: "#d32f2f", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>1. 패키지 재생성</button>
                   <button disabled={busy} onClick={doValidate} style={{ background: "#d32f2f", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>2. Gate 재검증</button>
