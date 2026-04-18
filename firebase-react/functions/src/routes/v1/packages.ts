@@ -607,20 +607,19 @@ export function registerPackageRoutes(app: express.Express, adminApp: typeof adm
     const missing = signed.filter((x) => x.status !== "ok" || !x.storagePath || !x.exists).map((x) => x.slotId);
     const ok = missing.length === 0 && receiptStatus === "ok" && Boolean(receiptPath) && receiptExists;
 
-    let evidenceId: string | undefined;
-    if (ok) {
-      evidenceId = `ev_${Date.now()}_${caseId.slice(-6)}`;
-      await adminApp.firestore().collection("pilot_gate_evidence").doc(evidenceId).set({
-        caseId,
-        evidenceId,
-        status: "ok",
-        missing,
-        signed,
-        filingReceipt: { slotId: "slot_filing_receipt", status: receiptStatus, fileName: receiptName, storagePath: receiptPath, exists: receiptExists },
-        validatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
-        actorUid: auth.uid
-      });
-    }
+    const evidenceId = `ev_${Date.now()}_${caseId.slice(-6)}`;
+    await adminApp.firestore().collection("pilot_gate_evidence").doc(evidenceId).set({
+      caseId,
+      evidenceId,
+      ok,
+      status: ok ? "ok" : "fail",
+      missing,
+      signed,
+      filingReceipt: { slotId: "slot_filing_receipt", status: receiptStatus, fileName: receiptName, storagePath: receiptPath, exists: receiptExists },
+      validatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+      actorUid: auth.uid,
+      env: process.env.FUNCTIONS_EMULATOR === "true" ? "local" : "staging"
+    });
 
     res.setHeader("Content-Type", "application/json");
     return res.status(200).send({

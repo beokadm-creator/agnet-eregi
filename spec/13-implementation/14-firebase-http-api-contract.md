@@ -657,9 +657,9 @@ Headers:
 
 ### 12.2 GET /v1/cases/{caseId}/packages/validate
 목적: `submission.zip` 생성/다운로드 전에 **서명본(signed)과 접수증(storage)의 존재 여부를 빠르게 검증**하는 운영용 엔드포인트.
-(참고: 모든 파일이 온전히 존재해 `ok`가 `true`일 경우에 한해, 서버에서 `pilot_gate_evidence` 컬렉션에 해당 검증 결과를 영구 저장하고 `evidenceId`를 발급하여 응답합니다.)
+(참고: 서버는 **성공/실패와 무관하게** `pilot_gate_evidence` 컬렉션에 해당 검증 결과를 영구 저장하고, 응답으로 `evidenceId`를 항상 반환합니다. 운영 자동화(일일 집계) 목적)
 
-응답(예):
+응답(성공 예시):
 ```json
 {
   "ok": true,
@@ -687,8 +687,37 @@ Headers:
 }
 ```
 
+응답(실패 예시):
+```json
+{
+  "ok": true,
+  "data": {
+    "ok": false,
+    "evidenceId": "ev_1700000000000_456def",
+    "missing": ["slot_power_of_attorney_signed"],
+    "signed": [
+      {
+        "slotId": "slot_power_of_attorney_signed",
+        "status": "missing",
+        "fileName": null,
+        "storagePath": null,
+        "exists": false
+      }
+    ],
+    "filingReceipt": {
+      "slotId": "slot_filing_receipt",
+      "status": "ok",
+      "fileName": "filing_receipt.pdf",
+      "storagePath": "cases/case_.../documents/doc_.../dv_...",
+      "exists": true
+    }
+  }
+}
+```
+
 > 참고: `signed`는 `requiredSlotsForStage(draft_filing)` 중 `_signed`로 끝나는 슬롯들을 기준으로 산출합니다.
-> 참고: `evidenceId`는 `ok: true`일 때만 내려옵니다.
+> 참고: `evidenceId`는 검증의 `ok` 여부와 무관하게 무조건 발급 및 반환되며, `pilot_gate_evidence` 컬렉션에 저장됩니다. (저장 데이터: `ok`, `status`, `missing`, `signed` 등 포함)
+> 참고: `ok: false`인 경우 `missing` 배열에 누락된 `slotId`들이 포함됩니다.
 
 ### 8.2 GET /v1/ops/partners/{partnerId}/payables/summary
 응답:
