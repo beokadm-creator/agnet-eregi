@@ -240,10 +240,17 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       // 1. 입력 검증 및 Timezone 처리 (KST 기준)
       let targetDateStr = "";
       if (date) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) {
+        const dateStr = String(date);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
           return fail(res, 400, "INVALID_ARGUMENT", "날짜 형식이 잘못되었습니다. YYYY-MM-DD 포맷을 사용해주세요.");
         }
-        targetDateStr = String(date);
+        // 실존 날짜 검증 (round-trip)
+        const parsedDate = new Date(`${dateStr}T00:00:00Z`);
+        const roundTripStr = parsedDate.toISOString().split("T")[0];
+        if (dateStr !== roundTripStr) {
+          return fail(res, 400, "INVALID_ARGUMENT", "존재하지 않는 날짜입니다.");
+        }
+        targetDateStr = dateStr;
       } else {
         // 한국 시간(KST) 기준으로 오늘 날짜 구하기
         const now = new Date();
@@ -358,7 +365,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
           requestId
         });
       } catch (e: any) {
-        if (e.code === 6 || e.message.includes("ALREADY_EXISTS")) {
+        // Firebase Admin SDK (gRPC)에서 ALREADY_EXISTS는 보통 code 6 입니다.
+        if (e.code === 6 || (e.message && e.message.includes("ALREADY_EXISTS"))) {
+           logError({ endpoint: "/v1/ops/reports/pilot-gate/daily/append", code: "CONFLICT", messageKo: "해당 날짜의 로그가 이미 존재합니다.", err: e });
            return fail(res, 409, "CONFLICT", "해당 날짜의 로그가 이미 존재합니다.");
         }
         throw e;
