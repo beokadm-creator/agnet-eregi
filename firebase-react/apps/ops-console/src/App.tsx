@@ -24,6 +24,7 @@ function App() {
   const [settlementItems, setSettlementItems] = useState<any[]>([]);
   const [summaryDate, setSummaryDate] = useState<string>(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()));
   const [gateReportText, setGateReportText] = useState<string>("");
+  const [ssotData, setSsotData] = useState<any | null>(null);
   const [backlogItems, setBacklogItems] = useState<any[]>([]);
   const [recentFails, setRecentFails] = useState<any[]>([]);
   const [sev1Log, setSev1Log] = useState<{regenerateOk?: boolean; validateData?: any; reqId?: string}>({});
@@ -83,6 +84,7 @@ function App() {
   async function loadSummary() {
     setBusy(true);
     setGateReportText("");
+    setSsotData(null);
     setBacklogItems([]);
     setRecentFails([]);
     try {
@@ -167,8 +169,28 @@ function App() {
     try {
       const respData = await apiPost("/v1/ops/reports/pilot-gate/daily/append", { date: summaryDate });
       setLog(`SSOT(Firestore)에 기록되었습니다 (linesAdded: ${respData.linesAdded}, reqId: ${respData.requestId})`);
+      await loadDailyLogSsot(); // 저장 후 즉시 조회해서 반영
     } catch (e: any) {
       handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadDailyLogSsot() {
+    setBusy(true);
+    clearError();
+    try {
+      const data = await apiGet(`/v1/ops/reports/pilot-gate/daily/ssot?date=${summaryDate}`);
+      setSsotData(data);
+      setLog("SSOT 데이터를 성공적으로 불러왔습니다.");
+    } catch (e: any) {
+      if (e.message?.includes("NOT_FOUND") || e.message?.includes("없습니다")) {
+        setSsotData(null);
+        setLog("아직 SSOT가 없습니다. 저장 버튼을 눌러 생성하세요.");
+      } else {
+        handleError(e);
+      }
     } finally {
       setBusy(false);
     }
@@ -595,16 +617,32 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                   <button onClick={downloadDailyLogMd} style={{ background: "#f57c00", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
                     [일일 로그 다운로드]
                   </button>
+                  <button onClick={loadDailyLogSsot} style={{ background: "#2196f3", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                    [SSOT 조회(DB)]
+                  </button>
                   <button onClick={appendDailyLogSsot} style={{ background: "#8e24aa", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
-                    [일일 로그 SSOT 저장(DB)]
+                    [SSOT 저장(DB)]
                   </button>
                 </div>
               )}
             </div>
             {gateReportText ? (
-              <pre style={{ margin: 0, padding: 8, background: "#f5f5f5", border: "1px solid #ddd", borderRadius: 4, whiteSpace: "pre-wrap", wordWrap: "break-word", fontSize: "0.9em" }}>
-                {gateReportText}
-              </pre>
+              <>
+                <pre style={{ margin: 0, padding: 8, background: "#f5f5f5", border: "1px solid #ddd", borderRadius: 4, whiteSpace: "pre-wrap", wordWrap: "break-word", fontSize: "0.9em" }}>
+                  {gateReportText}
+                </pre>
+                {ssotData && (
+                  <div style={{ marginTop: 12, padding: 12, background: "#e8f5e9", border: "1px solid #c8e6c9", borderRadius: 4 }}>
+                    <div style={{ fontSize: "0.85em", color: "#2e7d32", marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
+                      <strong>✅ SSOT 저장됨</strong>
+                      <span>{new Date(ssotData.createdAt).toLocaleString()} (Req: {ssotData.requestId})</span>
+                    </div>
+                    <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordWrap: "break-word", fontSize: "0.9em", color: "#333" }}>
+                      {ssotData.markdown}
+                    </pre>
+                  </div>
+                )}
+              </>
             ) : (
               <div style={{ color: "#999", fontSize: "0.9em" }}>요약을 가져오면 표시됩니다.</div>
             )}

@@ -230,6 +230,68 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
+  // 일일 로그 SSOT 단일 조회
+  app.get("/v1/ops/reports/pilot-gate/daily/ssot", async (req, res) => {
+    try {
+      const dateParam = String(req.query.date || "");
+      const targetDateStr = dateParam ? dateParam : formatKstYmd();
+      const targetDate = new Date(`${targetDateStr}T00:00:00+09:00`);
+      
+      if (isNaN(targetDate.getTime())) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 날짜입니다.");
+      }
+
+      const logDocRef = adminApp.firestore().collection("ops_daily_logs").doc(targetDateStr);
+      const logDoc = await logDocRef.get();
+
+      if (!logDoc.exists) {
+        return fail(res, 404, "NOT_FOUND", "해당 날짜의 SSOT 로그가 없습니다.");
+      }
+
+      return res.status(200).json({ ok: true, data: logDoc.data() });
+    } catch (e: any) {
+      console.error("[daily ssot get error]", e);
+      return fail(res, 500, "INTERNAL", e.message);
+    }
+  });
+
+  // 최근 SSOT 목록 조회
+  app.get("/v1/ops/reports/pilot-gate/daily/ssot/recent", async (req, res) => {
+    try {
+      const days = Number(req.query.days) || 7;
+      if (days < 1 || days > 30) {
+        return fail(res, 400, "INVALID_ARGUMENT", "days는 1~30 사이여야 합니다.");
+      }
+
+      const endStr = formatKstYmd(); // 오늘
+      const d = new Date(`${endStr}T00:00:00+09:00`);
+      d.setDate(d.getDate() - days);
+      const startStr = formatKstYmd(d);
+
+      const snap = await adminApp.firestore()
+        .collection("ops_daily_logs")
+        .where(adminApp.firestore.FieldPath.documentId(), ">=", startStr)
+        .where(adminApp.firestore.FieldPath.documentId(), "<=", endStr)
+        .orderBy(adminApp.firestore.FieldPath.documentId(), "desc")
+        .get();
+
+      const items = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          date: doc.id,
+          requestId: data.requestId,
+          createdAt: data.createdAt,
+          metrics: data.metricsSnapshot
+        };
+      });
+
+      return res.status(200).json({ ok: true, data: { items } });
+    } catch (e: any) {
+      console.error("[daily ssot recent error]", e);
+      return fail(res, 500, "INTERNAL", e.message);
+    }
+  });
+
   // 일일 로그 SSOT에 자동 append (Firestore 기반)
   app.post("/v1/ops/reports/pilot-gate/daily/append", async (req, res) => {
     try {

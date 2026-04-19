@@ -138,7 +138,13 @@ async function main() {
       blockLines.push(`---`);
       blockLines.push("");
       blockLines.push(`<!-- ${id} -->`);
-      blockLines.push("");
+      
+      // 날짜 헤더(## YYYY-MM-DD) 강제
+      const dateHeader = `## ${id}`;
+      if (!markdown.startsWith(dateHeader)) {
+        blockLines.push(dateHeader);
+      }
+      
       blockLines.push(markdown);
       blockLines.push("");
     }
