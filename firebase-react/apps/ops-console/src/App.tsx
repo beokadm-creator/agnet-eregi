@@ -27,6 +27,7 @@ function App() {
   const [ssotData, setSsotData] = useState<any | null>(null);
   const [backlogItems, setBacklogItems] = useState<any[]>([]);
   const [issueCreationResult, setIssueCreationResult] = useState<any | null>(null);
+  const [projectAddResult, setProjectAddResult] = useState<any | null>(null);
   const [recentFails, setRecentFails] = useState<any[]>([]);
   const [sev1Log, setSev1Log] = useState<{regenerateOk?: boolean; validateData?: any; reqId?: string}>({});
 
@@ -88,6 +89,7 @@ function App() {
     setSsotData(null);
     setBacklogItems([]);
     setIssueCreationResult(null);
+    setProjectAddResult(null);
     setRecentFails([]);
     try {
       const gateData = await apiGet(`/v1/ops/reports/pilot-gate/daily?date=${summaryDate}`);
@@ -213,6 +215,21 @@ function App() {
       const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog/issues/create`, { date: summaryDate });
       setIssueCreationResult(data);
       setLog(`이슈 생성 완료: created ${data.created?.length}건, skipped ${data.skipped?.length}건`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addIssuesToProject() {
+    setBusy(true);
+    clearError();
+    setProjectAddResult(null);
+    try {
+      const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog/issues/project/add`, { date: summaryDate });
+      setProjectAddResult(data);
+      setLog(`프로젝트 투입 완료: added ${data.added?.length}건, skipped ${data.skipped?.length}건, failed ${data.failed?.length}건`);
     } catch (e: any) {
       handleError(e);
     } finally {
@@ -677,6 +694,9 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                   <button onClick={createBacklogIssues} disabled={busy || !ssotData} style={{ background: "#e91e63", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
                     [백로그 이슈 생성(GitHub)]
                   </button>
+                  <button onClick={addIssuesToProject} disabled={busy || !ssotData} style={{ background: "#673ab7", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                    [프로젝트 투입(Project)]
+                  </button>
                 </div>
               )}
             </div>
@@ -701,6 +721,46 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                     <ul style={{ margin: "4px 0 0 0", paddingLeft: 20, fontSize: "0.85em", color: "#9e9e9e" }}>
                       {issueCreationResult.skipped.map((s: any, i: number) => (
                         <li key={i}>{s.dedupeKey} - {s.reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+            {projectAddResult && (
+              <div style={{ marginBottom: 12, padding: 12, border: "1px solid #ccc", borderRadius: 6, background: "#f3e5f5" }}>
+                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em" }}>✅ GitHub Project 투입 결과</h4>
+                {projectAddResult.added?.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <strong style={{ color: "#2e7d32", fontSize: "0.9em" }}>투입 완료 ({projectAddResult.added.length}건):</strong>
+                    <ul style={{ margin: "4px 0 0 0", paddingLeft: 20, fontSize: "0.85em" }}>
+                      {projectAddResult.added.map((a: any, i: number) => (
+                        <li key={i}>
+                          <a href={a.issueUrl} target="_blank" rel="noreferrer" style={{ color: "#1976d2" }}>이슈 확인</a> (Project Item: {a.projectItemId})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {projectAddResult.skipped?.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <strong style={{ color: "#757575", fontSize: "0.9em" }}>건너뜀 ({projectAddResult.skipped.length}건):</strong>
+                    <ul style={{ margin: "4px 0 0 0", paddingLeft: 20, fontSize: "0.85em", color: "#9e9e9e" }}>
+                      {projectAddResult.skipped.map((s: any, i: number) => (
+                        <li key={i}>{s.projectDedupeKey} - {s.reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {projectAddResult.failed?.length > 0 && (
+                  <div>
+                    <strong style={{ color: "#d32f2f", fontSize: "0.9em" }}>실패 ({projectAddResult.failed.length}건):</strong>
+                    <ul style={{ margin: "4px 0 0 0", paddingLeft: 20, fontSize: "0.85em", color: "#d32f2f" }}>
+                      {projectAddResult.failed.map((f: any, i: number) => (
+                        <li key={i}>
+                          {f.issueUrl && <a href={f.issueUrl} target="_blank" rel="noreferrer" style={{ color: "#d32f2f", textDecoration: "underline", marginRight: 4 }}>이슈</a>}
+                          {f.projectDedupeKey} - {f.reason}
+                        </li>
                       ))}
                     </ul>
                   </div>

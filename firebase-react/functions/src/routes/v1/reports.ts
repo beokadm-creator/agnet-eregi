@@ -592,6 +592,162 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
+  // 백로그 후보 자동화: GitHub Project V2 투입 API
+  app.post("/v1/ops/reports/pilot-gate/backlog/issues/project/add", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) {
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
+
+      const { date, dryRun = false, topN = 3 } = req.body;
+      const targetDateStr = date ? String(date) : formatKstYmd();
+      const targetDate = new Date(`${targetDateStr}T00:00:00+09:00`);
+      
+      if (isNaN(targetDate.getTime())) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 날짜입니다.");
+      }
+
+      // 1. 이미 생성된 이슈 목록 가져오기
+      const snap = await adminApp.firestore()
+        .collection("ops_backlog_issues")
+        .where("date", "==", targetDateStr)
+        .limit(Number(topN))
+        .get();
+
+      if (snap.empty) {
+        return fail(res, 404, "NOT_FOUND", "해당 날짜에 생성된 GitHub 이슈가 없습니다. (먼저 이슈를 생성하세요)");
+      }
+
+      const issues = snap.docs.map(d => ({ dedupeKey: d.id, ...d.data() })) as any[];
+
+      const GITHUB_TOKEN = process.env.GITHUB_TOKEN_BACKLOG_BOT || "";
+      const PROJECT_ID = process.env.GITHUB_PROJECT_ID || "";
+      
+      // Field IDs (optional)
+      const STATUS_FIELD_ID = process.env.GITHUB_PROJECT_FIELD_STATUS_ID || "";
+      const PRIORITY_FIELD_ID = process.env.GITHUB_PROJECT_FIELD_PRIORITY_ID || "";
+
+      if (!dryRun && (!GITHUB_TOKEN || !PROJECT_ID)) {
+        throw new Error("GITHUB_TOKEN_BACKLOG_BOT or GITHUB_PROJECT_ID is not configured.");
+      }
+
+      const added = [];
+      const skipped = [];
+      const failed = [];
+
+      for (const issue of issues) {
+        if (!issue.issueNumber) {
+          skipped.push({ projectDedupeKey: issue.dedupeKey + ":project", reason: "이슈 번호가 없습니다." });
+          continue;
+        }
+
+        const projectDedupeKey = `${issue.dedupeKey}:project`;
+        const linkRef = adminApp.firestore().collection("ops_backlog_issue_project_links").doc(projectDedupeKey);
+
+        try {
+          if (!dryRun) {
+            await linkRef.create({
+              date: targetDateStr,
+              slotId: issue.slotId,
+              issueUrl: issue.issueUrl || "",
+              issueNumber: issue.issueNumber,
+              status: "pending",
+              createdAt: adminApp.firestore.FieldValue.serverTimestamp()
+            });
+          }
+
+          // 2. GraphQL API로 Project에 Add
+          let projectItemId = "dry-run-item-id";
+
+          if (!dryRun) {
+            // Step A: Issue의 Node ID 획득 (GraphQL에 필요)
+            const issueRes = await fetch(`https://api.github.com/repos/beokadm-creator/agnet-eregi/issues/${issue.issueNumber}`, {
+              headers: {
+                "Accept": "application/vnd.github+json",
+                "Authorization": `Bearer ${GITHUB_TOKEN}`
+              }
+            });
+            if (!issueRes.ok) throw new Error(`Issue fetch failed: ${issueRes.status}`);
+            const issueData = await issueRes.json();
+            const issueNodeId = issueData.node_id;
+
+            // Step B: Project에 추가
+            const addMutation = `
+              mutation {
+                addProjectV2ItemById(input: {projectId: "${PROJECT_ID}", contentId: "${issueNodeId}"}) {
+                  item { id }
+                }
+              }
+            `;
+            
+            const addRes = await fetch("https://api.github.com/graphql", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${GITHUB_TOKEN}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ query: addMutation })
+            });
+            
+            const addData = await addRes.json();
+            if (addData.errors) throw new Error(`GraphQL Error (add): ${JSON.stringify(addData.errors)}`);
+            
+            projectItemId = addData.data.addProjectV2ItemById.item.id;
+
+            // Step C: 필드 업데이트 (Status, Priority 매핑)
+            // Sev1 -> Priority=P0, Status=Todo
+            // Sev2 -> Priority=P1, Status=Todo
+            // Sev3 -> Priority=P2, Status=Todo
+            
+            // Note: 실제 SingleSelectOptionId는 런타임에 discovery API로 알아내야 하므로
+            // 이 예제에서는 필드 ID가 주입된 경우 텍스트 매핑으로 시도하는 가상의 쿼리를 구성합니다.
+            // 완벽한 세팅을 위해서는 Option Node ID가 필요합니다.
+            
+            /* (필드 업데이트 로직은 GITHUB_PROJECT_FIELD_XXX_ID 가 존재할 때만 실행)
+            if (STATUS_FIELD_ID && PRIORITY_FIELD_ID) {
+               // ... updateProjectV2ItemFieldValue mutation ...
+            }
+            */
+
+            await linkRef.update({
+              projectItemId,
+              status: "added",
+              updatedAt: adminApp.firestore.FieldValue.serverTimestamp()
+            });
+          }
+
+          added.push({ projectDedupeKey, projectItemId, issueUrl: issue.issueUrl });
+        } catch (e: any) {
+          const isAlreadyExists = 
+            e.code === 6 || 
+            e.status === "ALREADY_EXISTS" ||
+            (e.message && e.message.includes("ALREADY_EXISTS")) ||
+            (e.details && e.details.includes("ALREADY_EXISTS"));
+            
+          if (isAlreadyExists) {
+            skipped.push({ projectDedupeKey, reason: "ALREADY_EXISTS" });
+          } else {
+            console.error(`[project add error] key=${projectDedupeKey}`, e);
+            failed.push({ projectDedupeKey, reason: e.message || "ERROR", issueUrl: issue.issueUrl });
+            if (!dryRun && !isAlreadyExists) {
+               await linkRef.delete().catch(() => {});
+            }
+          }
+        }
+      }
+
+      return res.status(200).json({
+        ok: true,
+        data: { added, skipped, failed }
+      });
+    } catch (err: any) {
+      logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog/issues/project/add", code: "INTERNAL", messageKo: "프로젝트 투입 중 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "프로젝트 투입 중 오류가 발생했습니다.");
+    }
+  });
+
   // Gate 백로그 후보 생성 API (운영용)
   app.post("/v1/ops/reports/pilot-gate/backlog", async (req, res) => {
     try {
