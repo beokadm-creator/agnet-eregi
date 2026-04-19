@@ -2,6 +2,8 @@
 
 목적: 파일럿 중 품질/흐름/저장/오류/처리시간을 매일 1회 고정 포맷으로 기록하고, Top3 이슈를 누적하여 에스컬레이션/백로그로 연결한다.
 
+<!-- OPS_LOG_AUTO:START -->
+
 ---
 
 ## 일일 로그(복붙용)
@@ -68,3 +70,5 @@
 | 2026-04-18 | case_8998ad57-302a-4ba6-8e25-4bc74dc09b4e | completed | Gate 성공 검증 | - | - | 성공 (증거 확보 완료) |
 | 2026-04-18 | case_fail_4a2002a0-6c73-4dc5-8d18-b714259eb7c4 | completed | Gate 실패 검증 | 서류 누락 | - | ok=false, evidenceId 반환 확인 |
 | 2026-04-18 | case_fail_a7bc2848-418e-4861-949a-30c6213fc85e | completed | Gate 실패 검증 | 서류 누락 | - | ok=false, evidenceId 반환 확인 |
+
+<!-- OPS_LOG_AUTO:END -->
