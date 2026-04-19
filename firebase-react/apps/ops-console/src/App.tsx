@@ -356,6 +356,7 @@ ${acLines}
   const [downloadLink, setDownloadLink] = useState<{ url: string; expiresAt: string; objectPath: string } | null>(null);
 
   const [monthlyReport, setMonthlyReport] = useState<any | null>(null);
+  const [monthlyPrInfo, setMonthlyPrInfo] = useState<any | null>(null);
 
   async function loadMonthlyReport() {
     setBusy(true);
@@ -381,6 +382,26 @@ ${acLines}
       const data = await apiPost(`/v1/ops/reports/${gateKey}/monthly/generate`, { month });
       setMonthlyReport(data);
       setLog(`월간 트렌드 요약 생성 완료 (${month})`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkMonthlyPr() {
+    setBusy(true);
+    clearError();
+    setMonthlyPrInfo(null);
+    try {
+      const month = summaryDate.substring(0, 7);
+      const data = await apiGet(`/v1/ops/reports/${gateKey}/monthly/pr?month=${month}`);
+      setMonthlyPrInfo(data);
+      if (data.exists) {
+        setLog(`월간 요약 PR 조회 성공: #${data.prNumber}`);
+      } else {
+        setLog(`월간 요약 PR이 아직 없습니다. (워크플로우 실행 필요)`);
+      }
     } catch (e: any) {
       handleError(e);
     } finally {
@@ -797,6 +818,20 @@ next=재검증 재시도/파트너 문의/수동 확인`;
           <button disabled={busy} onClick={generateMonthlyReport} style={{ background: "#e65100", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
             월간 요약 생성/갱신
           </button>
+          <span style={{ margin: "0 8px", color: "#ccc" }}>|</span>
+          <button disabled={busy} onClick={checkMonthlyPr} style={{ background: "#1976d2", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
+            월간 요약 PR 보기
+          </button>
+          {monthlyPrInfo && monthlyPrInfo.exists && (
+            <a href={monthlyPrInfo.url} target="_blank" rel="noreferrer" style={{ fontSize: "0.85em", color: "#1976d2", fontWeight: "bold", textDecoration: "underline" }}>
+              ↗️ PR #{monthlyPrInfo.prNumber} 열기
+            </a>
+          )}
+          {monthlyPrInfo && !monthlyPrInfo.exists && (
+            <span style={{ fontSize: "0.85em", color: "#d32f2f", fontWeight: "bold" }}>
+              ⚠️ 생성된 PR 없음 (워크플로우 실행 필요)
+            </span>
+          )}
           <span style={{ margin: "0 8px", color: "#ccc" }}>|</span>
           <button disabled={busy} onClick={fetchMonthlyDownloadUrl} style={{ background: "#558b2f", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
             Storage 백업 다운로드

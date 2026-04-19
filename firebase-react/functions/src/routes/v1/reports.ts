@@ -620,6 +620,75 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
+  // 월간 리포트 PR 조회 API (Ops-only)
+  app.get("/v1/ops/reports/:gateKey/monthly/pr", async (req: express.Request, res: express.Response) => {
+    try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const month = String(req.query.month || formatKstYmd().substring(0, 7));
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "month 파라미터 형식이 잘못되었습니다 (YYYY-MM).");
+      }
+
+      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
+      if (!configDoc.exists) {
+        return fail(res, 400, "INVALID_ARGUMENT", "GitHub 설정이 없습니다. 먼저 설정을 완료하세요.");
+      }
+      const config = configDoc.data() || {};
+      const githubConfig = config.github || {};
+      const owner = githubConfig.owner || "beokadm-creator";
+      const repo = githubConfig.repo || "agnet-eregi";
+      const tokenRef = githubConfig.tokenRef || "GITHUB_TOKEN_BACKLOG_BOT";
+      const GITHUB_TOKEN = process.env[tokenRef] || "";
+
+      if (!GITHUB_TOKEN) {
+        return fail(res, 400, "INVALID_ARGUMENT", `GitHub 토큰이 설정되지 않았습니다. (tokenRef: ${tokenRef})`);
+      }
+
+      const headBranch = `${owner}:bot/ops-monthly-summary-${gateKey}-${month}`;
+      const searchUrl = `https://api.github.com/repos/${owner}/${repo}/pulls?state=open&head=${headBranch}`;
+
+      const ghRes = await fetch(searchUrl, {
+        headers: {
+          "Authorization": `Bearer ${GITHUB_TOKEN}`,
+          "Accept": "application/vnd.github.v3+json",
+        },
+      });
+
+      if (!ghRes.ok) {
+        const errText = await ghRes.text();
+        return fail(res, 500, "INTERNAL", `GitHub PR 조회 실패: ${ghRes.status} ${errText}`);
+      }
+
+      const prList = await ghRes.json() as any[];
+      if (prList.length === 0) {
+        return res.status(200).json({ ok: true, data: { exists: false } });
+      }
+
+      const pr = prList[0];
+      return res.status(200).json({
+        ok: true,
+        data: {
+          exists: true,
+          prNumber: pr.number,
+          url: pr.html_url,
+          title: pr.title,
+          branch: pr.head.ref,
+          updatedAt: pr.updated_at
+        }
+      });
+    } catch (err: any) {
+      logError({ endpoint: "/monthly/pr", code: "INTERNAL", messageKo: "PR 조회 중 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "PR 조회 중 오류가 발생했습니다.");
+    }
+  });
+
   // 백로그 후보 자동화: Firestore SSOT → GitHub Issue 생성
   app.post("/v1/ops/reports/:gateKey/backlog/issues/create", async (req: express.Request, res: express.Response) => {
     try {

@@ -32,7 +32,16 @@
   - 브랜치명: `bot/ops-monthly-summary-{gateKey}-{YYYY-MM}`
   - 이미 해당 브랜치로 열린 PR이 있으면 Push를 통해 강제로 내용을 갱신(`-f`)하고, 없으면 새로 PR을 생성한다.
 
-## 5) 게이트 추가 절차
+## 5) 콘솔에서 PR 링크 조회 API 연동
+운영자가 GitHub 저장소에 접속해 수동으로 PR을 찾지 않도록 Ops Console 내에서 직행 링크를 제공한다.
+- **엔드포인트**: `GET /v1/ops/reports/:gateKey/monthly/pr?month=YYYY-MM`
+- **동작 방식**:
+  1. `ops_github_project_config/{gateKey}`에서 해당 게이트에 할당된 `owner`, `repo`, `tokenRef`를 조회한다.
+  2. 서버 런타임 환경변수(`process.env[tokenRef]`)에서 GitHub Token을 확보한다.
+  3. GitHub REST API(`GET /repos/{owner}/{repo}/pulls`)를 호출하여 `head` 브랜치명이 `bot/ops-monthly-summary-{gateKey}-{YYYY-MM}`인 열린(Open) PR을 검색한다.
+  4. PR이 존재하면 `prNumber`, `url`, `title` 등의 메타데이터를 반환하고, UI에서 "↗️ PR 열기" 링크로 렌더링한다. 없으면 "⚠️ 생성된 PR 없음"을 명시적으로 안내한다.
+
+## 6) 게이트 추가 절차
 새로운 `gateKey`를 도입할 경우:
 1. 기존 데이터 파이프라인(UI, Functions)을 통해 `ops_monthly_reports` 문서가 한 번 이상 `generate` 되었는지 확인한다.
 2. `.github/workflows/ops-monthly-summary-sync.yml`의 `gate_keys` 배열 기본값에 신규 게이트 키를 추가한다.
