@@ -357,6 +357,7 @@ ${acLines}
 
   const [monthlyReport, setMonthlyReport] = useState<any | null>(null);
   const [monthlyPrInfo, setMonthlyPrInfo] = useState<any | null>(null);
+  const [monthlyRunInfo, setMonthlyRunInfo] = useState<any | null>(null);
 
   async function loadMonthlyReport() {
     setBusy(true);
@@ -393,6 +394,7 @@ ${acLines}
     setBusy(true);
     clearError();
     setMonthlyPrInfo(null);
+    setMonthlyRunInfo(null);
     try {
       const month = summaryDate.substring(0, 7);
       const data = await apiGet(`/v1/ops/reports/${gateKey}/monthly/pr?month=${month}`);
@@ -400,7 +402,9 @@ ${acLines}
       if (data.exists) {
         setLog(`월간 요약 PR 조회 성공: #${data.prNumber}`);
       } else {
-        setLog(`월간 요약 PR이 아직 없습니다. (워크플로우 실행 필요)`);
+        setLog(`월간 요약 PR이 아직 없습니다. 워크플로우 상태를 조회합니다...`);
+        const runData = await apiGet(`/v1/ops/reports/${gateKey}/monthly/workflow-run?month=${month}`);
+        setMonthlyRunInfo(runData);
       }
     } catch (e: any) {
       handleError(e);
@@ -829,7 +833,17 @@ next=재검증 재시도/파트너 문의/수동 확인`;
           )}
           {monthlyPrInfo && !monthlyPrInfo.exists && (
             <span style={{ fontSize: "0.85em", color: "#d32f2f", fontWeight: "bold" }}>
-              ⚠️ 생성된 PR 없음 (워크플로우 실행 필요)
+              ⚠️ PR 없음
+            </span>
+          )}
+          {monthlyRunInfo && monthlyRunInfo.exists && (
+            <a href={monthlyRunInfo.url} target="_blank" rel="noreferrer" style={{ fontSize: "0.85em", marginLeft: 8, padding: "2px 6px", borderRadius: 4, textDecoration: "none", color: "white", background: monthlyRunInfo.status === "in_progress" ? "#fbc02d" : (monthlyRunInfo.conclusion === "success" ? "#388e3c" : "#d32f2f") }}>
+              {monthlyRunInfo.status === "in_progress" ? "🔄 런타임: 진행중" : `런타임: ${monthlyRunInfo.conclusion}`}
+            </a>
+          )}
+          {monthlyRunInfo && !monthlyRunInfo.exists && (
+            <span style={{ fontSize: "0.85em", color: "#757575", marginLeft: 8 }}>
+              (실행 기록 없음)
             </span>
           )}
           <span style={{ margin: "0 8px", color: "#ccc" }}>|</span>

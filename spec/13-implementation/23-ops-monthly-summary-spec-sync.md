@@ -41,7 +41,15 @@
   3. GitHub REST API(`GET /repos/{owner}/{repo}/pulls`)를 호출하여 `head` 브랜치명이 `bot/ops-monthly-summary-{gateKey}-{YYYY-MM}`인 열린(Open) PR을 검색한다.
   4. PR이 존재하면 `prNumber`, `url`, `title` 등의 메타데이터를 반환하고, UI에서 "↗️ PR 열기" 링크로 렌더링한다. 없으면 "⚠️ 생성된 PR 없음"을 명시적으로 안내한다.
 
-## 6) 게이트 추가 절차
+## 6) 최신 워크플로우 Run 링크/상태 표시
+PR이 존재하지 않을 때, 워크플로우가 실패했는지 아예 실행되지 않았는지 원인을 빠르게 파악할 수 있도록 상태를 조회한다.
+- **엔드포인트**: `GET /v1/ops/reports/:gateKey/monthly/workflow-run?month=YYYY-MM`
+- **동작 방식**: 
+  - PR 조회와 동일하게 설정(SSOT)과 토큰을 확보한다.
+  - `GET /repos/{owner}/{repo}/actions/runs?branch={branch}&per_page=1` API를 호출하여 해당 게이트+월 브랜치의 최신 실행 기록을 가져온다.
+  - UI에서는 PR이 없을 경우 이 Run 정보를 바탕으로 **"진행중(in_progress)", "success", "failure"** 등의 상태를 색상 뱃지와 함께 표시하고 클릭 시 GitHub Actions 로그로 딥링크한다.
+
+## 7) 게이트 추가 절차
 새로운 `gateKey`를 도입할 경우:
 1. 기존 데이터 파이프라인(UI, Functions)을 통해 `ops_monthly_reports` 문서가 한 번 이상 `generate` 되었는지 확인한다.
 2. `.github/workflows/ops-monthly-summary-sync.yml`의 `gate_keys` 배열 기본값에 신규 게이트 키를 추가한다.
