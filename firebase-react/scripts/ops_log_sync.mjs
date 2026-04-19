@@ -78,13 +78,17 @@ async function main() {
   try {
     serviceAccount = JSON.parse(saJson);
   } catch {
-    throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON.");
+    throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON. (JSON 파싱 실패)");
+  }
+
+  if (!serviceAccount.project_id || !serviceAccount.client_email || !serviceAccount.private_key) {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is missing required fields: project_id, client_email, or private_key. (필수 필드 누락)");
   }
 
   if (admin.apps.length === 0) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      projectId: serviceAccount.project_id || process.env.FIREBASE_PROJECT_ID,
+      projectId: serviceAccount.project_id,
     });
   }
 
@@ -93,12 +97,20 @@ async function main() {
   const startId = `${targetMonth}-01`;
   const endId = `${nextMonth(targetMonth)}-01`;
 
-  const snap = await db
-    .collection("ops_daily_logs")
-    .orderBy(admin.firestore.FieldPath.documentId())
-    .startAt(startId)
-    .endBefore(endId)
-    .get();
+  let snap;
+  try {
+    snap = await db
+      .collection("ops_daily_logs")
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .startAt(startId)
+      .endBefore(endId)
+      .get();
+  } catch (e) {
+    if (e.code === 7 || (e.message && e.message.includes("PERMISSION_DENIED"))) {
+      throw new Error(`Firestore 조회 실패 (PERMISSION_DENIED). 서비스 계정 권한 확인(Cloud Datastore/Firestore Viewer)이 필요합니다. 상세: ${e.message}`);
+    }
+    throw e;
+  }
 
   const docs = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
 

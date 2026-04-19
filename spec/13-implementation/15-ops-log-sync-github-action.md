@@ -51,3 +51,9 @@ node firebase-react/scripts/ops_log_sync.mjs
 - 마크다운 파일은 **마커 영역만 자동 갱신**된다.
 - 운영자가 수동으로 편집해야 하는 내용이 있다면 마커 바깥 영역에 작성한다.
 
+## 6) 주요 하드닝 기능 (v2)
+
+- **라벨 자동 생성**: 레포지토리에 `ops`, `automation` 라벨이 없으면 자동으로 생성 후 부착된다.
+- **PR 재사용**: 동일한 날짜(`bot/ops-log-sync-YYYY-MM-DD` 브랜치)에 재실행 시, 새 PR을 만들지 않고 기존 PR의 본문을 업데이트하며 갱신 코멘트를 남긴다.
+- **에러 메시지 강화**: `FIREBASE_SERVICE_ACCOUNT_JSON`의 파싱 실패, 필수 필드 누락, 또는 Firestore 권한 부족(`PERMISSION_DENIED`) 시 워크플로우 로그에 명확한 원인과 가이드가 출력된다.
+
