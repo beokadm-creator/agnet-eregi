@@ -1,4 +1,4 @@
-import type express from "express";
+import * as express from "express";
 import type * as admin from "firebase-admin";
 import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, WidthType } from "docx";
 
@@ -38,8 +38,12 @@ function tableFromRows(rows: string[][]) {
 
 export function registerReportRoutes(app: express.Express, adminApp: typeof admin) {
   // Gate 일일 집계록(MD) 조회 API (운영용)
-  app.get("/v1/ops/reports/pilot-gate/daily.md", async (req, res) => {
+  app.get("/v1/ops/reports/:gateKey/daily.md", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
@@ -60,8 +64,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
       const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
 
+      const evidenceColl = `${gateKey.replace(/-/g, '_')}_evidence`;
       const snapshot = await adminApp.firestore()
-        .collection("pilot_gate_evidence")
+        .collection(evidenceColl)
         .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startOfDay))
         .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endOfDay))
         .get();
@@ -153,8 +158,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // Gate 일일 집계 API (운영용)
-  app.get("/v1/ops/reports/pilot-gate/daily", async (req, res) => {
+  app.get("/v1/ops/reports/:gateKey/daily", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
@@ -174,8 +183,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
       const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
   
+      const evidenceColl = `${gateKey.replace(/-/g, '_')}_evidence`;
       const snapshot = await adminApp.firestore()
-        .collection("pilot_gate_evidence")
+        .collection(evidenceColl)
         .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startOfDay))
         .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endOfDay))
         .get();
@@ -231,8 +241,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // 일일 로그 SSOT 단일 조회
-  app.get("/v1/ops/reports/pilot-gate/daily/ssot", async (req, res) => {
+  app.get("/v1/ops/reports/:gateKey/daily/ssot", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const dateParam = String(req.query.date || "");
       const targetDateStr = dateParam ? dateParam : formatKstYmd();
       const targetDate = new Date(`${targetDateStr}T00:00:00+09:00`);
@@ -241,7 +255,8 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 날짜입니다.");
       }
 
-      const logDocRef = adminApp.firestore().collection("ops_daily_logs").doc(targetDateStr);
+      const ssotDocId = gateKey === "pilot-gate" ? targetDateStr : `${gateKey}:${targetDateStr}`;
+      const logDocRef = adminApp.firestore().collection("ops_daily_logs").doc(ssotDocId);
       const logDoc = await logDocRef.get();
 
       if (!logDoc.exists) {
@@ -256,8 +271,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // 최근 SSOT 목록 조회
-  app.get("/v1/ops/reports/pilot-gate/daily/ssot/recent", async (req, res) => {
+  app.get("/v1/ops/reports/:gateKey/daily/ssot/recent", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const days = Number(req.query.days) || 7;
       if (days < 1 || days > 30) {
         return fail(res, 400, "INVALID_ARGUMENT", "days는 1~30 사이여야 합니다.");
@@ -268,17 +287,20 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       d.setDate(d.getDate() - days);
       const startStr = formatKstYmd(d);
 
+      const startDocId = gateKey === "pilot-gate" ? startStr : `${gateKey}:${startStr}`;
+      const endDocId = gateKey === "pilot-gate" ? endStr : `${gateKey}:${endStr}`;
+
       const snap = await adminApp.firestore()
         .collection("ops_daily_logs")
-        .where(adminApp.firestore.FieldPath.documentId(), ">=", startStr)
-        .where(adminApp.firestore.FieldPath.documentId(), "<=", endStr)
+        .where(adminApp.firestore.FieldPath.documentId(), ">=", startDocId)
+        .where(adminApp.firestore.FieldPath.documentId(), "<=", endDocId)
         .orderBy(adminApp.firestore.FieldPath.documentId(), "desc")
         .get();
 
       const items = snap.docs.map(doc => {
         const data = doc.data();
         return {
-          date: doc.id,
+          date: gateKey === "pilot-gate" ? doc.id : doc.id.split(":")[1],
           requestId: data.requestId,
           createdAt: data.createdAt,
           metrics: data.metricsSnapshot
@@ -293,8 +315,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // 일일 로그 SSOT에 자동 append (Firestore 기반)
-  app.post("/v1/ops/reports/pilot-gate/daily/append", async (req, res) => {
+  app.post("/v1/ops/reports/:gateKey/daily/append", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
@@ -332,14 +358,16 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       }
 
       // 2. 동시성 및 중복 방지 (Firestore의 SSOT 문서 ID 활용)
-      const logDocRef = adminApp.firestore().collection("ops_daily_logs").doc(targetDateStr);
+      const ssotDocId = gateKey === "pilot-gate" ? targetDateStr : `${gateKey}:${targetDateStr}`;
+      const logDocRef = adminApp.firestore().collection("ops_daily_logs").doc(ssotDocId);
 
       // 3. 집계 데이터 조회
       const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
       const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
 
+      const evidenceColl = `${gateKey.replace(/-/g, '_')}_evidence`;
       const snapshot = await adminApp.firestore()
-        .collection("pilot_gate_evidence")
+        .collection(evidenceColl)
         .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startOfDay))
         .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endOfDay))
         .get();
@@ -452,8 +480,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // 백로그 후보 자동화: Firestore SSOT → GitHub Issue 생성
-  app.post("/v1/ops/reports/pilot-gate/backlog/issues/create", async (req, res) => {
+  app.post("/v1/ops/reports/:gateKey/backlog/issues/create", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
@@ -468,7 +500,8 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 날짜입니다.");
       }
 
-      const logDocRef = adminApp.firestore().collection("ops_daily_logs").doc(targetDateStr);
+      const ssotDocId = gateKey === "pilot-gate" ? targetDateStr : `${gateKey}:${targetDateStr}`;
+      const logDocRef = adminApp.firestore().collection("ops_daily_logs").doc(ssotDocId);
       const logDoc = await logDocRef.get();
       if (!logDoc.exists) {
         return fail(res, 404, "NOT_FOUND", "먼저 SSOT 저장을 수행하세요.");
@@ -482,13 +515,14 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const GITHUB_TOKEN = process.env.GITHUB_TOKEN_BACKLOG_BOT || "";
 
       for (const issue of topIssues) {
-        const dedupeKey = `pilot-gate:${targetDateStr}:${issue.slotId}`;
+        const dedupeKey = `${gateKey}:${targetDateStr}:${issue.slotId}`;
         const dedupeRef = adminApp.firestore().collection("ops_backlog_issues").doc(dedupeKey);
         
         try {
           // 1. 멱등성 확보를 위한 create
           if (!dryRun) {
             await dedupeRef.create({
+              gateKey,
               date: targetDateStr,
               slotId: issue.slotId,
               severity: issue.severity,
@@ -504,7 +538,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
 ### 이슈 개요
 - **발생일**: ${targetDateStr}
 - **영향도**: ${issue.impactCount}건 발생
-- **SSOT 문서**: \`ops_daily_logs/${targetDateStr}\`
+- **SSOT 문서**: \`ops_daily_logs/${ssotDocId}\`
 - **Req ID**: ${logData.requestId || "N/A"}
 
 ### 재현 단계
@@ -593,8 +627,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // 백로그 자동화: 설정 SSOT 갱신 (Discovery)
-  app.post("/v1/ops/reports/pilot-gate/backlog/project/discover", async (req, res) => {
+  app.post("/v1/ops/reports/:gateKey/backlog/project/discover", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
@@ -628,7 +666,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       };
 
       // Custom Aliases 병합
-      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc("pilot-gate").get();
+      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
       const existingConfig = configDoc.exists ? configDoc.data() : {};
       const customAliases = existingConfig?.customAliases || {};
 
@@ -728,7 +766,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       // 2. Firestore 설정 SSOT에 저장
       await adminApp.firestore()
         .collection("ops_github_project_config")
-        .doc("pilot-gate")
+        .doc(gateKey)
         .set(configData, { merge: true });
 
       return res.status(200).json({ ok: true, data: configData });
@@ -739,13 +777,17 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // 백로그 자동화: 설정 SSOT 조회
-  app.get("/v1/ops/reports/pilot-gate/backlog/project/config", async (req, res) => {
+  app.get("/v1/ops/reports/:gateKey/backlog/project/config", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
-      const doc = await adminApp.firestore().collection("ops_github_project_config").doc("pilot-gate").get();
+      const doc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
       if (!doc.exists) {
         return fail(res, 404, "NOT_FOUND", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
       }
@@ -757,8 +799,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // 백로그 자동화: Alias 수정 및 즉시 Resolve
-  app.patch("/v1/ops/reports/pilot-gate/backlog/project/config/aliases", async (req, res) => {
+  app.patch("/v1/ops/reports/:gateKey/backlog/project/config/aliases", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
@@ -768,7 +814,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         return fail(res, 400, "INVALID_ARGUMENT", "customAliases 객체가 필요합니다.");
       }
 
-      const docRef = adminApp.firestore().collection("ops_github_project_config").doc("pilot-gate");
+      const docRef = adminApp.firestore().collection("ops_github_project_config").doc(gateKey);
       const docSnap = await docRef.get();
       if (!docSnap.exists) {
         return fail(res, 404, "NOT_FOUND", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
@@ -799,13 +845,17 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // 백로그 자동화: 로컬 재매칭 (Re-resolve)
-  app.post("/v1/ops/reports/pilot-gate/backlog/project/resolve", async (req, res) => {
+  app.post("/v1/ops/reports/:gateKey/backlog/project/resolve", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
-      const docRef = adminApp.firestore().collection("ops_github_project_config").doc("pilot-gate");
+      const docRef = adminApp.firestore().collection("ops_github_project_config").doc(gateKey);
       const docSnap = await docRef.get();
       if (!docSnap.exists) {
         return fail(res, 404, "NOT_FOUND", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
@@ -899,8 +949,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   }
 
   // 백로그 자동화: GitHub Project V2 투입 API
-  app.post("/v1/ops/reports/pilot-gate/backlog/issues/project/add", async (req, res) => {
+  app.post("/v1/ops/reports/:gateKey/backlog/issues/project/add", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
@@ -918,19 +972,37 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       // 1. 이미 생성된 이슈 목록 가져오기
       const snap = await adminApp.firestore()
         .collection("ops_backlog_issues")
+        .where("gateKey", "==", gateKey)
         .where("date", "==", targetDateStr)
         .limit(Number(topN))
         .get();
 
+      let issues: any[] = [];
       if (snap.empty) {
-        return fail(res, 404, "NOT_FOUND", "해당 날짜에 생성된 GitHub 이슈가 없습니다. (먼저 이슈를 생성하세요)");
-      }
+        // 기존 생성된 문서(gateKey 필드가 없는 경우)와의 호환성을 위해 한 번 더 시도
+        const legacySnap = await adminApp.firestore()
+          .collection("ops_backlog_issues")
+          .where("date", "==", targetDateStr)
+          .limit(Number(topN))
+          .get();
 
-      const issues = snap.docs.map(d => ({ dedupeKey: d.id, ...d.data() })) as any[];
+        if (legacySnap.empty) {
+          return fail(res, 404, "NOT_FOUND", "해당 날짜에 생성된 GitHub 이슈가 없습니다. (먼저 이슈를 생성하세요)");
+        }
+        
+        // Legacy doc 중에서 pilot-gate로 간주 (또는 id가 gateKey로 시작하는지 체크)
+        const validDocs = legacySnap.docs.filter(d => d.id.startsWith(`${gateKey}:`));
+        if (validDocs.length === 0) {
+           return fail(res, 404, "NOT_FOUND", "해당 날짜에 생성된 GitHub 이슈가 없습니다. (먼저 이슈를 생성하세요)");
+        }
+        issues = validDocs.map(d => ({ dedupeKey: d.id, ...d.data() })) as any[];
+      } else {
+        issues = snap.docs.map(d => ({ dedupeKey: d.id, ...d.data() })) as any[];
+      }
 
       const GITHUB_TOKEN = process.env.GITHUB_TOKEN_BACKLOG_BOT || "";
       // Field IDs (optional)
-      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc("pilot-gate").get();
+      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
       if (!configDoc.exists) {
         return fail(res, 400, "INVALID_ARGUMENT", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
       }
@@ -1118,8 +1190,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // Gate 백로그 후보 생성 API (운영용)
-  app.post("/v1/ops/reports/pilot-gate/backlog", async (req, res) => {
+  app.post("/v1/ops/reports/:gateKey/backlog", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
@@ -1139,8 +1215,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
       const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
   
+      const evidenceColl = `${gateKey.replace(/-/g, '_')}_evidence`;
       const snapshot = await adminApp.firestore()
-        .collection("pilot_gate_evidence")
+        .collection(evidenceColl)
         .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startOfDay))
         .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endOfDay))
         .get();
@@ -1193,8 +1270,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // 최근 실패/최근 evidence 조회 API (운영용)
-  app.get("/v1/ops/reports/pilot-gate/recent", async (req, res) => {
+  app.get("/v1/ops/reports/:gateKey/recent", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
@@ -1210,8 +1291,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - days);
 
+      const evidenceColl = `${gateKey.replace(/-/g, '_')}_evidence`;
       let query = adminApp.firestore()
-        .collection("pilot_gate_evidence")
+        .collection(evidenceColl)
         .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startDate))
         .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endDate));
 
@@ -1248,8 +1330,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // Ops Console: 특정 케이스 조회 API
-  app.get("/v1/ops/reports/pilot-gate/by-case", async (req, res) => {
+  app.get("/v1/ops/reports/:gateKey/by-case", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
@@ -1264,8 +1350,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       }
       const limitNum = Number(req.query.limit) || 10;
   
+      const evidenceColl = `${gateKey.replace(/-/g, '_')}_evidence`;
       const snapshot = await adminApp.firestore()
-        .collection("pilot_gate_evidence")
+        .collection(evidenceColl)
         .where("caseId", "==", caseId)
         .orderBy("validatedAt", "desc")
         .limit(limitNum)
@@ -1294,8 +1381,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // 주간 리뷰용 내보내기 (markdown export)
-  app.get("/v1/ops/reports/pilot-gate/backlog.md", async (req, res) => {
+  app.get("/v1/ops/reports/:gateKey/backlog.md", async (req: express.Request, res: express.Response) => {
     try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
@@ -1327,8 +1418,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         startDate.setHours(0, 0, 0, 0);
       }
   
+      const evidenceColl = `${gateKey.replace(/-/g, '_')}_evidence`;
       const snapshot = await adminApp.firestore()
-        .collection("pilot_gate_evidence")
+        .collection(evidenceColl)
         .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startDate))
         .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endDate))
         .get();
@@ -1395,7 +1487,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   });
 
   // 케이스 종료 리포트(DOCX) - 케이스 참여자/ops
-  app.get("/v1/cases/:caseId/reports/closing.docx", async (req, res) => {
+  app.get("/v1/cases/:caseId/reports/closing.docx", async (req: express.Request, res: express.Response) => {
     const auth = await requireAuth(adminApp, req, res);
     if (!auth) return;
 

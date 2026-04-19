@@ -1,4 +1,4 @@
-import type express from "express";
+import * as express from "express";
 
 export type ApiErrorCode =
   | "UNAUTHENTICATED"

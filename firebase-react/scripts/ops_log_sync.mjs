@@ -72,6 +72,7 @@ async function main() {
   const repoRoot = process.env.REPO_ROOT ? path.resolve(process.env.REPO_ROOT) : process.cwd();
   const { ym: defaultYm } = getKstNowParts();
   const targetMonth = (process.env.TARGET_MONTH || defaultYm).trim();
+  const gateKey = process.env.GATE_KEY || "pilot-gate";
 
   const saJson = requireEnv("FIREBASE_SERVICE_ACCOUNT_JSON");
   let serviceAccount;

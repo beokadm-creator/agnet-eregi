@@ -22,6 +22,7 @@ function App() {
   const [periodTo, setPeriodTo] = useState<string>("2026-01-31");
   const [settlementIdForItems, setSettlementIdForItems] = useState<string>("");
   const [settlementItems, setSettlementItems] = useState<any[]>([]);
+  const [gateKey, setGateKey] = useState<string>("pilot-gate");
   const [summaryDate, setSummaryDate] = useState<string>(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()));
   const [gateReportText, setGateReportText] = useState<string>("");
   const [ssotData, setSsotData] = useState<any | null>(null);
@@ -106,14 +107,14 @@ function App() {
     setProjectConfigResult(null);
     setRecentFails([]);
     try {
-      const gateData = await apiGet(`/v1/ops/reports/pilot-gate/daily?date=${summaryDate}`);
+      const gateData = await apiGet(`/v1/ops/reports/${gateKey}/daily?date=${summaryDate}`);
       setGateReportText(gateData.copyText || "");
       
-      const backlogData = await apiPost(`/v1/ops/reports/pilot-gate/backlog`, { date: summaryDate, topN: 3 });
+      const backlogData = await apiPost(`/v1/ops/reports/${gateKey}/backlog`, { date: summaryDate, topN: 3 });
       setBacklogItems(backlogData.items || []);
       
       // 최근 실패 케이스 같이 로드 (7일)
-      const recentData = await apiGet(`/v1/ops/reports/pilot-gate/recent?days=7&onlyFail=1&limit=50`);
+      const recentData = await apiGet(`/v1/ops/reports/${gateKey}/recent?days=7&onlyFail=1&limit=50`);
       setRecentFails(recentData.evidences || []);
       
       setLog(`오늘 운영 요약 로드 성공: 집계 완료, 백로그 후보 ${backlogData.items?.length ?? 0}건, 최근 실패 ${recentData.evidences?.length ?? 0}건`);
@@ -129,7 +130,7 @@ function App() {
     clearError();
     try {
       const token = await ensureLogin();
-      const resp = await fetch(`${apiBase}/v1/ops/reports/pilot-gate/daily.md?date=${summaryDate}`, {
+      const resp = await fetch(`${apiBase}/v1/ops/reports/${gateKey}/daily.md?date=${summaryDate}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!resp.ok) {
@@ -154,7 +155,7 @@ function App() {
     clearError();
     try {
       const token = await ensureLogin();
-      const resp = await fetch(`${apiBase}/v1/ops/reports/pilot-gate/daily.md?date=${summaryDate}`, {
+      const resp = await fetch(`${apiBase}/v1/ops/reports/${gateKey}/daily.md?date=${summaryDate}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!resp.ok) {
@@ -185,7 +186,7 @@ function App() {
     setBusy(true);
     clearError();
     try {
-      const respData = await apiPost("/v1/ops/reports/pilot-gate/daily/append", { date: summaryDate });
+      const respData = await apiPost(`/v1/ops/reports/${gateKey}/daily/append`, { date: summaryDate });
       setLog(`SSOT(Firestore)에 기록되었습니다 (linesAdded: ${respData.linesAdded}, reqId: ${respData.requestId})`);
       await loadDailyLogSsot(); // 저장 후 즉시 조회해서 반영
     } catch (e: any) {
@@ -199,7 +200,7 @@ function App() {
     setBusy(true);
     clearError();
     try {
-      const data = await apiGet(`/v1/ops/reports/pilot-gate/daily/ssot?date=${summaryDate}`);
+      const data = await apiGet(`/v1/ops/reports/${gateKey}/daily/ssot?date=${summaryDate}`);
       setSsotData(data);
       setLog("SSOT 데이터를 성공적으로 불러왔습니다.");
     } catch (e: any) {
@@ -226,7 +227,7 @@ function App() {
     clearError();
     setIssueCreationResult(null);
     try {
-      const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog/issues/create`, { date: summaryDate });
+      const data = await apiPost(`/v1/ops/reports/${gateKey}/backlog/issues/create`, { date: summaryDate });
       setIssueCreationResult(data);
       setLog(`이슈 생성 완료: created ${data.created?.length}건, skipped ${data.skipped?.length}건`);
     } catch (e: any) {
@@ -241,7 +242,7 @@ function App() {
     clearError();
     setProjectAddResult(null);
     try {
-      const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog/issues/project/add`, { date: summaryDate });
+      const data = await apiPost(`/v1/ops/reports/${gateKey}/backlog/issues/project/add`, { date: summaryDate });
       setProjectAddResult(data);
       setLog(`프로젝트 투입 완료: added ${data.added?.length}건, skipped ${data.skipped?.length}건, failed ${data.failed?.length}건`);
     } catch (e: any) {
@@ -256,7 +257,7 @@ function App() {
     clearError();
     setProjectConfigResult(null);
     try {
-      const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog/project/discover`, {});
+      const data = await apiPost(`/v1/ops/reports/${gateKey}/backlog/project/discover`, {});
       setProjectConfigResult(data);
       setAliasJsonText(JSON.stringify(data.customAliases || { fieldAliases: {}, optionAliases: {} }, null, 2));
       setLog(`Project 설정 갱신 완료: Status 옵션 ${Object.keys(data.resolved?.statusOptionIds || {}).length}개 로드됨`);
@@ -272,7 +273,7 @@ function App() {
     clearError();
     try {
       const customAliases = JSON.parse(aliasJsonText);
-      const data = await apiPatch(`/v1/ops/reports/pilot-gate/backlog/project/config/aliases`, { customAliases });
+      const data = await apiPatch(`/v1/ops/reports/${gateKey}/backlog/project/config/aliases`, { customAliases });
       setProjectConfigResult(data);
       setLog(`Alias 갱신 및 재매칭 완료 (missing: ${data.missingMappings?.length}개)`);
     } catch (e: any) {
@@ -290,7 +291,7 @@ function App() {
     setBusy(true);
     clearError();
     try {
-      const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog/project/resolve`, {});
+      const data = await apiPost(`/v1/ops/reports/${gateKey}/backlog/project/resolve`, {});
       setProjectConfigResult((prev: any) => ({ ...prev, resolved: data.resolved, missingMappings: data.missingMappings }));
       setLog(`재매칭 완료 (missing: ${data.missingMappings?.length}개)`);
     } catch (e: any) {
@@ -329,7 +330,7 @@ ${acLines}
     clearError();
     try {
       const token = await ensureLogin();
-      const resp = await fetch(`${apiBase}/v1/ops/reports/pilot-gate/backlog.md`, {
+      const resp = await fetch(`${apiBase}/v1/ops/reports/${gateKey}/backlog.md`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!resp.ok) {
@@ -445,7 +446,7 @@ ${acLines}
       
       let g = { evidences: [] };
       try {
-        g = await apiGet(`/v1/ops/reports/pilot-gate/by-case?caseId=${cid}&limit=10`);
+        g = await apiGet(`/v1/ops/reports/${gateKey}/by-case?caseId=${cid}&limit=10`);
       } catch (ge) {
         console.warn("gate evidence 로드 실패:", ge);
       }
@@ -679,6 +680,21 @@ next=재검증 재시도/파트너 문의/수동 확인`;
 
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f9f9f9" }}>
         <h2 style={{ margin: "0 0 8px 0", color: "#333" }}>오늘 운영 요약</h2>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+          <label>
+            대상 Gate:{" "}
+            <select 
+              value={gateKey} 
+              onChange={(e) => setGateKey(e.target.value)}
+              disabled={busy}
+              style={{ padding: 6, fontWeight: "bold", color: "#00695c" }}
+            >
+              <option value="pilot-gate">pilot-gate (Legacy)</option>
+              <option value="partner-gate">partner-gate</option>
+              <option value="billing-gate">billing-gate</option>
+            </select>
+          </label>
+        </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <label>
             대상 일자:{" "}
