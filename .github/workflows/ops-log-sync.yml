@@ -101,7 +101,7 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const head = process.env.BRANCH_NAME;
-            const base = "main";
+            const base = context.payload.repository.default_branch;
             const targetMonth = process.env.TARGET_MONTH;
             const syncDays = process.env.SYNC_DAYS;
             const syncFile = process.env.SYNC_FILE;

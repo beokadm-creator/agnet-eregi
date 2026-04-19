@@ -16,6 +16,10 @@ function fmtTs(v: any) {
   }
 }
 
+function formatKstYmd(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(date);
+}
+
 function tableFromRows(rows: string[][]) {
   const tableRows = rows.map(
     (r) =>
@@ -45,7 +49,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       }
 
       const dateParam = String(req.query.date || "");
-      const targetDateStr = dateParam ? dateParam : new Date().toLocaleDateString("en-CA").split("/").reverse().join("-");
+      const targetDateStr = dateParam ? dateParam : formatKstYmd();
       const targetDate = new Date(targetDateStr);
 
       if (isNaN(targetDate.getTime())) {
@@ -159,7 +163,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       }
   
       const dateParam = String(req.query.date || "");
-      const targetDateStr = dateParam ? dateParam : new Date().toLocaleDateString("en-CA").split("/").reverse().join("-");
+      const targetDateStr = dateParam ? dateParam : formatKstYmd();
       const targetDate = new Date(targetDateStr);
       
       if (isNaN(targetDate.getTime())) {
@@ -257,9 +261,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         targetDateStr = dateStr;
       } else {
         // 한국 시간(KST) 기준으로 오늘 날짜 구하기
-        const now = new Date();
-        const kstFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" });
-        targetDateStr = kstFormatter.format(now); // "YYYY-MM-DD"
+        targetDateStr = formatKstYmd();
       }
       
       const targetDate = new Date(`${targetDateStr}T00:00:00+09:00`);
@@ -269,11 +271,6 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
 
       // 2. 동시성 및 중복 방지 (Firestore의 SSOT 문서 ID 활용)
       const logDocRef = adminApp.firestore().collection("ops_daily_logs").doc(targetDateStr);
-      const logDoc = await logDocRef.get();
-      
-      if (logDoc.exists) {
-        return fail(res, 409, "CONFLICT", "해당 날짜의 로그가 이미 존재합니다.");
-      }
 
       // 3. 집계 데이터 조회
       const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
@@ -402,7 +399,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       }
   
       const { date, topN = 3 } = req.body;
-      const targetDateStr = date ? String(date) : new Date().toLocaleDateString("en-CA").split("/").reverse().join("-");
+      const targetDateStr = date ? String(date) : formatKstYmd();
       const targetDate = new Date(targetDateStr);
       
       if (isNaN(targetDate.getTime())) {
@@ -641,7 +638,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   
       items.sort((a, b) => a.severity - b.severity || b.impactCount - a.impactCount);
   
-      const titleDateStr = `${startDate.toLocaleDateString("en-CA")} ~ ${endDate.toLocaleDateString("en-CA")}`;
+      const titleDateStr = `${formatKstYmd(startDate)} ~ ${formatKstYmd(endDate)}`;
       let markdown = `# 주간 Gate 검증 백로그 리뷰 (${titleDateStr})\n\n`;
       
       if (items.length === 0) {

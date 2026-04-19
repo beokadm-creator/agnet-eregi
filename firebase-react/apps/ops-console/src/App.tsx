@@ -22,7 +22,7 @@ function App() {
   const [periodTo, setPeriodTo] = useState<string>("2026-01-31");
   const [settlementIdForItems, setSettlementIdForItems] = useState<string>("");
   const [settlementItems, setSettlementItems] = useState<any[]>([]);
-  const [summaryDate, setSummaryDate] = useState<string>(new Date().toLocaleDateString("en-CA").split("/").reverse().join("-"));
+  const [summaryDate, setSummaryDate] = useState<string>(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()));
   const [gateReportText, setGateReportText] = useState<string>("");
   const [backlogItems, setBacklogItems] = useState<any[]>([]);
   const [recentFails, setRecentFails] = useState<any[]>([]);
