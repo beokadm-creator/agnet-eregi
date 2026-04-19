@@ -29,6 +29,7 @@ function App() {
   const [issueCreationResult, setIssueCreationResult] = useState<any | null>(null);
   const [projectAddResult, setProjectAddResult] = useState<any | null>(null);
   const [projectConfigResult, setProjectConfigResult] = useState<any | null>(null);
+  const [aliasJsonText, setAliasJsonText] = useState<string>("");
   const [recentFails, setRecentFails] = useState<any[]>([]);
   const [sev1Log, setSev1Log] = useState<{regenerateOk?: boolean; validateData?: any; reqId?: string}>({});
 
@@ -46,6 +47,17 @@ function App() {
 
   function clearError() {
     setErrorBox(null);
+  }
+
+  async function apiPatch(path: string, body: any) {
+    const res = await fetch(API_BASE + path, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error?.message || "PATCH Failed");
+    return data.data;
   }
 
   async function apiGet(path: string) {
@@ -246,7 +258,41 @@ function App() {
     try {
       const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog/project/discover`, {});
       setProjectConfigResult(data);
-      setLog(`Project 설정 갱신 완료: Status 옵션 ${Object.keys(data.fields?.status?.optionsByName || {}).length}개 로드됨`);
+      setAliasJsonText(JSON.stringify(data.customAliases || { fieldAliases: {}, optionAliases: {} }, null, 2));
+      setLog(`Project 설정 갱신 완료: Status 옵션 ${Object.keys(data.resolved?.statusOptionIds || {}).length}개 로드됨`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateAliasesAndResolve() {
+    setBusy(true);
+    clearError();
+    try {
+      const customAliases = JSON.parse(aliasJsonText);
+      const data = await apiPatch(`/v1/ops/reports/pilot-gate/backlog/project/config/aliases`, { customAliases });
+      setProjectConfigResult(data);
+      setLog(`Alias 갱신 및 재매칭 완료 (missing: ${data.missingMappings?.length}개)`);
+    } catch (e: any) {
+      if (e instanceof SyntaxError) {
+        handleError(new Error("JSON 형식이 잘못되었습니다."));
+      } else {
+        handleError(e);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reResolveProjectConfig() {
+    setBusy(true);
+    clearError();
+    try {
+      const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog/project/resolve`, {});
+      setProjectConfigResult((prev: any) => ({ ...prev, resolved: data.resolved, missingMappings: data.missingMappings }));
+      setLog(`재매칭 완료 (missing: ${data.missingMappings?.length}개)`);
     } catch (e: any) {
       handleError(e);
     } finally {
@@ -722,7 +768,12 @@ next=재검증 재시도/파트너 문의/수동 확인`;
             </div>
             {projectConfigResult && (
               <div style={{ marginBottom: 12, padding: 12, border: "1px solid #ccc", borderRadius: 6, background: "#e0f2f1" }}>
-                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em" }}>✅ GitHub Project 설정 갱신 완료</h4>
+                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>✅ GitHub Project 설정 갱신 완료</span>
+                  {projectConfigResult.missingMappings?.length === 0 && (
+                    <span style={{ fontSize: "0.85em", color: "white", background: "#388e3c", padding: "2px 6px", borderRadius: 4 }}>설정 완벽함</span>
+                  )}
+                </h4>
                 <div style={{ fontSize: "0.85em", color: "#004d40" }}>
                   <strong>Project ID:</strong> {projectConfigResult.projectId}<br />
                   <strong>Status Options:</strong> {Object.keys(projectConfigResult.resolved?.statusOptionIds || {}).join(", ")}<br />
@@ -730,10 +781,29 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                 </div>
                 {projectConfigResult.missingMappings && projectConfigResult.missingMappings.length > 0 && (
                   <div style={{ marginTop: 8, padding: 8, background: "#fff3e0", border: "1px solid #ffe0b2", borderRadius: 4, color: "#e65100", fontSize: "0.85em" }}>
-                    <strong>⚠️ 매핑 누락 경고:</strong> 아래 항목들을 찾지 못했습니다. 프로젝트 설정을 확인하세요.<br />
+                    <strong>⚠️ 매핑 누락 경고:</strong> 아래 항목들을 찾지 못했습니다. Custom Alias를 추가하세요.<br />
                     {projectConfigResult.missingMappings.join(", ")}
                   </div>
                 )}
+                
+                {/* Custom Alias 에디터 */}
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed #b2dfdb" }}>
+                  <strong style={{ fontSize: "0.85em", color: "#004d40", display: "block", marginBottom: 4 }}>🔧 Custom Alias 편집 (JSON)</strong>
+                  <textarea 
+                    value={aliasJsonText}
+                    onChange={(e) => setAliasJsonText(e.target.value)}
+                    style={{ width: "100%", height: "100px", fontFamily: "monospace", fontSize: "0.8em", padding: 8, boxSizing: "border-box", border: "1px solid #b2dfdb", borderRadius: 4 }}
+                    placeholder='{"fieldAliases": {"status": ["진행상태"]}, "optionAliases": {"status.todo": ["대기"]}}'
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button onClick={updateAliasesAndResolve} disabled={busy} style={{ background: "#00897b", color: "white", border: "none", padding: "4px 8px", fontSize: "0.8em", borderRadius: 4, cursor: "pointer" }}>
+                      [Alias 저장 + Resolve]
+                    </button>
+                    <button onClick={reResolveProjectConfig} disabled={busy} style={{ background: "#4db6ac", color: "white", border: "none", padding: "4px 8px", fontSize: "0.8em", borderRadius: 4, cursor: "pointer" }}>
+                      [Resolve만 재시도]
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
             {issueCreationResult && (

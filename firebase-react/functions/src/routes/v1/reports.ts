@@ -627,6 +627,26 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         "priority.p2": ["p2", "medium", "보통"]
       };
 
+      // Custom Aliases 병합
+      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc("pilot-gate").get();
+      const existingConfig = configDoc.exists ? configDoc.data() : {};
+      const customAliases = existingConfig?.customAliases || {};
+
+      if (customAliases.fieldAliases) {
+        for (const [k, v] of Object.entries(customAliases.fieldAliases)) {
+          if (Array.isArray(v) && fieldAliases[k as keyof typeof fieldAliases]) {
+            fieldAliases[k as keyof typeof fieldAliases].push(...v);
+          }
+        }
+      }
+      if (customAliases.optionAliases) {
+        for (const [k, v] of Object.entries(customAliases.optionAliases)) {
+          if (Array.isArray(v) && optionAliases[k as keyof typeof optionAliases]) {
+            optionAliases[k as keyof typeof optionAliases].push(...v);
+          }
+        }
+      }
+
       // 1. GraphQL로 Project 필드 목록 조회
       const query = `
         query {
@@ -699,6 +719,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         rawFields: nodes,
         resolved,
         missingMappings,
+        customAliases, // 유지
         updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
         updatedBy: auth.uid,
         source: "discovery"
@@ -734,6 +755,148 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       return fail(res, 500, "INTERNAL", err.message);
     }
   });
+
+  // 백로그 자동화: Alias 수정 및 즉시 Resolve
+  app.patch("/v1/ops/reports/pilot-gate/backlog/project/config/aliases", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const { customAliases } = req.body;
+      if (!customAliases || typeof customAliases !== "object") {
+        return fail(res, 400, "INVALID_ARGUMENT", "customAliases 객체가 필요합니다.");
+      }
+
+      const docRef = adminApp.firestore().collection("ops_github_project_config").doc("pilot-gate");
+      const docSnap = await docRef.get();
+      if (!docSnap.exists) {
+        return fail(res, 404, "NOT_FOUND", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
+      }
+
+      await docRef.set({ customAliases }, { merge: true });
+      
+      // 즉시 로컬 Resolve 호출을 위해 같은 모듈의 /resolve API 호출 흉내내거나
+      // 내부 함수로 분리할 수도 있지만, 여기서는 fetch()를 통한 셀프 호출이나 로직 재활용 대신
+      // 아래의 /resolve 엔드포인트를 클라이언트에서 이어서 호출하도록 가이드하거나 
+      // 로직을 모듈 내 함수로 빼서 직접 호출할 수 있습니다. 
+      // 빠른 구현을 위해 공통 로직을 즉석에서 다시 돌립니다.
+      const config = (await docRef.get()).data() as any;
+      const result = doResolve(config.rawFields || [], config.customAliases || {});
+      
+      await docRef.update({
+        resolved: result.resolved,
+        missingMappings: result.missingMappings,
+        updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+        updatedBy: auth.uid
+      });
+
+      return res.status(200).json({ ok: true, data: { ...config, ...result } });
+    } catch (err: any) {
+      logError({ endpoint: "aliases patch", code: "INTERNAL", messageKo: "Alias 업데이트 실패", err });
+      return fail(res, 500, "INTERNAL", "Alias 업데이트 실패");
+    }
+  });
+
+  // 백로그 자동화: 로컬 재매칭 (Re-resolve)
+  app.post("/v1/ops/reports/pilot-gate/backlog/project/resolve", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const docRef = adminApp.firestore().collection("ops_github_project_config").doc("pilot-gate");
+      const docSnap = await docRef.get();
+      if (!docSnap.exists) {
+        return fail(res, 404, "NOT_FOUND", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
+      }
+
+      const config = docSnap.data() as any;
+      if (!config.rawFields || !Array.isArray(config.rawFields)) {
+         return fail(res, 400, "INVALID_ARGUMENT", "rawFields가 없습니다. Discover를 다시 실행하세요.");
+      }
+
+      const result = doResolve(config.rawFields, config.customAliases || {});
+
+      await docRef.update({
+        resolved: result.resolved,
+        missingMappings: result.missingMappings,
+        updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+        updatedBy: auth.uid
+      });
+
+      return res.status(200).json({ ok: true, data: result });
+    } catch (err: any) {
+      logError({ endpoint: "resolve post", code: "INTERNAL", messageKo: "Re-resolve 실패", err });
+      return fail(res, 500, "INTERNAL", "Re-resolve 실패");
+    }
+  });
+
+  // 내부 Resolve 함수 추출 (Discovery와 Re-resolve에서 공유)
+  function doResolve(rawFields: any[], customAliases: any) {
+    const norm = (s: string) => s.toLowerCase().replace(/[\s\-_]/g, "");
+
+    const fieldAliases = {
+      status: ["status", "state", "workflow", "상태", "진행상태", "워크플로우"],
+      priority: ["priority", "prio", "우선순위", "중요도"],
+      severity: ["severity", "sev", "등급", "심각도"]
+    };
+
+    const optionAliases = {
+      "status.todo": ["todo", "to do", "할일", "할 일", "대기", "new"],
+      "status.in_progress": ["in progress", "doing", "진행중", "진행 중"],
+      "status.done": ["done", "complete", "완료"],
+      "priority.p0": ["p0", "highest", "긴급", "최우선"],
+      "priority.p1": ["p1", "high", "높음"],
+      "priority.p2": ["p2", "medium", "보통"]
+    };
+
+    if (customAliases.fieldAliases) {
+      for (const [k, v] of Object.entries(customAliases.fieldAliases)) {
+        if (Array.isArray(v) && fieldAliases[k as keyof typeof fieldAliases]) {
+          fieldAliases[k as keyof typeof fieldAliases].push(...(v as string[]));
+        }
+      }
+    }
+    if (customAliases.optionAliases) {
+      for (const [k, v] of Object.entries(customAliases.optionAliases)) {
+        if (Array.isArray(v) && optionAliases[k as keyof typeof optionAliases]) {
+          optionAliases[k as keyof typeof optionAliases].push(...(v as string[]));
+        }
+      }
+    }
+
+    const resolved: Record<string, any> = {};
+    const missingMappings: string[] = [];
+
+    for (const [fKey, fAliases] of Object.entries(fieldAliases)) {
+      const normAliases = fAliases.map(norm);
+      const node = rawFields.find((n: any) => n.name && normAliases.includes(norm(n.name)));
+      
+      if (node) {
+        resolved[`${fKey}FieldId`] = node.id;
+        resolved[`${fKey}OptionIds`] = {};
+        
+        const optPrefix = `${fKey}.`;
+        for (const [oKey, oAliases] of Object.entries(optionAliases)) {
+          if (!oKey.startsWith(optPrefix)) continue;
+          const shortOKey = oKey.replace(optPrefix, "");
+          const normOAliases = oAliases.map(norm);
+          
+          const optNode = node.options?.find((o: any) => o.name && normOAliases.includes(norm(o.name)));
+          if (optNode) {
+            resolved[`${fKey}OptionIds`][shortOKey] = optNode.id;
+          } else {
+            missingMappings.push(oKey);
+          }
+        }
+      } else {
+        missingMappings.push(`${fKey}FieldId`);
+      }
+    }
+
+    return { resolved, missingMappings };
+  }
 
   // 백로그 자동화: GitHub Project V2 투입 API
   app.post("/v1/ops/reports/pilot-gate/backlog/issues/project/add", async (req, res) => {

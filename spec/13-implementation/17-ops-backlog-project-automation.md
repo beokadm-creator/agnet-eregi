@@ -30,11 +30,12 @@ Functions 또는 `.env` 설정에 다음 값이 필요하다.
 
 **매핑 실패(Missing Mappings) 대응 절차:**
 - Discover 실행 시 매칭되지 않은 필드나 옵션은 `missingMappings` 배열에 기록되며 UI에 경고로 노출된다.
-- 이 상태에서 "프로젝트 투입"을 실행하면 조용히 넘어가지 않고 `MISSING_MAPPING` 오류로 `failed` 리스트에 쌓인다.
-- 대응 방법:
-  1. GitHub Project 설정에서 필드명/옵션명을 기본 제공되는 Alias(예: `상태`, `진행 중`, `p0` 등) 중 하나로 변경한다.
-  2. Ops Console에서 다시 `[Project 설정 갱신(Discover)]` 버튼을 누른다.
-  3. 경고가 사라진 것을 확인(`missingMappings` 0개) 후 `[프로젝트 투입(Project)]`을 재시도한다.
+- 대응 방법 (Ops Console UI):
+  1. `[Project 설정 갱신(Discover)]`을 클릭하여 최신 rawFields 확보.
+  2. 주황색 경고창에 뜬 `missingMappings` 항목들을 확인.
+  3. 아래쪽 **"Custom Alias 편집 (JSON)"** 창에 매핑할 단어를 추가 (예: `{"optionAliases": {"status.todo": ["접수대기"]}}`).
+  4. `[Alias 저장 + Resolve]` 클릭하여 갱신.
+  5. 경고창이 사라지고 **"설정 완벽함"** 뱃지가 뜨면 `[프로젝트 투입(Project)]`을 재시도한다.
 
 ## 5) UI 흐름 (분리 모델)
 - "이슈 생성"과 "프로젝트 투입"을 2개의 개별 버튼으로 분리하여 구현했다.
