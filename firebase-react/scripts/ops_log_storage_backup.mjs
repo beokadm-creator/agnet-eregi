@@ -24,8 +24,8 @@ async function main() {
   let serviceAccount;
   try {
     serviceAccount = JSON.parse(saJson);
-  } catch {
-    throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON_STORAGE is not valid JSON.");
+  } catch (err) {
+    throw new Error(`FIREBASE_SERVICE_ACCOUNT_JSON_STORAGE is not valid JSON. (JSON 파싱 실패: 줄바꿈 등 확인 필요) - ${err.message}`);
   }
 
   if (admin.apps.length === 0) {
