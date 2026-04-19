@@ -18,31 +18,15 @@ Functions 또는 `.env` 설정에 다음 값이 필요하다.
 - `GITHUB_PROJECT_FIELD_STATUS_ID`: (선택) Project 내 'Status' 필드의 Node ID
 - `GITHUB_PROJECT_FIELD_PRIORITY_ID`: (선택) Project 내 'Priority' 필드의 Node ID
 
-## 4) Project V2 ID 획득 방법 (GraphQL Discovery)
-Project ID나 Field ID는 GitHub GraphQL API를 통해 조회해야 한다. (다음 패킷에서 자동화 스크립트로 제공 가능)
-수동으로 얻으려면 GitHub CLI(`gh`)를 활용하여 아래와 같은 쿼리를 실행한다.
+## 4) Project V2 설정 SSOT 자동화 (Discovery)
+과거에는 Project ID나 Field ID를 GraphQL로 조회하여 소스 코드나 환경 변수에 하드코딩해야 했으나, 이제 **설정 SSOT 갱신(Discovery) API**를 통해 자동으로 해결된다.
 
-```graphql
-query{
-  organization(login: "ORG_NAME") {
-    projectV2(number: 1) {
-      id
-      fields(first: 20) {
-        nodes {
-          ... on ProjectV2SingleSelectField {
-            id
-            name
-            options {
-              id
-              name
-            }
-          }
-        }
-      }
-    }
-  }
-}
-```
+- **API**: `POST /v1/ops/reports/pilot-gate/backlog/project/discover`
+- **저장소**: Firestore `ops_github_project_config/pilot-gate`
+- **동작**: GraphQL API를 호출해 Project V2의 필드 메타데이터(Status, Priority 등)와 Option ID 맵을 확보하여 저장한다.
+- Ops Console UI의 **`[Project 설정 갱신(Discover)]`** 버튼을 클릭하여 1회 초기 설정 및 변경 시 갱신을 수행할 수 있다.
+
+(참고: 기존의 수동 GraphQL 쿼리는 비상용/디버깅 용도로만 남겨둔다.)
 
 ## 5) UI 흐름 (분리 모델)
 - "이슈 생성"과 "프로젝트 투입"을 2개의 개별 버튼으로 분리하여 구현했다.

@@ -592,7 +592,114 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
-  // 백로그 후보 자동화: GitHub Project V2 투입 API
+  // 백로그 자동화: 설정 SSOT 갱신 (Discovery)
+  app.post("/v1/ops/reports/pilot-gate/backlog/project/discover", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) {
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
+
+      const { projectId = process.env.GITHUB_PROJECT_ID, fieldNames = ["Status", "Priority", "Severity"] } = req.body;
+      const GITHUB_TOKEN = process.env.GITHUB_TOKEN_BACKLOG_BOT || "";
+
+      if (!projectId || !GITHUB_TOKEN) {
+        return fail(res, 400, "INVALID_ARGUMENT", "GITHUB_PROJECT_ID 또는 GITHUB_TOKEN_BACKLOG_BOT 설정이 누락되었습니다.");
+      }
+
+      // 1. GraphQL로 Project 필드 목록 조회
+      const query = `
+        query {
+          node(id: "${projectId}") {
+            ... on ProjectV2 {
+              fields(first: 20) {
+                nodes {
+                  ... on ProjectV2SingleSelectField {
+                    id
+                    name
+                    options {
+                      id
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const ghRes = await fetch("https://api.github.com/graphql", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${GITHUB_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ query })
+      });
+
+      const ghData = await ghRes.json();
+      if (ghData.errors) throw new Error(`GraphQL Error: ${JSON.stringify(ghData.errors)}`);
+
+      const nodes = ghData.data.node.fields.nodes;
+      
+      const configFields: Record<string, any> = {};
+      
+      for (const fName of fieldNames) {
+        const node = nodes.find((n: any) => n.name === fName);
+        if (node) {
+          const optionsByName: Record<string, string> = {};
+          for (const opt of node.options) {
+            optionsByName[opt.name] = opt.id;
+          }
+          configFields[fName.toLowerCase()] = {
+            fieldId: node.id,
+            optionsByName
+          };
+        }
+      }
+
+      const configData = {
+        projectId,
+        fields: configFields,
+        updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+        updatedBy: auth.uid,
+        source: "discovery"
+      };
+
+      // 2. Firestore 설정 SSOT에 저장
+      await adminApp.firestore()
+        .collection("ops_github_project_config")
+        .doc("pilot-gate")
+        .set(configData, { merge: true });
+
+      return res.status(200).json({ ok: true, data: configData });
+    } catch (err: any) {
+      logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog/project/discover", code: "INTERNAL", messageKo: "설정 갱신 중 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "설정 갱신 중 오류가 발생했습니다.");
+    }
+  });
+
+  // 백로그 자동화: 설정 SSOT 조회
+  app.get("/v1/ops/reports/pilot-gate/backlog/project/config", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const doc = await adminApp.firestore().collection("ops_github_project_config").doc("pilot-gate").get();
+      if (!doc.exists) {
+        return fail(res, 404, "NOT_FOUND", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
+      }
+
+      return res.status(200).json({ ok: true, data: doc.data() });
+    } catch (err: any) {
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 백로그 자동화: GitHub Project V2 투입 API
   app.post("/v1/ops/reports/pilot-gate/backlog/issues/project/add", async (req, res) => {
     try {
       const auth = await requireAuth(adminApp, req, res);
@@ -623,11 +730,16 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const issues = snap.docs.map(d => ({ dedupeKey: d.id, ...d.data() })) as any[];
 
       const GITHUB_TOKEN = process.env.GITHUB_TOKEN_BACKLOG_BOT || "";
-      const PROJECT_ID = process.env.GITHUB_PROJECT_ID || "";
-      
       // Field IDs (optional)
-      const STATUS_FIELD_ID = process.env.GITHUB_PROJECT_FIELD_STATUS_ID || "";
-      const PRIORITY_FIELD_ID = process.env.GITHUB_PROJECT_FIELD_PRIORITY_ID || "";
+      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc("pilot-gate").get();
+      if (!configDoc.exists) {
+        return fail(res, 400, "INVALID_ARGUMENT", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
+      }
+      
+      const config = configDoc.data() as any;
+      const PROJECT_ID = config.projectId || process.env.GITHUB_PROJECT_ID || "";
+      const STATUS_FIELD_ID = config.fields?.status?.fieldId || "";
+      const PRIORITY_FIELD_ID = config.fields?.priority?.fieldId || "";
 
       if (!dryRun && (!GITHUB_TOKEN || !PROJECT_ID)) {
         throw new Error("GITHUB_TOKEN_BACKLOG_BOT or GITHUB_PROJECT_ID is not configured.");
@@ -697,19 +809,56 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
             projectItemId = addData.data.addProjectV2ItemById.item.id;
 
             // Step C: 필드 업데이트 (Status, Priority 매핑)
-            // Sev1 -> Priority=P0, Status=Todo
-            // Sev2 -> Priority=P1, Status=Todo
-            // Sev3 -> Priority=P2, Status=Todo
-            
-            // Note: 실제 SingleSelectOptionId는 런타임에 discovery API로 알아내야 하므로
-            // 이 예제에서는 필드 ID가 주입된 경우 텍스트 매핑으로 시도하는 가상의 쿼리를 구성합니다.
-            // 완벽한 세팅을 위해서는 Option Node ID가 필요합니다.
-            
-            /* (필드 업데이트 로직은 GITHUB_PROJECT_FIELD_XXX_ID 가 존재할 때만 실행)
-            if (STATUS_FIELD_ID && PRIORITY_FIELD_ID) {
-               // ... updateProjectV2ItemFieldValue mutation ...
+            const sevNum = parseInt(issue.severity.replace("Sev", ""), 10);
+            let priorityValue = "";
+            if (sevNum === 1) priorityValue = "P0";
+            else if (sevNum === 2) priorityValue = "P1";
+            else priorityValue = "P2";
+
+            const statusValue = "Todo";
+
+            const statusOptionId = config.fields?.status?.optionsByName?.[statusValue];
+            const priorityOptionId = config.fields?.priority?.optionsByName?.[priorityValue];
+
+            if (STATUS_FIELD_ID && statusOptionId) {
+              const updateStatusMutation = `
+                mutation {
+                  updateProjectV2ItemFieldValue(
+                    input: {
+                      projectId: "${PROJECT_ID}"
+                      itemId: "${projectItemId}"
+                      fieldId: "${STATUS_FIELD_ID}"
+                      value: { singleSelectOptionId: "${statusOptionId}" }
+                    }
+                  ) { projectV2Item { id } }
+                }
+              `;
+              await fetch("https://api.github.com/graphql", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${GITHUB_TOKEN}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ query: updateStatusMutation })
+              });
             }
-            */
+
+            if (PRIORITY_FIELD_ID && priorityOptionId) {
+              const updatePriorityMutation = `
+                mutation {
+                  updateProjectV2ItemFieldValue(
+                    input: {
+                      projectId: "${PROJECT_ID}"
+                      itemId: "${projectItemId}"
+                      fieldId: "${PRIORITY_FIELD_ID}"
+                      value: { singleSelectOptionId: "${priorityOptionId}" }
+                    }
+                  ) { projectV2Item { id } }
+                }
+              `;
+              await fetch("https://api.github.com/graphql", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${GITHUB_TOKEN}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ query: updatePriorityMutation })
+              });
+            }
 
             await linkRef.update({
               projectItemId,

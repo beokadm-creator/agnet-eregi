@@ -28,6 +28,7 @@ function App() {
   const [backlogItems, setBacklogItems] = useState<any[]>([]);
   const [issueCreationResult, setIssueCreationResult] = useState<any | null>(null);
   const [projectAddResult, setProjectAddResult] = useState<any | null>(null);
+  const [projectConfigResult, setProjectConfigResult] = useState<any | null>(null);
   const [recentFails, setRecentFails] = useState<any[]>([]);
   const [sev1Log, setSev1Log] = useState<{regenerateOk?: boolean; validateData?: any; reqId?: string}>({});
 
@@ -90,6 +91,7 @@ function App() {
     setBacklogItems([]);
     setIssueCreationResult(null);
     setProjectAddResult(null);
+    setProjectConfigResult(null);
     setRecentFails([]);
     try {
       const gateData = await apiGet(`/v1/ops/reports/pilot-gate/daily?date=${summaryDate}`);
@@ -230,6 +232,21 @@ function App() {
       const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog/issues/project/add`, { date: summaryDate });
       setProjectAddResult(data);
       setLog(`프로젝트 투입 완료: added ${data.added?.length}건, skipped ${data.skipped?.length}건, failed ${data.failed?.length}건`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function discoverProjectConfig() {
+    setBusy(true);
+    clearError();
+    setProjectConfigResult(null);
+    try {
+      const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog/project/discover`, {});
+      setProjectConfigResult(data);
+      setLog(`Project 설정 갱신 완료: Status 옵션 ${Object.keys(data.fields?.status?.optionsByName || {}).length}개 로드됨`);
     } catch (e: any) {
       handleError(e);
     } finally {
@@ -697,9 +714,22 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                   <button onClick={addIssuesToProject} disabled={busy || !ssotData} style={{ background: "#673ab7", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
                     [프로젝트 투입(Project)]
                   </button>
+                  <button onClick={discoverProjectConfig} disabled={busy} style={{ background: "#00796b", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
+                    [Project 설정 갱신(Discover)]
+                  </button>
                 </div>
               )}
             </div>
+            {projectConfigResult && (
+              <div style={{ marginBottom: 12, padding: 12, border: "1px solid #ccc", borderRadius: 6, background: "#e0f2f1" }}>
+                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em" }}>✅ GitHub Project 설정 갱신 완료</h4>
+                <div style={{ fontSize: "0.85em", color: "#004d40" }}>
+                  <strong>Project ID:</strong> {projectConfigResult.projectId}<br />
+                  <strong>Status Options:</strong> {Object.keys(projectConfigResult.fields?.status?.optionsByName || {}).join(", ")}<br />
+                  <strong>Priority Options:</strong> {Object.keys(projectConfigResult.fields?.priority?.optionsByName || {}).join(", ")}
+                </div>
+              </div>
+            )}
             {issueCreationResult && (
               <div style={{ marginBottom: 12, padding: 12, border: "1px solid #ccc", borderRadius: 6, background: "#fafafa" }}>
                 <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em" }}>✅ GitHub 이슈 생성 결과</h4>
