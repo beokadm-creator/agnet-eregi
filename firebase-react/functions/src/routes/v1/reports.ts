@@ -226,6 +226,152 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
+  // 일일 로그 SSOT에 자동 append (Firestore 기반)
+  app.post("/v1/ops/reports/pilot-gate/daily/append", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) {
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
+
+      const { date } = req.body;
+      
+      // 1. 입력 검증 및 Timezone 처리 (KST 기준)
+      let targetDateStr = "";
+      if (date) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) {
+          return fail(res, 400, "INVALID_ARGUMENT", "날짜 형식이 잘못되었습니다. YYYY-MM-DD 포맷을 사용해주세요.");
+        }
+        targetDateStr = String(date);
+      } else {
+        // 한국 시간(KST) 기준으로 오늘 날짜 구하기
+        const now = new Date();
+        const kstFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" });
+        targetDateStr = kstFormatter.format(now); // "YYYY-MM-DD"
+      }
+      
+      const targetDate = new Date(`${targetDateStr}T00:00:00+09:00`);
+      if (isNaN(targetDate.getTime())) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 날짜입니다.");
+      }
+
+      // 2. 동시성 및 중복 방지 (Firestore의 SSOT 문서 ID 활용)
+      const logDocRef = adminApp.firestore().collection("ops_daily_logs").doc(targetDateStr);
+      const logDoc = await logDocRef.get();
+      
+      if (logDoc.exists) {
+        return fail(res, 409, "CONFLICT", "해당 날짜의 로그가 이미 존재합니다.");
+      }
+
+      // 3. 집계 데이터 조회
+      const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+
+      const snapshot = await adminApp.firestore()
+        .collection("pilot_gate_evidence")
+        .where("validatedAt", ">=", adminApp.firestore.Timestamp.fromDate(startOfDay))
+        .where("validatedAt", "<=", adminApp.firestore.Timestamp.fromDate(endOfDay))
+        .get();
+
+      const docs = snapshot.docs.map(d => d.data());
+
+      const total = docs.length;
+      const okCount = docs.filter(d => d.ok === true || d.status === "ok").length;
+      const failCount = total - okCount;
+
+      const missingCount: Record<string, number> = {};
+      const failCases = new Set<string>();
+      const missingStats: Record<string, { impactCount: number, evidenceIds: Set<string>, sampleCaseIds: Set<string> }> = {};
+
+      for (const d of docs) {
+        if (d.ok === false || d.status === "fail") {
+          failCases.add(d.caseId);
+          const evId = d.evidenceId;
+          const caseId = d.caseId;
+          
+          if (Array.isArray(d.missing)) {
+            for (const m of d.missing) {
+              missingCount[m] = (missingCount[m] || 0) + 1;
+              if (!missingStats[m]) missingStats[m] = { impactCount: 0, evidenceIds: new Set(), sampleCaseIds: new Set() };
+              missingStats[m].impactCount++;
+              missingStats[m].evidenceIds.add(evId);
+              missingStats[m].sampleCaseIds.add(caseId);
+            }
+          }
+        }
+      }
+
+      const topMissing = Object.entries(missingCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(e => `${e[0]}(${e[1]}건)`);
+
+      const sampleFailCaseIds = Array.from(failCases).slice(0, 3);
+
+      const items = Object.entries(missingStats).map(([slotId, stats]) => {
+        let sevNum = 3;
+        if (slotId === "slot_filing_receipt") sevNum = 1;
+        else if (slotId.endsWith("_signed")) sevNum = 2;
+
+        return { slotId, severity: `Sev${sevNum}`, impactCount: stats.impactCount };
+      });
+
+      items.sort((a, b) => a.severity.localeCompare(b.severity) || b.impactCount - a.impactCount);
+      const top3Items = items.slice(0, 3);
+
+      // 4. Markdown 포맷 생성
+      let markdown = `### (품질) /packages/validate\n`;
+      markdown += `- Gate 집계 결과:\n`;
+      markdown += `  [${targetDateStr} Gate 집계] 총 ${total}건 (성공: ${okCount}건, 실패: ${failCount}건)\n`;
+      
+      if (failCount > 0) {
+        markdown += `  - 주요 누락서류: ${topMissing.join(", ") || "없음"}\n`;
+        markdown += `  - 실패 샘플(최대3건): ${sampleFailCaseIds.join(", ") || "없음"}\n`;
+      }
+      
+      markdown += `\n### (이슈) Top3 이슈(고정 포맷)\n\n`;
+      markdown += `| 제목 | Sev(1~3) | 영향(몇 케이스) | 재현 steps | 관련 caseId | 현재상태(조치중·대기·완료) | 오너 | ETA | 비고 |\n`;
+      markdown += `|---|---:|---:|---|---|---|---|---|---|\n`;
+      
+      if (top3Items.length === 0) {
+        markdown += `| 없음 | - | - | - | - | - | - | - | - |\n`.repeat(3);
+      } else {
+        top3Items.forEach((item) => {
+          markdown += `| [게이트 누락] ${item.slotId} 검증 실패 | ${item.severity.replace('Sev', '')} | ${item.impactCount} | - | - | 대기 | ops | TBD | - |\n`;
+        });
+        for (let i = top3Items.length; i < 3; i++) {
+          markdown += `| 없음 | - | - | - | - | - | - | - | - |\n`;
+        }
+      }
+
+      const requestId = req.headers["x-request-id"] || req.body?._requestId || "N/A";
+      
+      // 5. Firestore에 저장 (create 사용으로 멱등성 보장 및 레이스 컨디션 방지)
+      try {
+        await logDocRef.create({
+          date: targetDateStr,
+          markdown,
+          metrics: { total, okCount, failCount, topMissing, sampleFailCaseIds },
+          createdAt: adminApp.firestore.FieldValue.serverTimestamp(),
+          createdBy: auth.uid,
+          requestId
+        });
+      } catch (e: any) {
+        if (e.code === 6 || e.message.includes("ALREADY_EXISTS")) {
+           return fail(res, 409, "CONFLICT", "해당 날짜의 로그가 이미 존재합니다.");
+        }
+        throw e;
+      }
+
+      const linesAdded = markdown.split("\n").length + 2; // +2 for separator visual logic if needed
+      return res.status(200).send({ appended: true, linesAdded, requestId });
+    } catch (err: any) {
+      logError({ endpoint: "/v1/ops/reports/pilot-gate/daily/append", code: "INTERNAL", messageKo: "일일 로그 저장 중 시스템 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "일일 로그 저장 중 시스템 오류가 발생했습니다.");
+    }
+  });
+
   // Gate 백로그 후보 생성 API (운영용)
   app.post("/v1/ops/reports/pilot-gate/backlog", async (req, res) => {
     try {

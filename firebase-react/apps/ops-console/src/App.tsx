@@ -161,6 +161,19 @@ function App() {
     }
   }
 
+  async function appendDailyLogSsot() {
+    setBusy(true);
+    clearError();
+    try {
+      const respData = await apiPost("/v1/ops/reports/pilot-gate/daily/append", { date: summaryDate });
+      setLog(`SSOT(Firestore)에 기록되었습니다 (linesAdded: ${respData.linesAdded}, reqId: ${respData.requestId})`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function copyGateReport() {
     if (!gateReportText) return;
     navigator.clipboard.writeText(gateReportText)
@@ -581,6 +594,9 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                   </button>
                   <button onClick={downloadDailyLogMd} style={{ background: "#f57c00", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
                     [일일 로그 다운로드]
+                  </button>
+                  <button onClick={appendDailyLogSsot} style={{ background: "#8e24aa", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                    [일일 로그 SSOT 저장(DB)]
                   </button>
                 </div>
               )}
