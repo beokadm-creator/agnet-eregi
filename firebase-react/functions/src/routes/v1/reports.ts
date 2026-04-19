@@ -246,6 +246,10 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         }
         // 실존 날짜 검증 (round-trip)
         const parsedDate = new Date(`${dateStr}T00:00:00Z`);
+        if (isNaN(parsedDate.getTime())) {
+          return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 날짜입니다.");
+        }
+        
         const roundTripStr = parsedDate.toISOString().split("T")[0];
         if (dateStr !== roundTripStr) {
           return fail(res, 400, "INVALID_ARGUMENT", "존재하지 않는 날짜입니다.");
@@ -366,7 +370,13 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         });
       } catch (e: any) {
         // Firebase Admin SDK (gRPC)에서 ALREADY_EXISTS는 보통 code 6 입니다.
-        if (e.code === 6 || (e.message && e.message.includes("ALREADY_EXISTS"))) {
+        const isAlreadyExists = 
+          e.code === 6 || 
+          e.status === "ALREADY_EXISTS" ||
+          (e.message && e.message.includes("ALREADY_EXISTS")) ||
+          (e.details && e.details.includes("ALREADY_EXISTS"));
+
+        if (isAlreadyExists) {
            logError({ endpoint: "/v1/ops/reports/pilot-gate/daily/append", code: "CONFLICT", messageKo: "해당 날짜의 로그가 이미 존재합니다.", err: e });
            return fail(res, 409, "CONFLICT", "해당 날짜의 로그가 이미 존재합니다.");
         }
