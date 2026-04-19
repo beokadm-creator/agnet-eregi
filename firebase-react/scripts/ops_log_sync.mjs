@@ -72,7 +72,10 @@ async function main() {
   const repoRoot = process.env.REPO_ROOT ? path.resolve(process.env.REPO_ROOT) : process.cwd();
   const { ym: defaultYm } = getKstNowParts();
   const targetMonth = (process.env.TARGET_MONTH || defaultYm).trim();
-  const gateKey = process.env.GATE_KEY || "pilot-gate";
+  const gateKey = process.env.GATE_KEY;
+  if (!gateKey) {
+    throw new Error("GATE_KEY 환경변수가 누락되었습니다.");
+  }
 
   const saJson = requireEnv("FIREBASE_SERVICE_ACCOUNT_JSON");
   let serviceAccount;
@@ -95,8 +98,8 @@ async function main() {
 
   const db = admin.firestore();
 
-  const startId = `${targetMonth}-01`;
-  const endId = `${nextMonth(targetMonth)}-01`;
+  const startId = gateKey === "pilot-gate" ? `${targetMonth}-01` : `${gateKey}:${targetMonth}-01`;
+  const endId = gateKey === "pilot-gate" ? `${nextMonth(targetMonth)}-01` : `${gateKey}:${nextMonth(targetMonth)}-01`;
 
   let snap;
   try {
@@ -151,7 +154,8 @@ async function main() {
     }
   }
 
-  const relOutPath = path.join("spec", "00-index", `${targetMonth}-pilot-ops-log.md`);
+  const fileName = gateKey === "pilot-gate" ? `${targetMonth}-pilot-ops-log.md` : `${targetMonth}-${gateKey}-ops-log.md`;
+  const relOutPath = path.join("spec", "00-index", fileName);
   const outPath = path.join(repoRoot, relOutPath);
 
   let existing = "";
@@ -183,6 +187,7 @@ async function main() {
   if (process.env.GITHUB_OUTPUT) {
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `sync_days=${docs.length}\n`);
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `sync_file=${relOutPath}\n`);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `sync_gateKey=${gateKey}\n`);
   }
 }
 

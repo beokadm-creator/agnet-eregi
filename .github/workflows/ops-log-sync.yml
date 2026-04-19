@@ -3,6 +3,15 @@ name: Ops Log Sync (Firestore → spec markdown)
 on:
   workflow_dispatch:
     inputs:
+      gate_key:
+        description: "단일 동기화할 gateKey (비우면 전체 gateKeys 실행)"
+        required: false
+        type: string
+      gate_keys:
+        description: "동기화할 gateKey 목록 (JSON 배열 문자열)"
+        required: false
+        type: string
+        default: '["pilot-gate", "partner-gate", "billing-gate"]'
       target_month:
         description: "동기화할 월 (YYYY-MM). 비우면 KST 기준 현재 월"
         required: false
@@ -16,13 +25,35 @@ permissions:
   pull-requests: write
   issues: write
 
-concurrency:
-  group: ops-log-sync
-  cancel-in-progress: false
-
 jobs:
-  sync:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      gate_keys: ${{ steps.set-gates.outputs.gate_keys }}
+    steps:
+      - name: Set gate keys
+        id: set-gates
+        run: |
+          if [ -n "${{ github.event.inputs.gate_key }}" ]; then
+            echo "gate_keys=[\"${{ github.event.inputs.gate_key }}\"]" >> $GITHUB_OUTPUT
+          elif [ -n "${{ github.event.inputs.gate_keys }}" ]; then
+            echo "gate_keys=${{ github.event.inputs.gate_keys }}" >> $GITHUB_OUTPUT
+          else
+            echo 'gate_keys=["pilot-gate", "partner-gate", "billing-gate"]' >> $GITHUB_OUTPUT
+          fi
+
+  sync:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        gateKey: ${{ fromJson(needs.prepare.outputs.gate_keys) }}
+      fail-fast: false
+    
+    concurrency:
+      group: ops-log-sync-${{ matrix.gateKey }}
+      cancel-in-progress: false
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,7 +83,7 @@ jobs:
           else
             TARGET_MONTH="$(TZ=Asia/Seoul date +%Y-%m)"
           fi
-          BRANCH_NAME="bot/ops-log-sync-${KST_DATE}"
+          BRANCH_NAME="bot/ops-log-sync-${{ matrix.gateKey }}-${KST_DATE}"
           echo "kst_date=${KST_DATE}" >> "$GITHUB_OUTPUT"
           echo "target_month=${TARGET_MONTH}" >> "$GITHUB_OUTPUT"
           echo "branch_name=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
@@ -62,6 +93,7 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           TARGET_MONTH: ${{ steps.meta.outputs.target_month }}
+          GATE_KEY: ${{ matrix.gateKey }}
         run: node firebase-react/scripts/ops_log_sync.mjs
 
       - name: Detect changes
@@ -85,7 +117,7 @@ jobs:
           git config user.email "ops-log-sync-bot@users.noreply.github.com"
           git checkout -b "${BRANCH_NAME}"
           git add spec/00-index/
-          git commit -m "chore(ops): sync ops log ${TARGET_MONTH}"
+          git commit -m "chore(ops): sync ops log ${TARGET_MONTH} (${{ matrix.gateKey }})"
           git push --set-upstream origin "${BRANCH_NAME}"
 
       - name: Open PR (github-script)
@@ -106,7 +138,7 @@ jobs:
             const syncDays = process.env.SYNC_DAYS;
             const syncFile = process.env.SYNC_FILE;
 
-            const title = `chore(ops): sync ops log ${targetMonth}`;
+            const title = `chore(ops): sync ops log ${targetMonth} (${{ matrix.gateKey }})`;
             const body = [
               `Firestore(ops_daily_logs) 기반으로 월별 SSOT 마크다운을 자동 갱신합니다.`,
               ``,
