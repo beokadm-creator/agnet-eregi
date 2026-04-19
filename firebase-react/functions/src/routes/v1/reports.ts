@@ -507,12 +507,21 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         return fail(res, 404, "NOT_FOUND", "먼저 SSOT 저장을 수행하세요.");
       }
 
+      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
+      const config = configDoc.data() || {};
+      const githubConfig = config.github || {};
+      const rules = config.rules || {};
+      
+      const owner = githubConfig.owner || "beokadm-creator";
+      const repo = githubConfig.repo || "agnet-eregi";
+      const tokenRef = githubConfig.tokenRef || "GITHUB_TOKEN_BACKLOG_BOT";
+      const GITHUB_TOKEN = process.env[tokenRef] || "";
+
       const logData = logDoc.data() as any;
       const topIssues = Array.isArray(logData.topIssues) ? logData.topIssues.slice(0, Number(topN)) : [];
       
       const created = [];
       const skipped = [];
-      const GITHUB_TOKEN = process.env.GITHUB_TOKEN_BACKLOG_BOT || "";
 
       for (const issue of topIssues) {
         const dedupeKey = `${gateKey}:${targetDateStr}:${issue.slotId}`;
@@ -551,7 +560,8 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
 3. ok: true 달성
           `.trim();
 
-          const labels = ["ops", "automation", "backlog", issue.severity.toLowerCase()];
+          const baseLabels = rules.issueLabels || ["ops", "automation", "backlog"];
+          const labels = [...baseLabels, issue.severity.toLowerCase()];
           
           let issueUrl = "dry-run-url";
           let issueNumber = 0;
@@ -561,7 +571,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
               throw new Error("GITHUB_TOKEN_BACKLOG_BOT is not configured.");
             }
             // Fetch to GitHub API
-            const ghRes = await fetch("https://api.github.com/repos/beokadm-creator/agnet-eregi/issues", {
+            const ghRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
               method: "POST",
               headers: {
                 "Accept": "application/vnd.github+json",
@@ -639,11 +649,16 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
 
-      const { projectId = process.env.GITHUB_PROJECT_ID } = req.body;
-      const GITHUB_TOKEN = process.env.GITHUB_TOKEN_BACKLOG_BOT || "";
+      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
+      const existingConfig = configDoc.exists ? configDoc.data() : {};
+      const githubConfig = existingConfig?.github || {};
+
+      const projectId = req.body.projectId || githubConfig.projectId || process.env.GITHUB_PROJECT_ID;
+      const tokenRef = githubConfig.tokenRef || "GITHUB_TOKEN_BACKLOG_BOT";
+      const GITHUB_TOKEN = process.env[tokenRef] || "";
 
       if (!projectId || !GITHUB_TOKEN) {
-        return fail(res, 400, "INVALID_ARGUMENT", "GITHUB_PROJECT_ID 또는 GITHUB_TOKEN_BACKLOG_BOT 설정이 누락되었습니다.");
+        return fail(res, 400, "INVALID_ARGUMENT", `Project ID 또는 토큰이 누락되었습니다. (tokenRef: ${tokenRef})`);
       }
 
       // 정규화 함수: 소문자화, 공백/하이픈/언더스코어 제거
@@ -666,8 +681,6 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       };
 
       // Custom Aliases 병합
-      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
-      const existingConfig = configDoc.exists ? configDoc.data() : {};
       const customAliases = existingConfig?.customAliases || {};
 
       if (customAliases.fieldAliases) {
@@ -773,6 +786,54 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     } catch (err: any) {
       logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog/project/discover", code: "INTERNAL", messageKo: "설정 갱신 중 오류가 발생했습니다.", err });
       return fail(res, 500, "INTERNAL", "설정 갱신 중 오류가 발생했습니다.");
+    }
+  });
+
+  // 백로그 자동화: gateKey별 GitHub 기본 설정 upsert (Ops-only)
+  app.patch("/v1/ops/reports/:gateKey/backlog/project/config/github", async (req: express.Request, res: express.Response) => {
+    try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const { owner, repo, projectId, tokenRef, issueLabels, rules } = req.body;
+      
+      const updateData: any = {
+        updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+        updatedBy: auth.uid,
+      };
+
+      if (owner !== undefined || repo !== undefined || projectId !== undefined || tokenRef !== undefined) {
+        updateData.github = {};
+        if (owner !== undefined) updateData.github.owner = owner;
+        if (repo !== undefined) updateData.github.repo = repo;
+        if (projectId !== undefined) updateData.github.projectId = projectId;
+        if (tokenRef !== undefined) {
+          if (typeof tokenRef !== "string") {
+            return fail(res, 400, "INVALID_ARGUMENT", "tokenRef는 문자열이어야 합니다.");
+          }
+          updateData.github.tokenRef = tokenRef;
+        }
+      }
+
+      if (issueLabels !== undefined || rules !== undefined) {
+        updateData.rules = rules || {};
+        if (issueLabels !== undefined) updateData.rules.issueLabels = issueLabels;
+      }
+
+      await adminApp.firestore()
+        .collection("ops_github_project_config")
+        .doc(gateKey)
+        .set(updateData, { merge: true });
+
+      const newDoc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
+      return res.status(200).json({ ok: true, data: newDoc.data() });
+    } catch (err: any) {
+      return fail(res, 500, "INTERNAL", err.message);
     }
   });
 
@@ -1000,21 +1061,22 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         issues = snap.docs.map(d => ({ dedupeKey: d.id, ...d.data() })) as any[];
       }
 
-      const GITHUB_TOKEN = process.env.GITHUB_TOKEN_BACKLOG_BOT || "";
-      // Field IDs (optional)
       const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
       if (!configDoc.exists) {
         return fail(res, 400, "INVALID_ARGUMENT", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
       }
       
       const config = configDoc.data() as any;
-      const PROJECT_ID = config.projectId || process.env.GITHUB_PROJECT_ID || "";
+      const githubConfig = config.github || {};
+      const PROJECT_ID = githubConfig.projectId || config.projectId || process.env.GITHUB_PROJECT_ID || "";
+      const tokenRef = githubConfig.tokenRef || "GITHUB_TOKEN_BACKLOG_BOT";
+      const GITHUB_TOKEN = process.env[tokenRef] || "";
       const resolved = config.resolved || {};
       const STATUS_FIELD_ID = resolved.statusFieldId || "";
       const PRIORITY_FIELD_ID = resolved.priorityFieldId || "";
 
       if (!dryRun && (!GITHUB_TOKEN || !PROJECT_ID)) {
-        throw new Error("GITHUB_TOKEN_BACKLOG_BOT or GITHUB_PROJECT_ID is not configured.");
+        throw new Error(`Project ID or GitHub Token is not configured. (tokenRef: ${tokenRef})`);
       }
 
       const added = [];
@@ -1047,7 +1109,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
 
           if (!dryRun) {
             // Step A: Issue의 Node ID 획득 (GraphQL에 필요)
-            const issueRes = await fetch(`https://api.github.com/repos/beokadm-creator/agnet-eregi/issues/${issue.issueNumber}`, {
+            const owner = githubConfig.owner || "beokadm-creator";
+            const repo = githubConfig.repo || "agnet-eregi";
+            const issueRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issue.issueNumber}`, {
               headers: {
                 "Accept": "application/vnd.github+json",
                 "Authorization": `Bearer ${GITHUB_TOKEN}`
@@ -1081,13 +1145,13 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
             projectItemId = addData.data.addProjectV2ItemById.item.id;
 
             // Step C: 필드 업데이트 (Status, Priority 매핑)
-            const sevNum = parseInt(issue.severity.replace("Sev", ""), 10);
-            let priorityValue = "";
-            if (sevNum === 1) priorityValue = "p0";
-            else if (sevNum === 2) priorityValue = "p1";
-            else priorityValue = "p2";
+            const sevNum = parseInt(issue.severity.replace("Sev", ""), 10) || 3;
+            const rules = config.rules || {};
+            const sevToPriority = rules.sevToPriority || { "1": "p0", "2": "p1", "3": "p2" };
+            const sevToStatus = rules.sevToStatus || { "1": "todo", "2": "todo", "3": "todo" };
 
-            const statusValue = "todo";
+            const priorityValue = sevToPriority[String(sevNum)] || "p2";
+            const statusValue = sevToStatus[String(sevNum)] || "todo";
 
             const statusOptionId = resolved.statusOptionIds?.[statusValue];
             const priorityOptionId = resolved.priorityOptionIds?.[priorityValue];

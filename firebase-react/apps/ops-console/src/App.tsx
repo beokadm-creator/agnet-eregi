@@ -31,6 +31,10 @@ function App() {
   const [projectAddResult, setProjectAddResult] = useState<any | null>(null);
   const [projectConfigResult, setProjectConfigResult] = useState<any | null>(null);
   const [aliasJsonText, setAliasJsonText] = useState<string>("");
+  const [githubOwner, setGithubOwner] = useState<string>("beokadm-creator");
+  const [githubRepo, setGithubRepo] = useState<string>("agnet-eregi");
+  const [githubProjectId, setGithubProjectId] = useState<string>("");
+  const [githubTokenRef, setGithubTokenRef] = useState<string>("GITHUB_TOKEN_BACKLOG_BOT");
   const [recentFails, setRecentFails] = useState<any[]>([]);
   const [sev1Log, setSev1Log] = useState<{regenerateOk?: boolean; validateData?: any; reqId?: string}>({});
 
@@ -260,7 +264,31 @@ function App() {
       const data = await apiPost(`/v1/ops/reports/${gateKey}/backlog/project/discover`, {});
       setProjectConfigResult(data);
       setAliasJsonText(JSON.stringify(data.customAliases || { fieldAliases: {}, optionAliases: {} }, null, 2));
+      if (data.github) {
+        setGithubOwner(data.github.owner || "beokadm-creator");
+        setGithubRepo(data.github.repo || "agnet-eregi");
+        setGithubProjectId(data.github.projectId || "");
+        setGithubTokenRef(data.github.tokenRef || "GITHUB_TOKEN_BACKLOG_BOT");
+      }
       setLog(`Project 설정 갱신 완료: Status 옵션 ${Object.keys(data.resolved?.statusOptionIds || {}).length}개 로드됨`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateGithubConfig() {
+    setBusy(true);
+    clearError();
+    try {
+      const data = await apiPatch(`/v1/ops/reports/${gateKey}/backlog/project/config/github`, {
+        owner: githubOwner,
+        repo: githubRepo,
+        projectId: githubProjectId,
+        tokenRef: githubTokenRef
+      });
+      setLog(`GitHub 설정 저장 완료 (owner: ${data.github?.owner}, repo: ${data.github?.repo})`);
     } catch (e: any) {
       handleError(e);
     } finally {
@@ -763,6 +791,35 @@ next=재검증 재시도/파트너 문의/수동 확인`;
 
           {/* 백로그 후보 영역 */}
           <div style={{ flex: "2 1 400px", background: "#fff", padding: 12, border: "1px solid #eee", borderRadius: 6 }}>
+            <div style={{ marginBottom: 12, padding: 12, border: "1px solid #ccc", borderRadius: 6, background: "#f0f4c3" }}>
+              <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>⚙️ GitHub 연동 설정 (GateKey: {gateKey})</span>
+              </h4>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: "0.85em", color: "#33691e" }}>
+                <label style={{ display: "flex", flexDirection: "column" }}>
+                  <strong>Owner</strong>
+                  <input value={githubOwner} onChange={(e) => setGithubOwner(e.target.value)} style={{ padding: 4, width: 120 }} />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column" }}>
+                  <strong>Repo</strong>
+                  <input value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} style={{ padding: 4, width: 120 }} />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column" }}>
+                  <strong>Project Node ID</strong>
+                  <input value={githubProjectId} onChange={(e) => setGithubProjectId(e.target.value)} placeholder="PVT_..." style={{ padding: 4, width: 200 }} />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column" }}>
+                  <strong>Token Ref (Env Key)</strong>
+                  <input value={githubTokenRef} onChange={(e) => setGithubTokenRef(e.target.value)} style={{ padding: 4, width: 220 }} />
+                </label>
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  <button onClick={updateGithubConfig} disabled={busy} style={{ background: "#33691e", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                    [설정 저장]
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <h3 style={{ margin: 0, fontSize: "1.1em" }}>B. 백로그 후보</h3>
               {backlogItems.length > 0 && (
