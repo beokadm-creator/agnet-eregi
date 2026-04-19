@@ -1393,6 +1393,48 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
+  // Ops Console: Cloud Storage 백로그 다운로드 URL 발급
+  app.get("/v1/ops/reports/:gateKey/ops-log/monthly/download-url", async (req: express.Request, res: express.Response) => {
+    try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) {
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
+
+      const month = String(req.query.month || "");
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "month 파라미터 형식이 잘못되었습니다 (YYYY-MM).");
+      }
+
+      const objectPath = `ops-logs/${gateKey}/${month}/pilot-ops-log.md`;
+      const bucket = adminApp.storage().bucket();
+      const file = bucket.file(objectPath);
+
+      const [exists] = await file.exists();
+      if (!exists) {
+        return fail(res, 404, "NOT_FOUND", `해당 월의 스토리지 백업 파일을 찾을 수 없습니다: ${objectPath}`);
+      }
+
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+      const [url] = await file.getSignedUrl({
+        action: 'read',
+        expires: expiresAt
+      });
+
+      return res.status(200).json({ ok: true, data: { url, objectPath, expiresAt: expiresAt.toISOString() } });
+    } catch (err: any) {
+      logError({ endpoint: "monthly/download-url", code: "INTERNAL", messageKo: "다운로드 URL 생성 중 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "다운로드 URL 생성 중 오류가 발생했습니다.");
+    }
+  });
+
   // Ops Console: 특정 케이스 조회 API
   app.get("/v1/ops/reports/:gateKey/by-case", async (req: express.Request, res: express.Response) => {
     try {

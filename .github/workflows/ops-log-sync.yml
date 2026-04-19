@@ -96,6 +96,14 @@ jobs:
           GATE_KEY: ${{ matrix.gateKey }}
         run: node firebase-react/scripts/ops_log_sync.mjs
 
+      - name: Backup to Cloud Storage
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON_STORAGE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON_STORAGE || secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          TARGET_MONTH: ${{ steps.meta.outputs.target_month }}
+          GATE_KEY: ${{ matrix.gateKey }}
+          SYNC_FILE: ${{ steps.generate.outputs.sync_file }}
+        run: node firebase-react/scripts/ops_log_storage_backup.mjs
+
       - name: Detect changes
         id: changes
         run: |

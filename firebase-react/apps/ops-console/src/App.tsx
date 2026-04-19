@@ -353,6 +353,23 @@ ${acLines}
       .catch((e) => setLog(`백로그 복사 실패: ${e}`));
   }
 
+  const [downloadLink, setDownloadLink] = useState<{ url: string; expiresAt: string; objectPath: string } | null>(null);
+
+  async function fetchMonthlyDownloadUrl() {
+    setBusy(true);
+    clearError();
+    setDownloadLink(null);
+    try {
+      const month = summaryDate.substring(0, 7); // YYYY-MM
+      const data = await apiGet(`/v1/ops/reports/${gateKey}/ops-log/monthly/download-url?month=${month}`);
+      setDownloadLink(data);
+      setLog(`월별 로그 다운로드 URL 생성 완료 (만료: ${new Date(data.expiresAt).toLocaleTimeString()})`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function downloadWeeklyBacklog() {
     setBusy(true);
     clearError();
@@ -740,6 +757,17 @@ next=재검증 재시도/파트너 문의/수동 확인`;
           <button disabled={busy} onClick={downloadWeeklyBacklog} style={{ background: "#9c27b0", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", marginLeft: "auto" }}>
             주간 리뷰용 다운로드 (최근 7일 .md)
           </button>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 12, padding: 8, background: "#e8eaf6", borderRadius: 4 }}>
+          <strong style={{ fontSize: "0.85em", color: "#33691e" }}>[Cloud Storage 백업본]</strong>
+          <button disabled={busy} onClick={fetchMonthlyDownloadUrl} style={{ background: "#558b2f", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
+            월별 운영 로그 다운로드 링크 생성
+          </button>
+          {downloadLink && (
+            <a href={downloadLink.url} target="_blank" rel="noreferrer" style={{ fontSize: "0.85em", color: "#d84315", fontWeight: "bold", textDecoration: "underline" }}>
+              ⬇️ 여기를 눌러 다운로드 ({summaryDate.substring(0, 7)} / {gateKey})
+            </a>
+          )}
         </div>
         
         <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
