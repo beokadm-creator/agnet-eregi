@@ -479,6 +479,147 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
+  // 월간 리포트 생성 API (Ops-only)
+  app.post("/v1/ops/reports/:gateKey/monthly/generate", async (req: express.Request, res: express.Response) => {
+    try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const { month, dryRun = false } = req.body;
+      const targetMonth = month && /^\d{4}-\d{2}$/.test(String(month)) 
+        ? String(month) 
+        : formatKstYmd().substring(0, 7);
+
+      const startId = gateKey === "pilot-gate" ? `${targetMonth}-01` : `${gateKey}:${targetMonth}-01`;
+      
+      const nextMonthDate = new Date(`${targetMonth}-01T00:00:00+09:00`);
+      nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+      const nextMonthStr = formatKstYmd(nextMonthDate).substring(0, 7);
+      const endId = gateKey === "pilot-gate" ? `${nextMonthStr}-01` : `${gateKey}:${nextMonthStr}-01`;
+
+      const snap = await adminApp.firestore()
+        .collection("ops_daily_logs")
+        .where(adminApp.firestore.FieldPath.documentId(), ">=", startId)
+        .where(adminApp.firestore.FieldPath.documentId(), "<", endId)
+        .get();
+
+      const totals = { daysWithLogs: snap.size, totalGate: 0, ok: 0, fail: 0 };
+      const topSlotsMap: Record<string, { severity: number, impactCount: number, daysAppeared: number }> = {};
+      const daily: any[] = [];
+
+      for (const doc of snap.docs) {
+        const data = doc.data();
+        const dateStr = gateKey === "pilot-gate" ? doc.id : doc.id.split(":")[1];
+        const metrics = data.metrics || { total: 0, okCount: 0, failCount: 0, topMissing: [] };
+        
+        totals.totalGate += metrics.total || 0;
+        totals.ok += metrics.okCount || 0;
+        totals.fail += metrics.failCount || 0;
+
+        daily.push({
+          date: dateStr,
+          total: metrics.total || 0,
+          ok: metrics.okCount || 0,
+          fail: metrics.failCount || 0,
+          topMissing: metrics.topMissing || []
+        });
+
+        if (Array.isArray(data.topIssues)) {
+          for (const issue of data.topIssues) {
+            const slotId = issue.slotId;
+            const sevNum = parseInt(String(issue.severity).replace(/\D/g, ""), 10) || 3;
+            if (!topSlotsMap[slotId]) {
+              topSlotsMap[slotId] = { severity: sevNum, impactCount: 0, daysAppeared: 0 };
+            }
+            topSlotsMap[slotId].impactCount += issue.impactCount || 1;
+            topSlotsMap[slotId].daysAppeared += 1;
+            // 가장 높은 심각도 유지
+            if (sevNum < topSlotsMap[slotId].severity) {
+              topSlotsMap[slotId].severity = sevNum;
+            }
+          }
+        }
+      }
+
+      const topSlots = Object.entries(topSlotsMap)
+        .map(([slotId, stats]) => ({
+          slotId,
+          severity: stats.severity,
+          impactCount: stats.impactCount,
+          daysAppeared: stats.daysAppeared
+        }))
+        .sort((a, b) => a.severity - b.severity || b.impactCount - a.impactCount);
+
+      // Markdown Summary
+      const markdownSummary = [
+        `## ${targetMonth} 월간 트렌드 요약 (${gateKey})`,
+        ``,
+        `- **가동 일수**: ${totals.daysWithLogs}일`,
+        `- **총 Gate 처리**: ${totals.totalGate}건`,
+        `- **성공**: ${totals.ok}건 / **실패**: ${totals.fail}건`,
+        ``,
+        `### Top 누락 Slot (월간)`,
+        ...topSlots.slice(0, 5).map(s => `- **${s.slotId}** (Sev${s.severity}): ${s.impactCount}건 발생 (총 ${s.daysAppeared}일 등장)`),
+      ].join("\n");
+
+      const reportData = {
+        gateKey,
+        month: targetMonth,
+        generatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+        totals,
+        topSlots,
+        daily: daily.sort((a, b) => a.date.localeCompare(b.date)),
+        markdownSummary
+      };
+
+      if (!dryRun) {
+        await adminApp.firestore()
+          .collection("ops_monthly_reports")
+          .doc(`${gateKey}:${targetMonth}`)
+          .set(reportData, { merge: false });
+      }
+
+      return res.status(200).json({ ok: true, data: { ...reportData, dryRun } });
+    } catch (err: any) {
+      logError({ endpoint: "/monthly/generate", code: "INTERNAL", messageKo: "월간 리포트 생성 중 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "월간 리포트 생성 중 오류가 발생했습니다.");
+    }
+  });
+
+  // 월간 리포트 조회 API (Ops-only)
+  app.get("/v1/ops/reports/:gateKey/monthly", async (req: express.Request, res: express.Response) => {
+    try {
+      const gateKey = req.params.gateKey;
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const month = String(req.query.month || formatKstYmd().substring(0, 7));
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "month 파라미터 형식이 잘못되었습니다 (YYYY-MM).");
+      }
+
+      const docRef = adminApp.firestore().collection("ops_monthly_reports").doc(`${gateKey}:${month}`);
+      const doc = await docRef.get();
+      if (!doc.exists) {
+        return fail(res, 404, "NOT_FOUND", "월간 리포트가 없습니다. 먼저 Generate API를 실행하세요.");
+      }
+
+      return res.status(200).json({ ok: true, data: doc.data() });
+    } catch (err: any) {
+      logError({ endpoint: "/monthly", code: "INTERNAL", messageKo: "월간 리포트 조회 중 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "월간 리포트 조회 중 오류가 발생했습니다.");
+    }
+  });
+
   // 백로그 후보 자동화: Firestore SSOT → GitHub Issue 생성
   app.post("/v1/ops/reports/:gateKey/backlog/issues/create", async (req: express.Request, res: express.Response) => {
     try {

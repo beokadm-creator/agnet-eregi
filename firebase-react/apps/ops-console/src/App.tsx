@@ -355,7 +355,38 @@ ${acLines}
 
   const [downloadLink, setDownloadLink] = useState<{ url: string; expiresAt: string; objectPath: string } | null>(null);
 
-  async function fetchMonthlyDownloadUrl() {
+  const [monthlyReport, setMonthlyReport] = useState<any | null>(null);
+
+  async function loadMonthlyReport() {
+    setBusy(true);
+    clearError();
+    setMonthlyReport(null);
+    try {
+      const month = summaryDate.substring(0, 7);
+      const data = await apiGet(`/v1/ops/reports/${gateKey}/monthly?month=${month}`);
+      setMonthlyReport(data);
+      setLog(`월간 트렌드 요약 로드 성공 (${month})`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function generateMonthlyReport() {
+    setBusy(true);
+    clearError();
+    try {
+      const month = summaryDate.substring(0, 7);
+      const data = await apiPost(`/v1/ops/reports/${gateKey}/monthly/generate`, { month });
+      setMonthlyReport(data);
+      setLog(`월간 트렌드 요약 생성 완료 (${month})`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
     setBusy(true);
     clearError();
     setDownloadLink(null);
@@ -759,16 +790,81 @@ next=재검증 재시도/파트너 문의/수동 확인`;
           </button>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 12, padding: 8, background: "#e8eaf6", borderRadius: 4 }}>
-          <strong style={{ fontSize: "0.85em", color: "#33691e" }}>[Cloud Storage 백업본]</strong>
+          <strong style={{ fontSize: "0.85em", color: "#33691e" }}>[월간 운영 보고]</strong>
+          <button disabled={busy} onClick={loadMonthlyReport} style={{ background: "#4caf50", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
+            월간 요약 조회 ({summaryDate.substring(0, 7)})
+          </button>
+          <button disabled={busy} onClick={generateMonthlyReport} style={{ background: "#e65100", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+            월간 요약 생성/갱신
+          </button>
+          <span style={{ margin: "0 8px", color: "#ccc" }}>|</span>
           <button disabled={busy} onClick={fetchMonthlyDownloadUrl} style={{ background: "#558b2f", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
-            월별 운영 로그 다운로드 링크 생성
+            Storage 백업 다운로드
           </button>
           {downloadLink && (
             <a href={downloadLink.url} target="_blank" rel="noreferrer" style={{ fontSize: "0.85em", color: "#d84315", fontWeight: "bold", textDecoration: "underline" }}>
-              ⬇️ 여기를 눌러 다운로드 ({summaryDate.substring(0, 7)} / {gateKey})
+              ⬇️ 링크 열기 ({summaryDate.substring(0, 7)} / {gateKey})
             </a>
           )}
         </div>
+
+        {monthlyReport && (
+          <div style={{ marginTop: 16, padding: 16, background: "#fff", border: "1px solid #90caf9", borderRadius: 6 }}>
+            <h3 style={{ margin: "0 0 12px 0", color: "#1565c0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              📊 {monthlyReport.month} 월간 트렌드 요약 ({monthlyReport.gateKey})
+              <span style={{ fontSize: "0.7em", color: "#999", fontWeight: "normal" }}>
+                생성일: {new Date(monthlyReport.generatedAt).toLocaleString()}
+              </span>
+            </h3>
+            
+            <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
+              <div style={{ flex: 1, padding: 12, background: "#f1f8e9", borderRadius: 6, textAlign: "center" }}>
+                <div style={{ fontSize: "0.85em", color: "#558b2f" }}>가동 일수</div>
+                <div style={{ fontSize: "1.5em", fontWeight: "bold", color: "#33691e" }}>{monthlyReport.totals?.daysWithLogs}일</div>
+              </div>
+              <div style={{ flex: 1, padding: 12, background: "#e3f2fd", borderRadius: 6, textAlign: "center" }}>
+                <div style={{ fontSize: "0.85em", color: "#1565c0" }}>총 Gate 처리</div>
+                <div style={{ fontSize: "1.5em", fontWeight: "bold", color: "#0d47a1" }}>{monthlyReport.totals?.totalGate}건</div>
+              </div>
+              <div style={{ flex: 1, padding: 12, background: "#ffebee", borderRadius: 6, textAlign: "center" }}>
+                <div style={{ fontSize: "0.85em", color: "#c62828" }}>성공 / 실패</div>
+                <div style={{ fontSize: "1.5em", fontWeight: "bold", color: "#b71c1c" }}>{monthlyReport.totals?.ok} / {monthlyReport.totals?.fail}</div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em" }}>🔥 Top 누락 Slot</h4>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85em" }}>
+                  <thead>
+                    <tr style={{ background: "#f5f5f5", textAlign: "left" }}>
+                      <th style={{ padding: 6, borderBottom: "1px solid #ddd" }}>Slot ID</th>
+                      <th style={{ padding: 6, borderBottom: "1px solid #ddd" }}>Sev</th>
+                      <th style={{ padding: 6, borderBottom: "1px solid #ddd", textAlign: "right" }}>Impact</th>
+                      <th style={{ padding: 6, borderBottom: "1px solid #ddd", textAlign: "right" }}>등장 일수</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(monthlyReport.topSlots || []).map((slot: any) => (
+                      <tr key={slot.slotId}>
+                        <td style={{ padding: 6, borderBottom: "1px solid #eee", fontWeight: "bold" }}>{slot.slotId}</td>
+                        <td style={{ padding: 6, borderBottom: "1px solid #eee", color: slot.severity === 1 ? "#d32f2f" : "#ed6c02" }}>Sev{slot.severity}</td>
+                        <td style={{ padding: 6, borderBottom: "1px solid #eee", textAlign: "right" }}>{slot.impactCount}</td>
+                        <td style={{ padding: 6, borderBottom: "1px solid #eee", textAlign: "right" }}>{slot.daysAppeared}일</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em" }}>📝 마크다운 프리뷰</h4>
+                <pre style={{ margin: 0, padding: 8, background: "#f5f5f5", border: "1px solid #ddd", borderRadius: 4, whiteSpace: "pre-wrap", wordWrap: "break-word", fontSize: "0.8em" }}>
+                  {monthlyReport.markdownSummary}
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
           {/* 일일 Gate 집계 영역 */}
