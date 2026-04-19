@@ -26,6 +26,7 @@ function App() {
   const [gateReportText, setGateReportText] = useState<string>("");
   const [ssotData, setSsotData] = useState<any | null>(null);
   const [backlogItems, setBacklogItems] = useState<any[]>([]);
+  const [issueCreationResult, setIssueCreationResult] = useState<any | null>(null);
   const [recentFails, setRecentFails] = useState<any[]>([]);
   const [sev1Log, setSev1Log] = useState<{regenerateOk?: boolean; validateData?: any; reqId?: string}>({});
 
@@ -86,6 +87,7 @@ function App() {
     setGateReportText("");
     setSsotData(null);
     setBacklogItems([]);
+    setIssueCreationResult(null);
     setRecentFails([]);
     try {
       const gateData = await apiGet(`/v1/ops/reports/pilot-gate/daily?date=${summaryDate}`);
@@ -201,6 +203,21 @@ function App() {
     navigator.clipboard.writeText(gateReportText)
       .then(() => setLog("복사 완료 (운영 로그용)"))
       .catch((e) => setLog(`복사 실패: ${e}`));
+  }
+
+  async function createBacklogIssues() {
+    setBusy(true);
+    clearError();
+    setIssueCreationResult(null);
+    try {
+      const data = await apiPost(`/v1/ops/reports/pilot-gate/backlog/issues/create`, { date: summaryDate });
+      setIssueCreationResult(data);
+      setLog(`이슈 생성 완료: created ${data.created?.length}건, skipped ${data.skipped?.length}건`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function copyBacklog() {
@@ -653,11 +670,43 @@ next=재검증 재시도/파트너 문의/수동 확인`;
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <h3 style={{ margin: 0, fontSize: "1.1em" }}>B. 백로그 후보</h3>
               {backlogItems.length > 0 && (
-                <button onClick={copyBacklog} style={{ background: "#2196f3", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
-                  [스프린트 백로그용 복사]
-                </button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={copyBacklog} style={{ background: "#2196f3", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
+                    [스프린트 백로그용 복사]
+                  </button>
+                  <button onClick={createBacklogIssues} disabled={busy || !ssotData} style={{ background: "#e91e63", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                    [백로그 이슈 생성(GitHub)]
+                  </button>
+                </div>
               )}
             </div>
+            {issueCreationResult && (
+              <div style={{ marginBottom: 12, padding: 12, border: "1px solid #ccc", borderRadius: 6, background: "#fafafa" }}>
+                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em" }}>✅ GitHub 이슈 생성 결과</h4>
+                {issueCreationResult.created?.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <strong style={{ color: "#2e7d32", fontSize: "0.9em" }}>새로 생성됨 ({issueCreationResult.created.length}건):</strong>
+                    <ul style={{ margin: "4px 0 0 0", paddingLeft: 20, fontSize: "0.85em" }}>
+                      {issueCreationResult.created.map((c: any, i: number) => (
+                        <li key={i}>
+                          <a href={c.issueUrl} target="_blank" rel="noreferrer" style={{ color: "#1976d2" }}>#{c.issueNumber}</a> ({c.dedupeKey})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {issueCreationResult.skipped?.length > 0 && (
+                  <div>
+                    <strong style={{ color: "#757575", fontSize: "0.9em" }}>건너뜀 (이미 존재 등, {issueCreationResult.skipped.length}건):</strong>
+                    <ul style={{ margin: "4px 0 0 0", paddingLeft: 20, fontSize: "0.85em", color: "#9e9e9e" }}>
+                      {issueCreationResult.skipped.map((s: any, i: number) => (
+                        <li key={i}>{s.dedupeKey} - {s.reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
             {backlogItems.length > 0 ? (
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
                 <thead>

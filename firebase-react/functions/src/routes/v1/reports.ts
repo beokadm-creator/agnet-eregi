@@ -423,6 +423,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
           date: targetDateStr,
           markdown,
           metrics: { total, okCount, failCount, topMissing, sampleFailCaseIds },
+          topIssues: top3Items,
           createdAt: adminApp.firestore.FieldValue.serverTimestamp(),
           createdBy: auth.uid,
           requestId
@@ -447,6 +448,147 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     } catch (err: any) {
       logError({ endpoint: "/v1/ops/reports/pilot-gate/daily/append", code: "INTERNAL", messageKo: "일일 로그 저장 중 시스템 오류가 발생했습니다.", err });
       return fail(res, 500, "INTERNAL", "일일 로그 저장 중 시스템 오류가 발생했습니다.");
+    }
+  });
+
+  // 백로그 후보 자동화: Firestore SSOT → GitHub Issue 생성
+  app.post("/v1/ops/reports/pilot-gate/backlog/issues/create", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) {
+        return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      }
+
+      const { date, dryRun = false, topN = 3 } = req.body;
+      const targetDateStr = date ? String(date) : formatKstYmd();
+      const targetDate = new Date(`${targetDateStr}T00:00:00+09:00`);
+      
+      if (isNaN(targetDate.getTime())) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 날짜입니다.");
+      }
+
+      const logDocRef = adminApp.firestore().collection("ops_daily_logs").doc(targetDateStr);
+      const logDoc = await logDocRef.get();
+      if (!logDoc.exists) {
+        return fail(res, 404, "NOT_FOUND", "먼저 SSOT 저장을 수행하세요.");
+      }
+
+      const logData = logDoc.data() as any;
+      const topIssues = Array.isArray(logData.topIssues) ? logData.topIssues.slice(0, Number(topN)) : [];
+      
+      const created = [];
+      const skipped = [];
+      const GITHUB_TOKEN = process.env.GITHUB_TOKEN_BACKLOG_BOT || "";
+
+      for (const issue of topIssues) {
+        const dedupeKey = `pilot-gate:${targetDateStr}:${issue.slotId}`;
+        const dedupeRef = adminApp.firestore().collection("ops_backlog_issues").doc(dedupeKey);
+        
+        try {
+          // 1. 멱등성 확보를 위한 create
+          if (!dryRun) {
+            await dedupeRef.create({
+              date: targetDateStr,
+              slotId: issue.slotId,
+              severity: issue.severity,
+              impactCount: issue.impactCount,
+              status: "pending",
+              createdAt: adminApp.firestore.FieldValue.serverTimestamp()
+            });
+          }
+          
+          // 2. GitHub Issue 생성
+          const title = `[pilot-gate][${issue.severity}][${targetDateStr}] ${issue.slotId} 누락 대응`;
+          const body = `
+### 이슈 개요
+- **발생일**: ${targetDateStr}
+- **영향도**: ${issue.impactCount}건 발생
+- **SSOT 문서**: \`ops_daily_logs/${targetDateStr}\`
+- **Req ID**: ${logData.requestId || "N/A"}
+
+### 재현 단계
+1. 파트너 콘솔에서 ${issue.slotId} 업로드 누락 또는 API 오류 확인
+2. ${issue.slotId} 제출 로직 디버깅
+
+### Acceptance Criteria (AC)
+1. ${issue.slotId} 파일이 정상적으로 Storage에 업로드됨
+2. Gate 검증 API 호출 시 missing 배열에 ${issue.slotId}가 포함되지 않음
+3. ok: true 달성
+          `.trim();
+
+          const labels = ["ops", "automation", "backlog", issue.severity.toLowerCase()];
+          
+          let issueUrl = "dry-run-url";
+          let issueNumber = 0;
+
+          if (!dryRun) {
+            if (!GITHUB_TOKEN) {
+              throw new Error("GITHUB_TOKEN_BACKLOG_BOT is not configured.");
+            }
+            // Fetch to GitHub API
+            const ghRes = await fetch("https://api.github.com/repos/beokadm-creator/agnet-eregi/issues", {
+              method: "POST",
+              headers: {
+                "Accept": "application/vnd.github+json",
+                "Authorization": `Bearer ${GITHUB_TOKEN}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                title,
+                body,
+                labels
+              })
+            });
+
+            if (!ghRes.ok) {
+              const errText = await ghRes.text();
+              throw new Error(`GitHub API Error: ${ghRes.status} ${errText}`);
+            }
+            
+            const ghData = await ghRes.json();
+            issueUrl = ghData.html_url;
+            issueNumber = ghData.number;
+            
+            await dedupeRef.update({
+              issueNumber,
+              issueUrl,
+              updatedAt: adminApp.firestore.FieldValue.serverTimestamp()
+            });
+          }
+          
+          created.push({ dedupeKey, issueUrl, issueNumber });
+        } catch (e: any) {
+          const isAlreadyExists = 
+            e.code === 6 || 
+            e.status === "ALREADY_EXISTS" ||
+            (e.message && e.message.includes("ALREADY_EXISTS")) ||
+            (e.details && e.details.includes("ALREADY_EXISTS"));
+            
+          if (isAlreadyExists) {
+            skipped.push({ dedupeKey, reason: "ALREADY_EXISTS" });
+          } else {
+            console.error(`[backlog create error] dedupeKey=${dedupeKey}`, e);
+            skipped.push({ dedupeKey, reason: e.message || "ERROR" });
+            // 실패 시 롤백 (dryRun이 아닐 때만 create 했으므로)
+            if (!dryRun && !isAlreadyExists) {
+               await dedupeRef.delete().catch(() => {});
+            }
+          }
+        }
+      }
+
+      return res.status(200).json({
+        ok: true,
+        data: {
+          date: targetDateStr,
+          created,
+          skipped
+        }
+      });
+    } catch (err: any) {
+      logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog/issues/create", code: "INTERNAL", messageKo: "이슈 생성 중 오류가 발생했습니다.", err });
+      return fail(res, 500, "INTERNAL", "이슈 생성 중 오류가 발생했습니다.");
     }
   });
 
