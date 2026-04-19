@@ -601,12 +601,31 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
 
-      const { projectId = process.env.GITHUB_PROJECT_ID, fieldNames = ["Status", "Priority", "Severity"] } = req.body;
+      const { projectId = process.env.GITHUB_PROJECT_ID } = req.body;
       const GITHUB_TOKEN = process.env.GITHUB_TOKEN_BACKLOG_BOT || "";
 
       if (!projectId || !GITHUB_TOKEN) {
         return fail(res, 400, "INVALID_ARGUMENT", "GITHUB_PROJECT_ID 또는 GITHUB_TOKEN_BACKLOG_BOT 설정이 누락되었습니다.");
       }
+
+      // 정규화 함수: 소문자화, 공백/하이픈/언더스코어 제거
+      const norm = (s: string) => s.toLowerCase().replace(/[\s\-_]/g, "");
+
+      // Alias 후보 (기본 내장)
+      const fieldAliases = {
+        status: ["status", "state", "workflow", "상태", "진행상태", "워크플로우"],
+        priority: ["priority", "prio", "우선순위", "중요도"],
+        severity: ["severity", "sev", "등급", "심각도"]
+      };
+
+      const optionAliases = {
+        "status.todo": ["todo", "to do", "할일", "할 일", "대기", "new"],
+        "status.in_progress": ["in progress", "doing", "진행중", "진행 중"],
+        "status.done": ["done", "complete", "완료"],
+        "priority.p0": ["p0", "highest", "긴급", "최우선"],
+        "priority.p1": ["p1", "high", "높음"],
+        "priority.p2": ["p2", "medium", "보통"]
+      };
 
       // 1. GraphQL로 Project 필드 목록 조회
       const query = `
@@ -644,25 +663,42 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
 
       const nodes = ghData.data.node.fields.nodes;
       
-      const configFields: Record<string, any> = {};
-      
-      for (const fName of fieldNames) {
-        const node = nodes.find((n: any) => n.name === fName);
+      const resolved: Record<string, any> = {};
+      const missingMappings: string[] = [];
+
+      // 매칭 로직
+      for (const [fKey, fAliases] of Object.entries(fieldAliases)) {
+        const normAliases = fAliases.map(norm);
+        const node = nodes.find((n: any) => n.name && normAliases.includes(norm(n.name)));
+        
         if (node) {
-          const optionsByName: Record<string, string> = {};
-          for (const opt of node.options) {
-            optionsByName[opt.name] = opt.id;
+          resolved[`${fKey}FieldId`] = node.id;
+          resolved[`${fKey}OptionIds`] = {};
+          
+          // 옵션 매칭
+          const optPrefix = `${fKey}.`;
+          for (const [oKey, oAliases] of Object.entries(optionAliases)) {
+            if (!oKey.startsWith(optPrefix)) continue;
+            const shortOKey = oKey.replace(optPrefix, ""); // e.g., "todo"
+            const normOAliases = oAliases.map(norm);
+            
+            const optNode = node.options.find((o: any) => o.name && normOAliases.includes(norm(o.name)));
+            if (optNode) {
+              resolved[`${fKey}OptionIds`][shortOKey] = optNode.id;
+            } else {
+              missingMappings.push(oKey);
+            }
           }
-          configFields[fName.toLowerCase()] = {
-            fieldId: node.id,
-            optionsByName
-          };
+        } else {
+          missingMappings.push(`${fKey}FieldId`);
         }
       }
 
       const configData = {
         projectId,
-        fields: configFields,
+        rawFields: nodes,
+        resolved,
+        missingMappings,
         updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
         updatedBy: auth.uid,
         source: "discovery"
@@ -738,8 +774,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       
       const config = configDoc.data() as any;
       const PROJECT_ID = config.projectId || process.env.GITHUB_PROJECT_ID || "";
-      const STATUS_FIELD_ID = config.fields?.status?.fieldId || "";
-      const PRIORITY_FIELD_ID = config.fields?.priority?.fieldId || "";
+      const resolved = config.resolved || {};
+      const STATUS_FIELD_ID = resolved.statusFieldId || "";
+      const PRIORITY_FIELD_ID = resolved.priorityFieldId || "";
 
       if (!dryRun && (!GITHUB_TOKEN || !PROJECT_ID)) {
         throw new Error("GITHUB_TOKEN_BACKLOG_BOT or GITHUB_PROJECT_ID is not configured.");
@@ -811,14 +848,24 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
             // Step C: 필드 업데이트 (Status, Priority 매핑)
             const sevNum = parseInt(issue.severity.replace("Sev", ""), 10);
             let priorityValue = "";
-            if (sevNum === 1) priorityValue = "P0";
-            else if (sevNum === 2) priorityValue = "P1";
-            else priorityValue = "P2";
+            if (sevNum === 1) priorityValue = "p0";
+            else if (sevNum === 2) priorityValue = "p1";
+            else priorityValue = "p2";
 
-            const statusValue = "Todo";
+            const statusValue = "todo";
 
-            const statusOptionId = config.fields?.status?.optionsByName?.[statusValue];
-            const priorityOptionId = config.fields?.priority?.optionsByName?.[priorityValue];
+            const statusOptionId = resolved.statusOptionIds?.[statusValue];
+            const priorityOptionId = resolved.priorityOptionIds?.[priorityValue];
+
+            const missingForThisIssue = [];
+            if (!STATUS_FIELD_ID) missingForThisIssue.push("statusFieldId");
+            if (!statusOptionId) missingForThisIssue.push(`status.${statusValue}`);
+            if (!PRIORITY_FIELD_ID) missingForThisIssue.push("priorityFieldId");
+            if (!priorityOptionId) missingForThisIssue.push(`priority.${priorityValue}`);
+
+            if (missingForThisIssue.length > 0) {
+               throw new Error(`MISSING_MAPPING: ${missingForThisIssue.join(", ")}`);
+            }
 
             if (STATUS_FIELD_ID && statusOptionId) {
               const updateStatusMutation = `
@@ -879,7 +926,17 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
             skipped.push({ projectDedupeKey, reason: "ALREADY_EXISTS" });
           } else {
             console.error(`[project add error] key=${projectDedupeKey}`, e);
-            failed.push({ projectDedupeKey, reason: e.message || "ERROR", issueUrl: issue.issueUrl });
+            let reason = e.message || "ERROR";
+            let missing = [];
+            let hint = "";
+            
+            if (reason.startsWith("MISSING_MAPPING: ")) {
+              missing = reason.replace("MISSING_MAPPING: ", "").split(", ");
+              reason = "MISSING_MAPPING";
+              hint = "discover를 다시 실행하거나 alias를 추가하세요";
+            }
+
+            failed.push({ projectDedupeKey, reason, missing, hint, issueUrl: issue.issueUrl });
             if (!dryRun && !isAlreadyExists) {
                await linkRef.delete().catch(() => {});
             }

@@ -725,9 +725,15 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                 <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em" }}>✅ GitHub Project 설정 갱신 완료</h4>
                 <div style={{ fontSize: "0.85em", color: "#004d40" }}>
                   <strong>Project ID:</strong> {projectConfigResult.projectId}<br />
-                  <strong>Status Options:</strong> {Object.keys(projectConfigResult.fields?.status?.optionsByName || {}).join(", ")}<br />
-                  <strong>Priority Options:</strong> {Object.keys(projectConfigResult.fields?.priority?.optionsByName || {}).join(", ")}
+                  <strong>Status Options:</strong> {Object.keys(projectConfigResult.resolved?.statusOptionIds || {}).join(", ")}<br />
+                  <strong>Priority Options:</strong> {Object.keys(projectConfigResult.resolved?.priorityOptionIds || {}).join(", ")}
                 </div>
+                {projectConfigResult.missingMappings && projectConfigResult.missingMappings.length > 0 && (
+                  <div style={{ marginTop: 8, padding: 8, background: "#fff3e0", border: "1px solid #ffe0b2", borderRadius: 4, color: "#e65100", fontSize: "0.85em" }}>
+                    <strong>⚠️ 매핑 누락 경고:</strong> 아래 항목들을 찾지 못했습니다. 프로젝트 설정을 확인하세요.<br />
+                    {projectConfigResult.missingMappings.join(", ")}
+                  </div>
+                )}
               </div>
             )}
             {issueCreationResult && (
@@ -790,6 +796,12 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                         <li key={i}>
                           {f.issueUrl && <a href={f.issueUrl} target="_blank" rel="noreferrer" style={{ color: "#d32f2f", textDecoration: "underline", marginRight: 4 }}>이슈</a>}
                           {f.projectDedupeKey} - {f.reason}
+                          {f.reason === "MISSING_MAPPING" && (
+                            <span style={{ display: "block", marginTop: 4, color: "#b71c1c" }}>
+                              <strong>누락:</strong> {f.missing?.join(", ")} <br/>
+                              <em>{f.hint}</em>
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
