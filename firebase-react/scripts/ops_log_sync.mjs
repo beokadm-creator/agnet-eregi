@@ -157,9 +157,14 @@ async function main() {
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, updated, "utf-8");
 
-  // 로그(액션 확인용)
+  // 로그(액션 확인용) 및 GITHUB_OUTPUT 전달용
   // eslint-disable-next-line no-console
   console.log(`[ops_log_sync] Wrote: ${relOutPath} (days=${docs.length})`);
+  
+  if (process.env.GITHUB_OUTPUT) {
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `sync_days=${docs.length}\n`);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `sync_file=${relOutPath}\n`);
+  }
 }
 
 main().catch((e) => {
