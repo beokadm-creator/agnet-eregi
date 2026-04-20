@@ -179,6 +179,55 @@ function App() {
     }
   }
 
+  const [preflightResult, setPreflightResult] = useState<any | null>(null);
+  const [smokeTestResult, setSmokeTestResult] = useState<any | null>(null);
+  const [smokeTestMode, setSmokeTestMode] = useState<string>("read_only");
+
+  async function runPreflight() {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
+    setBusy(true);
+    setPreflightResult(null);
+    try {
+      const res = await apiPost(`/v1/ops/preflight`, { gateKey });
+      setPreflightResult(res);
+      setLog(`Preflight 완료 (passed: ${res.passed})`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runSmokeTest() {
+    const reqRole = smokeTestMode === "full" ? "ops_admin" : "ops_operator";
+    if (!hasRole(reqRole)) {
+      setLog(roleReason(reqRole as any));
+      return;
+    }
+    const ok = await openConfirm({
+      title: `Smoke Test (${smokeTestMode})`,
+      message: `대상: ${gateKey}\n모드: ${smokeTestMode}\n실제 API 호출을 진행하시겠습니까?`,
+      confirmLabel: "실행",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
+
+    setBusy(true);
+    setSmokeTestResult(null);
+    try {
+      const res = await apiPost(`/v1/ops/smoke-test`, { gateKey, mode: smokeTestMode });
+      setSmokeTestResult(res);
+      setLog(`Smoke Test 완료 (passed: ${res.passed})`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function loadAlertJobs() {
     setBusy(true);
     setLog("loading alert jobs...");
@@ -2506,6 +2555,96 @@ next=재검증 재시도/파트너 문의/수동 확인`;
             )}
           </div>
         </div>
+      </div>
+
+      {/* Release Preflight & Smoke Test */}
+      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f8f9fa" }}>
+        <h2 style={{ margin: "0 0 8px 0", color: "#2e7d32" }}>🚀 Release Preflight & Smoke Test</h2>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <label style={{ fontWeight: "bold" }}>모드:</label>
+            <select value={smokeTestMode} onChange={e => setSmokeTestMode(e.target.value)} disabled={busy} style={{ padding: 4 }}>
+              <option value="read_only">read_only (조회 전용)</option>
+              <option value="full">full (테스트 쓰기 포함)</option>
+            </select>
+          </div>
+          <button disabled={busy || !hasRole("ops_admin")} onClick={runPreflight} style={{ background: "#1565c0", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
+            [Preflight 실행]
+          </button>
+          <button disabled={busy || !hasRole(smokeTestMode === "full" ? "ops_admin" : "ops_operator")} onClick={runSmokeTest} style={{ background: "#2e7d32", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || !hasRole(smokeTestMode === "full" ? "ops_admin" : "ops_operator") ? "not-allowed" : "pointer", opacity: busy || !hasRole(smokeTestMode === "full" ? "ops_admin" : "ops_operator") ? 0.6 : 1 }}>
+            [Smoke Test 실행]
+          </button>
+        </div>
+
+        {preflightResult && (
+          <div style={{ marginTop: 16, padding: 12, background: "#fff", border: "1px solid #eee", borderRadius: 4 }}>
+            <h3 style={{ margin: "0 0 8px 0" }}>Preflight 결과: <span style={{ color: preflightResult.passed ? "#2e7d32" : "#c62828" }}>{preflightResult.passed ? "PASSED" : "FAILED"}</span></h3>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>항목</th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>결과</th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>가이드</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preflightResult.checks.map((chk: any, i: number) => (
+                  <tr key={i}>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6, fontWeight: "bold" }}>{chk.name}</td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                      <span style={{
+                        background: chk.status === "ok" ? "#e8f5e9" : chk.status === "warn" ? "#fff3e0" : "#ffebee",
+                        color: chk.status === "ok" ? "#2e7d32" : chk.status === "warn" ? "#ef6c00" : "#c62828",
+                        padding: "2px 6px", borderRadius: 4, fontWeight: "bold"
+                      }}>
+                        {chk.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6, color: chk.status !== "ok" ? "#d32f2f" : "#666" }}>
+                      {chk.hint}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {smokeTestResult && (
+          <div style={{ marginTop: 16, padding: 12, background: "#fff", border: "1px solid #eee", borderRadius: 4 }}>
+            <h3 style={{ margin: "0 0 8px 0" }}>Smoke Test 결과 ({smokeTestResult.mode}): <span style={{ color: smokeTestResult.passed ? "#2e7d32" : "#c62828" }}>{smokeTestResult.passed ? "PASSED" : "FAILED"}</span></h3>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Method</th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Endpoint</th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Status</th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Duration</th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {smokeTestResult.results.map((res: any, i: number) => (
+                  <tr key={i}>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6, fontWeight: "bold", color: "#555" }}>{res.method}</td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6, fontFamily: "monospace" }}>{res.endpoint}</td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                      <span style={{
+                        background: res.status === "ok" ? "#e8f5e9" : "#ffebee",
+                        color: res.status === "ok" ? "#2e7d32" : "#c62828",
+                        padding: "2px 6px", borderRadius: 4, fontWeight: "bold"
+                      }}>
+                        {res.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>{res.durationMs}ms</td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6, color: "#d32f2f" }}>{res.error || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>

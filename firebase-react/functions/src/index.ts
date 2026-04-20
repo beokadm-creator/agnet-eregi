@@ -22,6 +22,7 @@ import { registerReportRoutes } from "./routes/v1/reports";
 import { registerPackageRoutes } from "./routes/v1/packages";
 import { registerFormRoutes } from "./routes/v1/forms";
 import { registerOpsIncidentRoutes } from "./routes/v1/ops_incidents";
+import { registerOpsReleaseRoutes } from "./routes/v1/ops_release";
 import { processRetryJobs } from "./lib/ops_retry_worker";
 import { processOpsAlertJobs } from "./lib/ops_alert_worker";
 import { processOpsIncidents, generateWeeklyIncidentSummary } from "./lib/ops_incident_worker";
@@ -60,6 +61,7 @@ registerPackageRoutes(app, admin);
 registerFormRoutes(app, admin);
 registerDevRoutes(app, admin);
 registerOpsIncidentRoutes(app, admin);
+registerOpsReleaseRoutes(app, admin);
 
 app.get("/health", async (_req, res) => ok(res, { status: "ok" }));
 app.use((_req, res) => fail(res, 404, "NOT_FOUND", "존재하지 않는 엔드포인트입니다."));
