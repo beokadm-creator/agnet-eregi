@@ -228,6 +228,63 @@ function App() {
     }
   }
 
+  const [retentionPreviewCollection, setRetentionPreviewCollection] = useState<string>("");
+  const [retentionPreviewResult, setRetentionPreviewResult] = useState<any | null>(null);
+  const [retentionRunResult, setRetentionRunResult] = useState<any | null>(null);
+
+  async function previewRetention() {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
+    setBusy(true);
+    setRetentionPreviewResult(null);
+    try {
+      let url = `/v1/ops/retention/preview?limit=10`;
+      if (retentionPreviewCollection) {
+        url += `&collection=${retentionPreviewCollection}`;
+      }
+      const res = await apiGet(url);
+      setRetentionPreviewResult(res.previewResults);
+      setLog(`Retention Preview 로드 완료`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runRetention(dryRun: boolean) {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
+    const title = dryRun ? "Data Retention (Dry-run)" : "Data Retention (실제 삭제)";
+    const message = dryRun 
+      ? `보관 정책에 따라 삭제 대상을 스캔합니다.\n실제 데이터는 삭제되지 않습니다.` 
+      : `⚠️ 경고: 보관 정책에 따라 데이터를 실제로 영구 삭제합니다.\n삭제된 데이터는 복구할 수 없습니다.\n진행하시겠습니까?`;
+    
+    const ok = await openConfirm({
+      title,
+      message,
+      confirmLabel: dryRun ? "Dry-run 실행" : "실제 삭제 실행",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
+
+    setBusy(true);
+    setRetentionRunResult(null);
+    try {
+      const res = await apiPost(`/v1/ops/retention/run`, { dryRun });
+      setRetentionRunResult(res.results);
+      setLog(`Retention Run 완료 (dryRun: ${dryRun})`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function loadAlertJobs() {
     setBusy(true);
     setLog("loading alert jobs...");
@@ -2639,6 +2696,84 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                     </td>
                     <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>{res.durationMs}ms</td>
                     <td style={{ borderBottom: "1px solid #eee", padding: 6, color: "#d32f2f" }}>{res.error || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Data Retention (데이터 자동 정리) */}
+      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#fce4ec" }}>
+        <h2 style={{ margin: "0 0 8px 0", color: "#880e4f" }}>🧹 Data Retention (데이터 자동 정리)</h2>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <select value={retentionPreviewCollection} onChange={e => setRetentionPreviewCollection(e.target.value)} disabled={busy} style={{ padding: 4 }}>
+              <option value="">전체 대상</option>
+              <option value="ops_audit_events">ops_audit_events (90일/180일)</option>
+              <option value="ops_alert_jobs">ops_alert_jobs (14일/30일)</option>
+              <option value="ops_retry_jobs">ops_retry_jobs (14일/30일)</option>
+              <option value="ops_incidents">ops_incidents (180일/365일)</option>
+              <option value="ops_incident_summaries">ops_incident_summaries (365일)</option>
+            </select>
+            <button disabled={busy || !hasRole("ops_admin")} onClick={previewRetention} style={{ background: "#880e4f", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
+              [Preview (조회)]
+            </button>
+            <button disabled={busy || !hasRole("ops_admin")} onClick={() => runRetention(true)} style={{ background: "#ff9800", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
+              [Dry-run 실행]
+            </button>
+            <button disabled={busy || !hasRole("ops_admin")} onClick={() => runRetention(false)} style={{ background: "#c62828", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", fontWeight: "bold", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
+              [실제 삭제 실행]
+            </button>
+          </div>
+        </div>
+
+        {retentionPreviewResult && (
+          <div style={{ marginTop: 16, padding: 12, background: "#fff", border: "1px solid #f8bbd0", borderRadius: 4 }}>
+            <h3 style={{ margin: "0 0 8px 0", color: "#880e4f" }}>Preview 샘플 결과</h3>
+            {Object.keys(retentionPreviewResult).length === 0 && <div style={{ color: "#999" }}>조회 결과가 없습니다.</div>}
+            {Object.entries(retentionPreviewResult).map(([policyKey, items]: any) => (
+              <div key={policyKey} style={{ marginBottom: 12 }}>
+                <strong style={{ color: "#c2185b" }}>{policyKey} ({items.length}건 샘플)</strong>
+                {items.length > 0 ? (
+                  <ul style={{ margin: "4px 0", paddingLeft: 20, fontSize: "0.85em" }}>
+                    {items.map((item: any) => (
+                      <li key={item.id || Math.random()}>
+                        {item.error ? <span style={{ color: "red" }}>Error: {item.error}</span> : JSON.stringify(item).substring(0, 100) + "..."}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div style={{ fontSize: "0.85em", color: "#999", marginLeft: 8 }}>삭제 대상 없음</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {retentionRunResult && (
+          <div style={{ marginTop: 16, padding: 12, background: "#fff", border: "1px solid #f8bbd0", borderRadius: 4 }}>
+            <h3 style={{ margin: "0 0 8px 0", color: "#880e4f" }}>Retention Run 결과 <span style={{ fontSize: "0.8em", color: "#ff9800" }}>{retentionRunResult.dryRun ? "(Dry-run)" : "(실제 삭제됨)"}</span></h3>
+            {retentionRunResult.errors?.length > 0 && (
+              <div style={{ color: "#c62828", marginBottom: 8, fontSize: "0.9em" }}>
+                <strong>Errors:</strong> {retentionRunResult.errors.join(" / ")}
+              </div>
+            )}
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Collection</th>
+                  <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: 6 }}>스캔 수</th>
+                  <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: 6, color: "#d32f2f" }}>{retentionRunResult.dryRun ? "삭제 예정 수" : "삭제된 수"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(retentionRunResult.scannedCountsByCollection).map((coll) => (
+                  <tr key={coll}>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>{coll}</td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6, textAlign: "right" }}>{retentionRunResult.scannedCountsByCollection[coll]}</td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6, textAlign: "right", fontWeight: "bold", color: "#d32f2f" }}>{retentionRunResult.deletedCountsByCollection[coll]}</td>
                   </tr>
                 ))}
               </tbody>
