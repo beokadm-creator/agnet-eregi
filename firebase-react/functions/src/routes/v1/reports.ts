@@ -11,6 +11,7 @@ import { doResolve, discoverProjectConfigAction, doResolveAction, dispatchWorkfl
 import { notifyOpsAlert } from "../../lib/ops_alert";
 
 import { checkCircuitBreaker, recordCircuitBreakerSuccess, recordCircuitBreakerFail, getCircuitBreakerState, resetCircuitBreaker } from "../../lib/ops_circuit_breaker";
+import { getOpsGateSettingsCollection, OpsGateSettings } from "../../lib/ops_gate_settings";
 
 function fmtTs(v: any) {
   if (!v) return "-";
@@ -1446,6 +1447,102 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       });
 
       return res.status(200).json({ ok: true, data: { state: "closed", failCount: 0 } });
+    } catch (err: any) {
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // GET /v1/ops/gates/:gateKey/settings
+  app.get("/v1/ops/gates/:gateKey/settings", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const gateKey = String(req.params.gateKey);
+      if (!gateKey) return fail(res, 400, "INVALID_ARGUMENT", "gateKey is required");
+
+      const docRef = getOpsGateSettingsCollection().doc(gateKey);
+      const docSnap = await docRef.get();
+
+      if (docSnap.exists) {
+        return res.status(200).json({ ok: true, data: docSnap.data() as OpsGateSettings });
+      } else {
+        const defaultSettings: OpsGateSettings = {
+          gateKey,
+          enabled: true,
+          slackWebhookUrl: null,
+          updatedAt: adminApp.firestore.Timestamp.now(),
+          updatedBy: "system"
+        };
+        await docRef.set(defaultSettings);
+        return res.status(200).json({ ok: true, data: defaultSettings });
+      }
+    } catch (err: any) {
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // PUT /v1/ops/gates/:gateKey/settings
+  app.put("/v1/ops/gates/:gateKey/settings", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const gateKey = String(req.params.gateKey);
+      if (!gateKey) return fail(res, 400, "INVALID_ARGUMENT", "gateKey is required");
+
+      let { enabled, slackWebhookUrl, notes } = req.body;
+      
+      if (typeof enabled !== "boolean") enabled = true;
+      if (slackWebhookUrl === "") slackWebhookUrl = null;
+      if (slackWebhookUrl && typeof slackWebhookUrl === "string") {
+        try {
+          const url = new URL(slackWebhookUrl);
+          if (url.protocol !== "https:") return fail(res, 400, "INVALID_ARGUMENT", "slackWebhookUrl must be https");
+          if (!url.host) return fail(res, 400, "INVALID_ARGUMENT", "slackWebhookUrl must have a host");
+        } catch {
+          return fail(res, 400, "INVALID_ARGUMENT", "Invalid slackWebhookUrl format");
+        }
+      }
+
+      const docRef = getOpsGateSettingsCollection().doc(gateKey);
+      const docSnap = await docRef.get();
+      const oldData = docSnap.exists ? docSnap.data() as OpsGateSettings : null;
+
+      const newData: Partial<OpsGateSettings> = {
+        gateKey,
+        enabled,
+        slackWebhookUrl,
+        notes: notes || null,
+        updatedAt: adminApp.firestore.Timestamp.now(),
+        updatedBy: auth.uid
+      };
+
+      await docRef.set(newData, { merge: true });
+
+      // Audit Log
+      const oldHost = oldData?.slackWebhookUrl ? new URL(oldData.slackWebhookUrl).host : null;
+      const newHost = slackWebhookUrl ? new URL(slackWebhookUrl).host : null;
+
+      await logOpsEvent(adminApp, {
+        gateKey,
+        action: "ops_gate_settings.update",
+        status: "success",
+        actorUid: auth.uid,
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: `Gate settings updated`,
+        target: {
+          gateKey,
+          changed: {
+            enabled: [oldData?.enabled ?? true, enabled],
+            slackWebhookUrlHost: [oldHost, newHost]
+          }
+        }
+      });
+
+      return res.status(200).json({ ok: true, data: { ...oldData, ...newData } });
     } catch (err: any) {
       return fail(res, 500, "INTERNAL", err.message);
     }
