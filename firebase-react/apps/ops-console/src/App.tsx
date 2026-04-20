@@ -78,6 +78,48 @@ function App() {
   const [healthDetailGate, setHealthDetailGate] = useState<string | null>(null);
   const [healthDetailData, setHealthDetailData] = useState<any>(null);
 
+  const [alertPolicy, setAlertPolicy] = useState<any>(null);
+  const [alertPolicyLastAt, setAlertPolicyLastAt] = useState<any>(null);
+
+  async function loadAlertPolicy() {
+    setBusy(true);
+    setLog("loading alert policy...");
+    try {
+      const res = await apiGet(`/v1/ops/gates/${gateKey}/alert-policy`);
+      setAlertPolicy(res.policy);
+      setAlertPolicyLastAt(res.lastAlertAt || {});
+      setLog("loaded alert policy");
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveAlertPolicy() {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
+    const ok = await openConfirm({
+      title: `Alert Policy Save (${gateKey})`,
+      message: `대상: gateKey=${gateKey}\n즉시 반영됩니다.\n되돌리기 주의: 정책 변경 시 알림 억제 기준이 바뀝니다.`,
+      confirmLabel: "Save",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
+    setBusy(true);
+    clearError();
+    try {
+      await apiPut(`/v1/ops/gates/${gateKey}/alert-policy`, alertPolicy);
+      setLog(`[Alert Policy 저장 성공]`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function loadHealthSummary() {
     setBusy(true);
     setLog("loading health summary...");
@@ -1538,6 +1580,60 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                     </div>
                   </div>
                 </div>
+
+                {/* Alert Policy UI */}
+                <div style={{ flex: 1, padding: 12, background: "#fce4ec", borderRadius: 6, minWidth: 300 }}>
+                  <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em", color: "#c2185b" }}>Alert Policy</h4>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                    <button disabled={busy} onClick={loadAlertPolicy} style={{ background: "#ad1457", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}>조회</button>
+                    <button disabled={busy || !hasRole("ops_admin")} onClick={saveAlertPolicy} style={{ background: "#4caf50", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", fontSize: "0.85em", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>저장</button>
+                  </div>
+                  {alertPolicy ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: "0.85em" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input type="checkbox" checked={alertPolicy.enabled} onChange={e => setAlertPolicy({...alertPolicy, enabled: e.target.checked})} />
+                        <strong>정책 Enabled</strong>
+                      </label>
+                      <div style={{ display: "flex", gap: 16 }}>
+                        <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span>Cooldown (초)</span>
+                          <input type="number" value={alertPolicy.cooldownSec} onChange={e => setAlertPolicy({...alertPolicy, cooldownSec: Number(e.target.value)})} style={{ width: 80 }} />
+                        </label>
+                        <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span>FailRate Threshold</span>
+                          <input type="number" step="0.01" value={alertPolicy.rules.failRateThreshold} onChange={e => setAlertPolicy({...alertPolicy, rules: {...alertPolicy.rules, failRateThreshold: Number(e.target.value)}})} style={{ width: 80 }} />
+                        </label>
+                        <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span>Denied Threshold</span>
+                          <input type="number" value={alertPolicy.rules.deniedThreshold} onChange={e => setAlertPolicy({...alertPolicy, rules: {...alertPolicy.rules, deniedThreshold: Number(e.target.value)}})} style={{ width: 80 }} />
+                        </label>
+                      </div>
+                      <div style={{ display: "flex", gap: 16, marginTop: 4 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <input type="checkbox" checked={alertPolicy.rules.circuitBreakerOpen} onChange={e => setAlertPolicy({...alertPolicy, rules: {...alertPolicy.rules, circuitBreakerOpen: e.target.checked}})} />
+                          CB Open 알림
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <input type="checkbox" checked={alertPolicy.rules.deadJobs} onChange={e => setAlertPolicy({...alertPolicy, rules: {...alertPolicy.rules, deadJobs: e.target.checked}})} />
+                          Dead Jobs 알림
+                        </label>
+                      </div>
+                      
+                      <div style={{ marginTop: 8, padding: 8, background: "rgba(255,255,255,0.6)", borderRadius: 4 }}>
+                        <strong>Last Alert At:</strong>
+                        {Object.keys(alertPolicyLastAt || {}).length > 0 ? (
+                          <ul style={{ margin: "4px 0 0 0", paddingLeft: 16 }}>
+                            {Object.entries(alertPolicyLastAt).map(([k, v]: any) => (
+                              <li key={k}>{k}: {new Date(v).toLocaleString()}</li>
+                            ))}
+                          </ul>
+                        ) : <div style={{ color: "#666" }}>기록 없음</div>}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: "#888", fontSize: "0.85em" }}>조회 버튼을 눌러주세요.</div>
+                  )}
+                </div>
                 <div style={{ flex: 1, padding: 12, background: "#fff3e0", borderRadius: 6, minWidth: 250 }}>
                 <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em", color: "#e65100" }}>Circuit Breaker ({gateKey})</h4>
                 <div style={{ marginBottom: 8, fontSize: "0.9em" }}>
@@ -1891,7 +1987,16 @@ next=재검증 재시도/파트너 문의/수동 확인`;
           {/* 통합 감사 로그 (Audit Log) 영역 */}
           <div style={{ flex: "1 1 100%", background: "#fff", padding: 12, border: "1px solid #eee", borderRadius: 6, marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <h3 style={{ margin: 0, fontSize: "1.1em", color: "#4527a0" }}>🧾 통합 감사 로그 (Audit Log)</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <h3 style={{ margin: 0, fontSize: "1.1em", color: "#4527a0" }}>🧾 통합 감사 로그 (Audit Log)</h3>
+                <button onClick={() => {
+                  setAuditFilterAction("ops_alert.suppressed");
+                  setBusy(true);
+                  loadAuditEvents(true).finally(() => setBusy(false));
+                }} style={{ background: "#fce4ec", color: "#c2185b", border: "1px solid #f8bbd0", padding: "2px 8px", borderRadius: 12, fontSize: "0.8em", cursor: "pointer", fontWeight: "bold" }}>
+                  [알림 억제(Suppressed) 보기]
+                </button>
+              </div>
             </div>
             
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, fontSize: "0.85em" }}>

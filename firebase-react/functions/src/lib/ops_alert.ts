@@ -1,9 +1,10 @@
-import fetch from "node-fetch";
+import * as admin from "firebase-admin";
 import { OpsErrorCategory } from "./ops_audit";
-import { getOpsGateSettingsCollection, OpsGateSettings } from "./ops_gate_settings";
+import { getOpsGateSettingsCollection, OpsGateSettings, OpsGateAlertPolicy } from "./ops_gate_settings";
 
 export interface OpsAlertParams {
   gateKey: string;
+  alertType?: string;
   action: string;
   category?: OpsErrorCategory | string;
   summary: string;
@@ -11,31 +12,102 @@ export interface OpsAlertParams {
   links?: Record<string, string>;
   error?: { code?: string; message?: string };
   severity?: "info" | "warning" | "error" | "critical";
+  force?: boolean;
 }
+
+export const defaultAlertPolicy: OpsGateAlertPolicy = {
+  enabled: true,
+  cooldownSec: 900,
+  rules: {
+    circuitBreakerOpen: true,
+    deadJobs: true,
+    failRateThreshold: 0.05,
+    deniedThreshold: 10,
+  },
+  channels: {
+    useGateWebhook: true
+  }
+};
 
 export async function notifyOpsAlert(params: OpsAlertParams) {
   let webhookUrl: string | null = null;
   let resolvedFrom: "db" | "env_default" | "none" = "none";
   let webhookHost: string | null = null;
 
+  let policy = defaultAlertPolicy;
+  let lastAlertAt: Record<string, admin.firestore.Timestamp> = {};
+  let settingsDocExists = false;
+  const docRef = getOpsGateSettingsCollection().doc(params.gateKey);
+
   try {
-    const docRef = getOpsGateSettingsCollection().doc(params.gateKey);
     const docSnap = await docRef.get();
-    
     if (docSnap.exists) {
+      settingsDocExists = true;
       const settings = docSnap.data() as OpsGateSettings;
       
       if (!settings.enabled) {
-        return { sent: false, success: false, resolvedFrom: "db", reason: "disabled" };
+        return { sent: false, success: false, resolvedFrom: "db", reason: "gate_disabled" };
       }
       
-      if (settings.slackWebhookUrl) {
+      if (settings.alertPolicy) {
+        policy = { 
+          ...defaultAlertPolicy, 
+          ...settings.alertPolicy, 
+          rules: { ...defaultAlertPolicy.rules, ...(settings.alertPolicy.rules || {}) }, 
+          channels: { ...defaultAlertPolicy.channels, ...(settings.alertPolicy.channels || {}) } 
+        };
+      }
+      if (settings.lastAlertAt) {
+        lastAlertAt = settings.lastAlertAt;
+      }
+      
+      if (settings.slackWebhookUrl && policy.channels.useGateWebhook) {
         webhookUrl = settings.slackWebhookUrl;
         resolvedFrom = "db";
       }
     }
   } catch (err) {
     console.error("[OpsAlert] Failed to fetch gate settings:", err);
+  }
+
+  if (!params.force) {
+    if (!policy.enabled) {
+      await admin.firestore().collection("ops_audit_events").doc().set({
+         gateKey: params.gateKey,
+         action: "ops_alert.suppressed",
+         status: "success",
+         actorUid: "system",
+         requestId: params.requestId || "unknown",
+         summary: `Alert suppressed (policy disabled): ${params.summary}`,
+         target: { alertType: params.alertType, reason: "policy_disabled" },
+         createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      return { sent: false, success: true, resolvedFrom, reason: "policy_disabled" };
+    }
+
+    if (params.alertType) {
+      if (params.alertType === "cb_open" && !policy.rules.circuitBreakerOpen) return { sent: false, success: true, reason: "rule_disabled" };
+      if (params.alertType === "dead_jobs" && !policy.rules.deadJobs) return { sent: false, success: true, reason: "rule_disabled" };
+
+      const lastAt = lastAlertAt[params.alertType];
+      if (lastAt) {
+        const now = Date.now();
+        const diffSec = (now - lastAt.toDate().getTime()) / 1000;
+        if (diffSec < policy.cooldownSec) {
+          await admin.firestore().collection("ops_audit_events").doc().set({
+             gateKey: params.gateKey,
+             action: "ops_alert.suppressed",
+             status: "success",
+             actorUid: "system",
+             requestId: params.requestId || "unknown",
+             summary: `Alert suppressed (cooldown): ${params.summary}`,
+             target: { alertType: params.alertType, reason: "cooldown", cooldownSec: policy.cooldownSec, lastAlertAt: lastAt.toDate().toISOString() },
+             createdAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          return { sent: false, success: true, resolvedFrom, reason: "cooldown" };
+        }
+      }
+    }
   }
 
   if (!webhookUrl) {
@@ -88,8 +160,11 @@ export async function notifyOpsAlert(params: OpsAlertParams) {
     });
   }
 
+  let sentOk = false;
+  let reason = "";
+
   try {
-    const res = await fetch(webhookUrl, {
+    const res = await globalThis.fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: `${severityIcon} ${params.summary}`, blocks })
@@ -97,12 +172,31 @@ export async function notifyOpsAlert(params: OpsAlertParams) {
     
     if (!res.ok) {
        console.error(`[OpsAlert] Webhook 전송 실패 (${res.status}):`, await res.text());
-       return { sent: false, success: false, resolvedFrom, webhookHost, reason: `HTTP ${res.status}` };
+       reason = `HTTP ${res.status}`;
+    } else {
+       sentOk = true;
     }
-    
-    return { sent: true, success: true, resolvedFrom, webhookHost };
   } catch (err: any) {
     console.error("[OpsAlert] Webhook 전송 실패:", err);
-    return { sent: false, success: false, resolvedFrom, webhookHost, reason: err.message };
+    reason = err.message;
   }
+
+  await admin.firestore().collection("ops_audit_events").doc().set({
+    gateKey: params.gateKey,
+    action: params.force ? "ops_alert.force_send" : "ops_alert.notify",
+    status: sentOk ? "success" : "fail",
+    actorUid: "system",
+    requestId: params.requestId || "unknown",
+    summary: sentOk ? `Alert sent: ${params.summary}` : `Alert failed: ${params.summary}`,
+    target: { alertType: params.alertType, reason: sentOk ? undefined : reason },
+    createdAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  if (sentOk && params.alertType && settingsDocExists && !params.force) {
+    await docRef.update({
+      [`lastAlertAt.${params.alertType}`]: admin.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  return { sent: sentOk, success: sentOk, resolvedFrom, webhookHost, reason: sentOk ? undefined : reason };
 }

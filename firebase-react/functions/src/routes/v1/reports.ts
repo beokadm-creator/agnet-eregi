@@ -45,6 +45,112 @@ function tableFromRows(rows: string[][]) {
 }
 
 export function registerReportRoutes(app: express.Express, adminApp: typeof admin) {
+  app.get("/v1/ops/gates/:gateKey/alert-policy", async (req, res) => {
+    const auth = await requireAuth(adminApp, req, res);
+    if (!auth) return;
+    const gateKey = String(req.params.gateKey);
+    const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", gateKey);
+    if (!hasRole) return;
+
+    const db = adminApp.firestore();
+    const docSnap = await db.collection("ops_gate_settings").doc(gateKey).get();
+    
+    let policy = {
+      enabled: true,
+      cooldownSec: 900,
+      rules: { circuitBreakerOpen: true, deadJobs: true, failRateThreshold: 0.05, deniedThreshold: 10 },
+      channels: { useGateWebhook: true }
+    };
+    
+    let lastAlertAt: Record<string, string> = {};
+
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      if (data && data.alertPolicy) {
+        policy = { ...policy, ...data.alertPolicy, rules: { ...policy.rules, ...(data.alertPolicy.rules || {}) }, channels: { ...policy.channels, ...(data.alertPolicy.channels || {}) } };
+      }
+      if (data && data.lastAlertAt) {
+        for (const [k, v] of Object.entries<any>(data.lastAlertAt)) {
+          if (v && v.toDate) {
+            lastAlertAt[k] = v.toDate().toISOString();
+          }
+        }
+      }
+    }
+
+    return ok(res, { policy, lastAlertAt });
+  });
+
+  app.put("/v1/ops/gates/:gateKey/alert-policy", async (req, res) => {
+    const auth = await requireAuth(adminApp, req, res);
+    if (!auth) return;
+    const gateKey = String(req.params.gateKey);
+    const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", gateKey);
+    if (!hasRole) return;
+
+    const body = req.body;
+    const db = adminApp.firestore();
+    const docRef = db.collection("ops_gate_settings").doc(gateKey);
+    
+    await db.runTransaction(async (t) => {
+      const docSnap = await t.get(docRef);
+      if (!docSnap.exists) {
+        t.set(docRef, {
+          gateKey,
+          enabled: true,
+          slackWebhookUrl: null,
+          updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+          updatedBy: auth.uid,
+          alertPolicy: body
+        });
+      } else {
+        t.update(docRef, {
+          alertPolicy: body,
+          updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+          updatedBy: auth.uid
+        });
+      }
+    });
+
+    await logOpsEvent(adminApp, {
+      gateKey,
+      action: "ops_alert_policy.update",
+      status: "success",
+      actorUid: auth.uid,
+      requestId: String((req as any).requestId || "unknown"),
+      summary: `${gateKey} 알림 정책이 수정되었습니다.`,
+      target: { updatedPolicy: body }
+    });
+
+    return ok(res, { updated: true });
+  });
+
+  app.post("/v1/ops/gates/:gateKey/alerts/force", async (req, res) => {
+    const auth = await requireAuth(adminApp, req, res);
+    if (!auth) return;
+    const gateKey = String(req.params.gateKey);
+    const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", gateKey);
+    if (!hasRole) return;
+
+    const { alertType, message } = req.body;
+    if (!message) return fail(res, 400, "INVALID_ARGUMENT", "message is required");
+
+    const result = await notifyOpsAlert({
+      gateKey,
+      action: "manual_override",
+      alertType: alertType || "manual",
+      summary: message,
+      severity: "warning",
+      force: true
+    });
+
+    if (result.success) {
+      return ok(res, { sent: true });
+    } else {
+      return fail(res, 500, "INTERNAL", `전송 실패: ${result.reason}`);
+    }
+  });
+
 
   app.get("/v1/ops/health/summary", async (req, res) => {
     const auth = await requireAuth(adminApp, req, res);
