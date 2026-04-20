@@ -10,7 +10,7 @@ function App() {
   
   const [newCaseTitle, setNewCaseTitle] = useState("");
   const [newEvidenceType, setNewEvidenceType] = useState("");
-  const [newEvidenceUrl, setNewEvidenceUrl] = useState("");
+  const [newEvidenceFile, setNewEvidenceFile] = useState<File | null>(null);
   
   const [evidences, setEvidences] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
@@ -100,19 +100,53 @@ function App() {
   }
 
   async function addEvidence() {
-    if (!selectedCase || !newEvidenceType || !newEvidenceUrl) return;
+    if (!selectedCase || !newEvidenceType || !newEvidenceFile) return;
     setBusy(true);
-    setLog("증거 추가 중...");
+    setLog("증거 파일 업로드 중...");
     try {
-      await apiPost(`/v1/partner/cases/${selectedCase.id}/evidences`, {
+      // 1. 업로드 URL 발급
+      const { uploadUrl, evidenceId } = await apiPost(`/v1/partner/cases/${selectedCase.id}/evidences/upload-url`, {
         type: newEvidenceType,
-        fileUrl: newEvidenceUrl
+        filename: newEvidenceFile.name,
+        contentType: newEvidenceFile.type,
+        sizeBytes: newEvidenceFile.size
       });
-      setLog("증거 추가 완료");
+      setLog("업로드 URL 발급됨. 파일 전송 시작...");
+
+      // 2. 파일 업로드 (PUT)
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": newEvidenceFile.type
+        },
+        body: newEvidenceFile
+      });
+      if (!putRes.ok) throw new Error("Storage 업로드에 실패했습니다.");
+
+      // 3. 업로드 완료 확정
+      setLog("파일 전송 완료. 확정 처리 중...");
+      await apiPost(`/v1/partner/cases/${selectedCase.id}/evidences/${evidenceId}/complete`, {});
+      
+      setLog("증거 파일 업로드 및 확정 완료");
       setNewEvidenceType("");
-      setNewEvidenceUrl("");
+      setNewEvidenceFile(null);
       await loadCaseDetail(selectedCase.id);
-      await loadCases(); // 상태가 draft -> collecting으로 바뀔 수 있으므로 리스트 갱신
+      await loadCases();
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function downloadEvidence(evidenceId: string) {
+    if (!selectedCase) return;
+    setBusy(true);
+    setLog("다운로드 URL 발급 중...");
+    try {
+      const res = await apiPost(`/v1/partner/cases/${selectedCase.id}/evidences/${evidenceId}/download-url`, {});
+      window.open(res.downloadUrl, "_blank");
+      setLog("다운로드 창 열림");
     } catch (e: any) {
       setLog(`[Error] ${e.message}`);
     } finally {
@@ -268,12 +302,12 @@ function App() {
                     <option value="business_license">사업자 등록증</option>
                   </select>
                   <input 
-                    value={newEvidenceUrl} 
-                    onChange={e => setNewEvidenceUrl(e.target.value)} 
-                    placeholder="파일 URL (https://...)" 
+                    type="file"
+                    accept=".pdf,image/png,image/jpeg,image/jpg"
+                    onChange={e => setNewEvidenceFile(e.target.files?.[0] || null)} 
                     style={{ flex: 1, padding: 6 }} 
                   />
-                  <button onClick={addEvidence} disabled={busy || !newEvidenceType || !newEvidenceUrl} style={{ padding: "6px 12px", background: "#0277bd", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>추가</button>
+                  <button onClick={addEvidence} disabled={busy || !newEvidenceType || !newEvidenceFile} style={{ padding: "6px 12px", background: "#0277bd", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>업로드</button>
                 </div>
 
                 {evidences.length === 0 ? (
@@ -292,8 +326,25 @@ function App() {
                       {evidences.map(e => (
                         <tr key={e.id}>
                           <td style={{ padding: 8, borderBottom: "1px solid #eee", fontWeight: "bold" }}>{e.type}</td>
-                          <td style={{ padding: 8, borderBottom: "1px solid #eee" }}><a href={e.fileUrl} target="_blank" rel="noreferrer" style={{ color: "#0288d1" }}>보기</a></td>
-                          <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>{e.status}</td>
+                          <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>
+                            {e.status === "pending" ? (
+                              <span style={{ color: "#999" }}>업로드 중...</span>
+                            ) : (
+                              <button onClick={() => downloadEvidence(e.id)} style={{ background: "transparent", border: "none", color: "#0288d1", textDecoration: "underline", cursor: "pointer", padding: 0 }}>
+                                {e.filename || "다운로드"}
+                              </button>
+                            )}
+                          </td>
+                          <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>
+                            <span style={{ 
+                              background: e.status === "validated" ? "#e8f5e9" : e.status === "failed" ? "#ffebee" : "#fff3e0",
+                              color: e.status === "validated" ? "#2e7d32" : e.status === "failed" ? "#c62828" : "#ef6c00",
+                              padding: "2px 6px", borderRadius: 4, fontSize: "0.85em", fontWeight: "bold"
+                            }}>
+                              {e.status.toUpperCase()}
+                            </span>
+                            {e.scanStatus && <span style={{ marginLeft: 4, fontSize: "0.8em", color: "#666" }}>({e.scanStatus})</span>}
+                          </td>
                           <td style={{ padding: 8, borderBottom: "1px solid #eee", color: "#666" }}>{new Date(e.createdAt).toLocaleString()}</td>
                         </tr>
                       ))}

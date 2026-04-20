@@ -294,4 +294,58 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
     }
   });
 
+  // 8) POST /v1/user/submissions/:id/evidences/:evidenceId/download-url
+  app.post("/v1/user/submissions/:id/evidences/:evidenceId/download-url", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const userId = auth.uid;
+      const subId = String(req.params.id);
+      const eId = String(req.params.evidenceId);
+      const db = adminApp.firestore();
+
+      const subSnap = await db.collection("user_submissions").doc(subId).get();
+      if (!subSnap.exists || subSnap.data()?.userId !== userId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 제출 내역입니다.");
+      }
+
+      const subData = subSnap.data() as UserSubmission;
+      if (!subData.caseId) {
+        return fail(res, 404, "NOT_FOUND", "파트너 케이스와 연결되지 않았습니다.");
+      }
+
+      const evidenceRef = db.collection("evidences").doc(eId);
+      const evSnap = await evidenceRef.get();
+
+      if (!evSnap.exists || evSnap.data()?.caseId !== subData.caseId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 증거물입니다.");
+      }
+
+      const evData = evSnap.data();
+      if (!evData?.storagePath) {
+        return fail(res, 404, "NOT_FOUND", "스토리지 경로가 없습니다.");
+      }
+
+      const bucket = adminApp.storage().bucket();
+      const file = bucket.file(evData.storagePath);
+      const [exists] = await file.exists();
+      
+      if (!exists) {
+        return fail(res, 404, "NOT_FOUND", "파일이 삭제되었거나 존재하지 않습니다.");
+      }
+
+      const [downloadUrl] = await file.getSignedUrl({
+        version: "v4",
+        action: "read",
+        expires: Date.now() + 15 * 60 * 1000 // 15분
+      });
+
+      return ok(res, { downloadUrl });
+    } catch (err: any) {
+      logError({ endpoint: "user/submissions/evidence-download-url", code: "INTERNAL", messageKo: "다운로드 URL 발급 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
 }

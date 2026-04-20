@@ -90,8 +90,8 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
     }
   });
 
-  // 4) POST /v1/partner/cases/:caseId/evidences
-  app.post("/v1/partner/cases/:caseId/evidences", async (req: express.Request, res: express.Response) => {
+  // 4) POST /v1/partner/cases/:caseId/evidences/upload-url
+  app.post("/v1/partner/cases/:caseId/evidences/upload-url", async (req: express.Request, res: express.Response) => {
     try {
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
@@ -100,11 +100,24 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
       if (!partnerId) return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.");
 
       const caseId = String(req.params.caseId);
-      const { type, fileUrl } = req.body;
+      const { filename, contentType, sizeBytes, type } = req.body;
 
-      if (!type || !fileUrl) {
-        return fail(res, 400, "INVALID_ARGUMENT", "type과 fileUrl이 필요합니다.");
+      if (!filename || !contentType || !sizeBytes || !type) {
+        return fail(res, 400, "INVALID_ARGUMENT", "filename, contentType, sizeBytes, type이 필요합니다.");
       }
+
+      // 검증
+      if (sizeBytes > 25 * 1024 * 1024) {
+        return fail(res, 400, "INVALID_ARGUMENT", "파일 크기는 25MB 이하여야 합니다.");
+      }
+      
+      const allowedMimeTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
+      if (!allowedMimeTypes.includes(contentType)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "허용되지 않는 파일 형식입니다. (pdf, png, jpg 허용)");
+      }
+
+      // filename sanitize (간단한 영문/숫자/확장자만 남기기)
+      const safeFilename = filename.replace(/[^a-zA-Z0-9_.-]/g, "_");
 
       const db = adminApp.firestore();
       const caseSnap = await db.collection("cases").doc(caseId).get();
@@ -113,12 +126,18 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
       }
 
       const evidenceRef = db.collection("evidences").doc();
+      const storagePath = `evidence/${partnerId}/${caseId}/${evidenceRef.id}/${safeFilename}`;
+
       const newEvidence: CaseEvidence = {
         caseId,
         partnerId,
         type,
-        fileUrl,
-        status: "uploaded",
+        fileUrl: safeFilename, // 아직 업로드 안 됨
+        storagePath,
+        status: "pending",
+        filename: safeFilename,
+        contentType,
+        sizeBytes,
         createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
       };
 
@@ -132,9 +151,126 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
         });
       }
 
-      return ok(res, { evidence: { id: evidenceRef.id, ...newEvidence } });
+      // 서명된 URL 발급 (MVP 모사: 실제로는 Cloud Storage Signed URL 발급 필요)
+      // Node.js 환경에서는 storage().bucket().file(path).getSignedUrl({ action: 'write', expires: ... }) 활용
+      const bucket = adminApp.storage().bucket();
+      const file = bucket.file(storagePath);
+      
+      const [uploadUrl] = await file.getSignedUrl({
+        version: "v4",
+        action: "write",
+        expires: Date.now() + 15 * 60 * 1000, // 15분
+        contentType
+      });
+
+      return ok(res, { 
+        uploadUrl, 
+        evidenceId: evidenceRef.id, 
+        storagePath 
+      });
     } catch (err: any) {
-      logError({ endpoint: "partner/evidences/create", code: "INTERNAL", messageKo: "증거 업로드 실패", err });
+      logError({ endpoint: "partner/evidences/upload-url", code: "INTERNAL", messageKo: "업로드 URL 발급 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 4-1) POST /v1/partner/cases/:caseId/evidences/:evidenceId/complete
+  app.post("/v1/partner/cases/:caseId/evidences/:evidenceId/complete", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      
+      const partnerId = partnerIdOf(auth);
+      if (!partnerId) return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.");
+
+      const { caseId, evidenceId } = req.params;
+      const cId = String(caseId);
+      const eId = String(evidenceId);
+
+      const db = adminApp.firestore();
+      const evidenceRef = db.collection("evidences").doc(eId);
+      const snap = await evidenceRef.get();
+
+      if (!snap.exists || snap.data()?.partnerId !== partnerId || snap.data()?.caseId !== cId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 증거물입니다.");
+      }
+
+      const evData = snap.data() as CaseEvidence;
+
+      // 파일 메타데이터 확인
+      const bucket = adminApp.storage().bucket();
+      if (!evData.storagePath) {
+        return fail(res, 400, "FAILED_PRECONDITION", "Storage 경로가 지정되지 않았습니다.");
+      }
+
+      const file = bucket.file(evData.storagePath);
+      const [exists] = await file.exists();
+      
+      if (!exists) {
+        // 업로드 실패/누락 처리
+        await evidenceRef.update({
+          status: "failed",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        return fail(res, 404, "NOT_FOUND", "스토리지에 파일이 업로드되지 않았습니다.");
+      }
+
+      // 업로드 성공 확정
+      await evidenceRef.update({
+        status: "uploaded",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return ok(res, { message: "업로드 완료 확정됨", status: "uploaded" });
+    } catch (err: any) {
+      logError({ endpoint: "partner/evidences/complete", code: "INTERNAL", messageKo: "업로드 완료 처리 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 4-2) POST /v1/partner/cases/:caseId/evidences/:evidenceId/download-url
+  app.post("/v1/partner/cases/:caseId/evidences/:evidenceId/download-url", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      
+      const partnerId = partnerIdOf(auth);
+      if (!partnerId) return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.");
+
+      const { caseId, evidenceId } = req.params;
+      const cId = String(caseId);
+      const eId = String(evidenceId);
+
+      const db = adminApp.firestore();
+      const evidenceRef = db.collection("evidences").doc(eId);
+      const snap = await evidenceRef.get();
+
+      if (!snap.exists || snap.data()?.partnerId !== partnerId || snap.data()?.caseId !== cId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 증거물입니다.");
+      }
+
+      const evData = snap.data() as CaseEvidence;
+      if (!evData.storagePath) {
+        return fail(res, 404, "NOT_FOUND", "스토리지 경로가 없습니다.");
+      }
+
+      const bucket = adminApp.storage().bucket();
+      const file = bucket.file(evData.storagePath);
+      const [exists] = await file.exists();
+      
+      if (!exists) {
+        return fail(res, 404, "NOT_FOUND", "파일이 삭제되었거나 존재하지 않습니다.");
+      }
+
+      const [downloadUrl] = await file.getSignedUrl({
+        version: "v4",
+        action: "read",
+        expires: Date.now() + 15 * 60 * 1000 // 15분
+      });
+
+      return ok(res, { downloadUrl });
+    } catch (err: any) {
+      logError({ endpoint: "partner/evidences/download-url", code: "INTERNAL", messageKo: "다운로드 URL 발급 실패", err });
       return fail(res, 500, "INTERNAL", err.message);
     }
   });
@@ -183,6 +319,17 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
       
       if (!caseSnap.exists || caseSnap.data()?.partnerId !== partnerId) {
         return fail(res, 404, "NOT_FOUND", "접근할 수 없는 케이스입니다.");
+      }
+
+      // Check if there's at least one validated evidence
+      const evSnap = await db.collection("evidences")
+        .where("caseId", "==", caseId)
+        .where("status", "==", "validated")
+        .limit(1)
+        .get();
+
+      if (evSnap.empty) {
+        return fail(res, 400, "FAILED_PRECONDITION", "패키지를 생성하려면 최소 1개 이상의 검증된(validated) 증거물이 필요합니다.");
       }
 
       const pkgRef = db.collection("packages").doc();

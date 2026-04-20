@@ -12,16 +12,22 @@ export interface PartnerCase {
   updatedAt: admin.firestore.Timestamp;
 }
 
-export type EvidenceStatus = "uploaded" | "validated" | "failed";
+export type EvidenceStatus = "pending" | "uploaded" | "validated" | "failed";
 
 export interface CaseEvidence {
   id?: string;
   caseId: string;
   partnerId: string; // for security scope
   type: string;
-  fileUrl: string;
+  fileUrl: string;      // 실제 파일 접근 URL(임시 또는 캐싱용, 또는 파일명)
+  storagePath?: string; // 스토리지 내부 경로 (예: evidence/{partnerId}/{caseId}/{evidenceId}/{filename})
   status: EvidenceStatus;
+  filename?: string;
+  contentType?: string;
+  sizeBytes?: number;
+  scanStatus?: "clean" | "infected" | "unknown";
   createdAt: admin.firestore.Timestamp;
+  updatedAt?: admin.firestore.Timestamp;
 }
 
 export type PackageStatus = "queued" | "building" | "ready" | "failed";

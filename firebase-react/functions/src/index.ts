@@ -43,6 +43,7 @@ import { processBreakglassExpiry } from "./lib/ops_access_worker";
 import { processFirestoreBackup } from "./lib/ops_backup_worker";
 import { processPackageBuilds } from "./lib/partner_package_worker";
 import { processUserSubmissions } from "./lib/user_submission_worker";
+import { processEvidenceValidation } from "./lib/partner_evidence_worker";
 
 admin.initializeApp();
 
@@ -207,6 +208,17 @@ export const partnerPackageWorker = functions
       await processPackageBuilds(admin);
     } catch (e) {
       console.error("[PartnerPackageWorker] Fatal error:", e);
+    }
+  });
+
+export const partnerEvidenceWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 1 minutes")
+  .onRun(async () => {
+    try {
+      await processEvidenceValidation(admin);
+    } catch (e) {
+      console.error("[PartnerEvidenceWorker] Fatal error:", e);
     }
   });
 

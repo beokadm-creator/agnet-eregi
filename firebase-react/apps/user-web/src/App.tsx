@@ -309,6 +309,19 @@ function App() {
                 </div>
               )}
 
+              {/* 증거 파일 목록 (연동된 Case 기준) */}
+              {selectedSub.caseId && (
+                <div style={{ marginBottom: 24, padding: 12, background: "#f5f5f5", borderRadius: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <h3 style={{ margin: 0, fontSize: "1em", color: "#333" }}>📁 증거 파일 (Evidences)</h3>
+                  </div>
+                  {/* 향후 증거 목록 조회/다운로드 API 연동 필요 시 여기에 구현 */}
+                  <div style={{ fontSize: "0.85em", color: "#666" }}>
+                    파트너 시스템에 연동된 증거 파일 목록은 별도 API를 통해 제공될 수 있습니다.
+                  </div>
+                </div>
+              )}
+
               {/* 진행 이벤트 타임라인 */}
               <div>
                 <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", borderBottom: "1px solid #eee", paddingBottom: 8 }}>⏱️ 진행 타임라인</h3>
