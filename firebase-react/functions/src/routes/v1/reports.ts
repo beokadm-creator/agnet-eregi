@@ -1483,6 +1483,81 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
+  // GET /v1/ops/gates/:gateKey/settings/history
+  app.get("/v1/ops/gates/:gateKey/settings/history", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const gateKey = String(req.params.gateKey);
+      if (!gateKey) return fail(res, 400, "INVALID_ARGUMENT", "gateKey is required");
+
+      let limitNum = Number(req.query.limit) || 50;
+      if (limitNum > 200) limitNum = 200;
+      
+      const { actorUid, from, to, cursor } = req.query;
+
+      let query = adminApp.firestore().collection("ops_audit_events")
+        .where("gateKey", "==", gateKey)
+        .where("action", "in", ["ops_gate_settings.update", "ops_gate_settings.rollback"]);
+
+      if (actorUid) query = query.where("actorUid", "==", String(actorUid));
+
+      let startDate: Date;
+      let endDate: Date;
+
+      if (from && to) {
+        startDate = new Date(String(from));
+        endDate = new Date(String(to));
+      } else {
+        endDate = new Date();
+        startDate = new Date();
+        startDate.setDate(endDate.getDate() - 30);
+      }
+
+      query = query.where("createdAt", ">=", adminApp.firestore.Timestamp.fromDate(startDate))
+                   .where("createdAt", "<=", adminApp.firestore.Timestamp.fromDate(endDate));
+
+      query = query.orderBy("createdAt", "desc").orderBy(adminApp.firestore.FieldPath.documentId(), "desc");
+
+      if (cursor) {
+        try {
+          const [createdAtMillis, docId] = JSON.parse(String(cursor));
+          query = query.startAfter(adminApp.firestore.Timestamp.fromMillis(createdAtMillis), docId);
+        } catch (e) {
+          return fail(res, 400, "INVALID_ARGUMENT", "잘못된 cursor 포맷입니다.");
+        }
+      }
+
+      query = query.limit(limitNum);
+
+      const snap = await query.get();
+      const items = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: fmtTs(data.createdAt)
+        };
+      });
+
+      let nextCursor = null;
+      if (snap.docs.length === limitNum) {
+        const lastDoc = snap.docs[snap.docs.length - 1];
+        const lastData = lastDoc.data();
+        if (lastData.createdAt) {
+          nextCursor = JSON.stringify([lastData.createdAt.toMillis(), lastDoc.id]);
+        }
+      }
+
+      return res.status(200).json({ ok: true, data: { items, nextCursor } });
+    } catch (err: any) {
+      logError({ endpoint: "gate-settings-history", code: "INTERNAL", messageKo: "Gate 설정 이력 조회 실패", err });
+      return fail(res, 500, "INTERNAL", "Gate 설정 이력 조회 실패: " + err.message);
+    }
+  });
+
   // PUT /v1/ops/gates/:gateKey/settings
   app.put("/v1/ops/gates/:gateKey/settings", async (req: express.Request, res: express.Response) => {
     try {
@@ -1493,7 +1568,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const gateKey = String(req.params.gateKey);
       if (!gateKey) return fail(res, 400, "INVALID_ARGUMENT", "gateKey is required");
 
-      let { enabled, slackWebhookUrl, notes } = req.body;
+      let { enabled, slackWebhookUrl, notes, isRollback } = req.body;
       
       if (typeof enabled !== "boolean") enabled = true;
       if (slackWebhookUrl === "") slackWebhookUrl = null;
@@ -1528,16 +1603,17 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
 
       await logOpsEvent(adminApp, {
         gateKey,
-        action: "ops_gate_settings.update",
+        action: isRollback ? "ops_gate_settings.rollback" : "ops_gate_settings.update",
         status: "success",
         actorUid: auth.uid,
         requestId: req.headers["x-request-id"] as string || "N/A",
-        summary: `Gate settings updated`,
+        summary: isRollback ? `Gate settings rolled back` : `Gate settings updated`,
         target: {
           gateKey,
           changed: {
             enabled: [oldData?.enabled ?? true, enabled],
-            slackWebhookUrlHost: [oldHost, newHost]
+            slackWebhookUrlHost: [oldHost, newHost],
+            notes: [oldData?.notes || null, notes || null]
           }
         }
       });
