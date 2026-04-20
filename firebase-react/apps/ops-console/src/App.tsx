@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { auth } from "@rp/firebase";
 import { signInAnonymously } from "firebase/auth";
 import "./App.css";
@@ -9,6 +9,13 @@ function App() {
   const [log, setLog] = useState<string>("");
   const [errorBox, setErrorBox] = useState<{message: string, reqId?: string} | null>(null);
   const [opsRole, setOpsRole] = useState<"ops_viewer" | "ops_operator" | "ops_admin" | null>(null);
+  const confirmResolveRef = useRef<((ok: boolean) => void) | null>(null);
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+  } | null>(null);
   const [items, setItems] = useState<any[]>([]);
   const [gate, setGate] = useState<string>("refund_approve");
   const [status, setStatus] = useState<string>("pending");
@@ -83,6 +90,20 @@ function App() {
 
   function roleReason(required: "ops_viewer" | "ops_operator" | "ops_admin") {
     return `${required}만 가능`;
+  }
+
+  function openConfirm(opts: { title: string; message: string; confirmLabel?: string; cancelLabel?: string }) {
+    return new Promise<boolean>((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmState(opts);
+    });
+  }
+
+  function closeConfirm(ok: boolean) {
+    const resolve = confirmResolveRef.current;
+    confirmResolveRef.current = null;
+    setConfirmState(null);
+    resolve?.(ok);
   }
 
   function handleError(e: any, defaultReqId?: string) {
@@ -250,6 +271,13 @@ function App() {
       setLog(roleReason("ops_admin"));
       return;
     }
+    const ok = await openConfirm({
+      title: `Circuit Breaker Reset (${gateKey})`,
+      message: `대상: gateKey=${gateKey}\n즉시 반영됩니다.\n되돌리기 주의: Reset은 운영 차단 상태를 즉시 해제할 수 있습니다.`,
+      confirmLabel: "Reset",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
     setBusy(true);
     clearError();
     try {
@@ -310,7 +338,14 @@ function App() {
       setLog(roleReason("ops_admin"));
       return;
     }
-    if (!window.confirm("이 시점의 설정으로 롤백하시겠습니까? (Webhook URL은 변경되지 않습니다)")) return;
+    const at = historyItem?.createdAt ? new Date(historyItem.createdAt).toLocaleString() : "-";
+    const ok = await openConfirm({
+      title: `Gate Settings Rollback (${gateKey})`,
+      message: `대상: gateKey=${gateKey}\n롤백 기준 시점: ${at}\n즉시 반영됩니다.\n되돌리기 주의: 롤백도 설정 변경이므로 오조작 시 영향이 큽니다.`,
+      confirmLabel: "Rollback",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
     setBusy(true);
     clearError();
     try {
@@ -334,6 +369,8 @@ function App() {
       setBusy(false);
     }
   }
+
+  async function loadGateSettings() {
     setBusy(true);
     clearError();
     try {
@@ -354,6 +391,13 @@ function App() {
       setLog(roleReason("ops_admin"));
       return;
     }
+    const ok = await openConfirm({
+      title: `Gate Settings Save (${gateKey})`,
+      message: `대상: gateKey=${gateKey}\n즉시 반영됩니다.\n되돌리기 주의: 잘못 저장하면 알림 발송/차단 동작이 즉시 바뀔 수 있습니다.`,
+      confirmLabel: "Save",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
     setBusy(true);
     clearError();
     try {
@@ -375,6 +419,13 @@ function App() {
       setLog(roleReason("ops_admin"));
       return;
     }
+    const ok = await openConfirm({
+      title: `Dead-letter Issue 생성 (${jobId})`,
+      message: `대상: jobId=${jobId}\n즉시 반영됩니다.\n되돌리기 주의: 생성된 이슈는 자동으로 삭제되지 않습니다.`,
+      confirmLabel: "생성",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
     setBusy(true);
     clearError();
     try {
@@ -2076,6 +2127,26 @@ next=재검증 재시도/파트너 문의/수동 확인`;
           </table>
         )}
       </div>
+
+      {confirmState && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
+          <div style={{ background: "white", padding: 20, borderRadius: 8, width: "90%", maxWidth: 560 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>{confirmState.title}</h3>
+              <button onClick={() => closeConfirm(false)} style={{ background: "none", border: "none", fontSize: "1.5em", cursor: "pointer" }}>&times;</button>
+            </div>
+            <pre style={{ margin: 0, padding: 12, background: "#f5f5f5", border: "1px solid #ddd", borderRadius: 6, whiteSpace: "pre-wrap", wordWrap: "break-word" }}>{confirmState.message}</pre>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+              <button disabled={busy} onClick={() => closeConfirm(false)} style={{ background: "#eee", border: "1px solid #ccc", padding: "8px 12px", borderRadius: 4, cursor: "pointer" }}>
+                {confirmState.cancelLabel || "취소"}
+              </button>
+              <button disabled={busy} onClick={() => closeConfirm(true)} style={{ background: "#d32f2f", color: "white", border: "none", padding: "8px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                {confirmState.confirmLabel || "확인"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 감사 로그 상세 모달 */}
       {showGateSettingsHistory && (
