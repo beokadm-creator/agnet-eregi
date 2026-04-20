@@ -8,6 +8,21 @@ export interface OpsIncidentSampleEvent {
   refId?: string;
 }
 
+export interface OpsIncidentTriage {
+  type: "cb_open" | "dead_jobs" | "alert_delivery" | "auth_denied" | "unknown";
+  confidence: number;
+  reasons: string[];
+  suggestedActions: string[];
+}
+
+export interface OpsIncidentActionTaken {
+  at: admin.firestore.Timestamp;
+  actionKey: string;
+  actorUid: string;
+  result: "success" | "fail";
+  ref?: string;
+}
+
 export interface OpsIncident {
   gateKey: string;
   status: "open" | "closed";
@@ -24,6 +39,55 @@ export interface OpsIncident {
     authDenied: number;
   };
   sampleEvents: OpsIncidentSampleEvent[];
+  triage?: OpsIncidentTriage;
+  actionsTaken?: OpsIncidentActionTaken[];
+}
+
+export function calculateTriage(incident: OpsIncident): OpsIncidentTriage {
+  const { counters, reasons } = incident;
+
+  if (counters.cbOpen > 0 || reasons.includes("cb_open")) {
+    return {
+      type: "cb_open",
+      confidence: 0.9,
+      reasons: ["Circuit Breaker Open 이벤트 발생"],
+      suggestedActions: ["cb_reset"]
+    };
+  }
+
+  if (counters.deadJobs > 0 || reasons.includes("dead_jobs")) {
+    return {
+      type: "dead_jobs",
+      confidence: 0.85,
+      reasons: ["재시도 큐에서 Dead 상태 잡 발생"],
+      suggestedActions: ["deadletter_issue"]
+    };
+  }
+
+  if (counters.alertDead > 0 || reasons.includes("alert_dead")) {
+    return {
+      type: "alert_delivery",
+      confidence: 0.8,
+      reasons: ["Alert 발송 연속 실패 (Dead)"],
+      suggestedActions: ["alert_force_send"]
+    };
+  }
+
+  if (counters.authDenied >= 20 || reasons.includes("auth_denied_spike")) {
+    return {
+      type: "auth_denied",
+      confidence: 0.8,
+      reasons: ["인증/인가 거부 스파이크 감지"],
+      suggestedActions: []
+    };
+  }
+
+  return {
+    type: "unknown",
+    confidence: 0.3,
+    reasons: ["명확한 패턴을 찾을 수 없음"],
+    suggestedActions: []
+  };
 }
 
 export async function processIncidentEvents(
@@ -75,6 +139,7 @@ export async function processIncidentEvents(
         authDenied: 0,
       },
       sampleEvents: [],
+      actionsTaken: [],
     };
   } else {
     incidentDoc = openIncidentSnap.docs[0].ref;
@@ -106,6 +171,7 @@ export async function processIncidentEvents(
           authDenied: 0,
         },
         sampleEvents: [],
+        actionsTaken: [],
       };
     }
 
@@ -160,6 +226,9 @@ export async function processIncidentEvents(
       }
     }
   }
+
+  // Calculate Triage
+  incidentData.triage = calculateTriage(incidentData);
 
   await incidentDoc.set(incidentData);
 }

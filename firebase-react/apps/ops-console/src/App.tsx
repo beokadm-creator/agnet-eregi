@@ -89,6 +89,54 @@ function App() {
   const [incidentsFilterGate, setIncidentsFilterGate] = useState<string>("");
   const [incidentsFilterStatus, setIncidentsFilterStatus] = useState<string>("");
   const [incidentSelected, setIncidentSelected] = useState<any | null>(null);
+  const [incidentPlaybook, setIncidentPlaybook] = useState<any | null>(null);
+
+  async function loadIncidentPlaybook(id: string) {
+    try {
+      const res = await apiGet(`/v1/ops/incidents/${id}/playbook`);
+      setIncidentPlaybook(res);
+    } catch (e: any) {
+      console.warn("Playbook load failed:", e);
+    }
+  }
+
+  async function runPlaybookAction(actionKey: string, requiredRole: string) {
+    if (!hasRole(requiredRole as any)) {
+      setLog(roleReason(requiredRole as any));
+      return;
+    }
+
+    const ok = await openConfirm({
+      title: `Run Playbook Action`,
+      message: `대상: Incident ${incidentSelected?.id}\n실행 액션: ${actionKey}\n즉시 반영됩니다. 진행하시겠습니까?`,
+      confirmLabel: "Run Action",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
+
+    let params: any = {};
+    if (actionKey === "alert_force_send") {
+      params.message = window.prompt("강제 발송할 메시지를 입력하세요:", "Incident Playbook - Force Alert");
+      if (!params.message) return;
+    }
+
+    setBusy(true);
+    try {
+      await apiPost(`/v1/ops/incidents/${incidentSelected?.id}/playbook/run`, { actionKey, params });
+      setLog(`[Playbook Action 실행 완료: ${actionKey}]`);
+      
+      // Refresh details
+      const detailRes = await apiGet(`/v1/ops/incidents/${incidentSelected?.id}`);
+      if (detailRes?.incident) {
+        setIncidentSelected(detailRes.incident);
+      }
+      await loadIncidentPlaybook(incidentSelected?.id);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function loadIncidents() {
     setBusy(true);
@@ -2417,7 +2465,7 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                       const durationMs = (incident.endAt ? new Date(incident.endAt).getTime() : Date.now()) - new Date(incident.startAt).getTime();
                       const durationMin = Math.floor(durationMs / 60000);
                       return (
-                        <tr key={incident.id} style={{ background: incident.status === "open" ? "#fff3e0" : "transparent", cursor: "pointer" }} onClick={() => setIncidentSelected(incident)}>
+                        <tr key={incident.id} style={{ background: incident.status === "open" ? "#fff3e0" : "transparent", cursor: "pointer" }} onClick={() => { setIncidentSelected(incident); loadIncidentPlaybook(incident.id); }}>
                           <td style={{ borderBottom: "1px solid #eee", padding: 6, color: "#666" }}>
                             {new Date(incident.startAt).toLocaleString()}
                           </td>
@@ -2838,58 +2886,124 @@ next=재검증 재시도/파트너 문의/수동 확인`;
       {/* Incident 상세 모달 */}
       {incidentSelected && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#fff", padding: 24, borderRadius: 8, width: 700, maxWidth: "90%", maxHeight: "90%", overflowY: "auto", position: "relative" }}>
+          <div style={{ background: "#fff", padding: 24, borderRadius: 8, width: 800, maxWidth: "90%", maxHeight: "90%", overflowY: "auto", position: "relative" }}>
             <button onClick={() => setIncidentSelected(null)} style={{ position: "absolute", top: 12, right: 12, background: "transparent", border: "none", fontSize: "1.5em", cursor: "pointer", color: "#666" }}>×</button>
             <h2 style={{ margin: "0 0 16px 0", color: "#673ab7", fontSize: "1.3em" }}>🚨 Incident 상세</h2>
             
-            <div style={{ marginBottom: 16, display: "flex", flexWrap: "wrap", gap: 16 }}>
-              <div><strong>Gate:</strong> {incidentSelected.gateKey}</div>
-              <div><strong>Status:</strong> <span style={{ fontWeight: "bold", color: incidentSelected.status === "open" ? "#e65100" : "#616161" }}>{incidentSelected.status.toUpperCase()}</span></div>
-              <div><strong>Severity:</strong> <span style={{ fontWeight: "bold", color: incidentSelected.severity === "critical" ? "#c62828" : "#f57c00" }}>{incidentSelected.severity.toUpperCase()}</span></div>
-              <div><strong>Start:</strong> {new Date(incidentSelected.startAt).toLocaleString()}</div>
-              <div><strong>End:</strong> {incidentSelected.endAt ? new Date(incidentSelected.endAt).toLocaleString() : "-"}</div>
-              <div><strong>Last Seen:</strong> {new Date(incidentSelected.lastSeenAt).toLocaleString()}</div>
-            </div>
+            <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
+              {/* 왼쪽: 기본 정보 & Triage */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 16, background: "#f5f5f5", padding: 12, borderRadius: 6 }}>
+                  <div><strong>Gate:</strong> {incidentSelected.gateKey}</div>
+                  <div><strong>Status:</strong> <span style={{ fontWeight: "bold", color: incidentSelected.status === "open" ? "#e65100" : "#616161" }}>{incidentSelected.status.toUpperCase()}</span></div>
+                  <div><strong>Severity:</strong> <span style={{ fontWeight: "bold", color: incidentSelected.severity === "critical" ? "#c62828" : "#f57c00" }}>{incidentSelected.severity.toUpperCase()}</span></div>
+                  <div><strong>Start:</strong> {new Date(incidentSelected.startAt).toLocaleString()}</div>
+                  <div><strong>End:</strong> {incidentSelected.endAt ? new Date(incidentSelected.endAt).toLocaleString() : "-"}</div>
+                </div>
 
-            <div style={{ marginBottom: 16, padding: 12, background: "#f5f5f5", borderRadius: 4 }}>
-              <h4 style={{ margin: "0 0 8px 0", color: "#333" }}>원인 및 지표</h4>
-              <div><strong>Reasons:</strong> {incidentSelected.reasons?.join(", ") || "None"}</div>
-              <div style={{ marginTop: 8 }}>
-                <strong>Counters:</strong>
-                <ul>
-                  <li>Circuit Breaker Open: {incidentSelected.counters?.cbOpen || 0}</li>
-                  <li>Dead Retry Jobs: {incidentSelected.counters?.deadJobs || 0}</li>
-                  <li>Alert Delivery Dead: {incidentSelected.counters?.alertDead || 0}</li>
-                  <li>Audit Event Failures: {incidentSelected.counters?.auditFail || 0}</li>
-                  <li>Auth Denied: {incidentSelected.counters?.authDenied || 0}</li>
-                </ul>
+                <div style={{ padding: 12, background: "#ede7f6", borderRadius: 6, border: "1px solid #d1c4e9" }}>
+                  <h4 style={{ margin: "0 0 8px 0", color: "#4527a0" }}>🤖 Auto Triage</h4>
+                  {incidentPlaybook?.triage ? (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <span style={{ background: "#673ab7", color: "white", padding: "4px 8px", borderRadius: 4, fontWeight: "bold", fontSize: "0.9em" }}>
+                          Type: {incidentPlaybook.triage.type}
+                        </span>
+                        <span style={{ fontSize: "0.85em", color: "#5e35b1" }}>
+                          Confidence: {incidentPlaybook.triage.confidence}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "0.9em", color: "#333", marginBottom: 8 }}>
+                        <strong>근거:</strong> {incidentPlaybook.triage.reasons?.join(", ")}
+                      </div>
+                      <div style={{ fontSize: "0.85em", color: "#555" }}>
+                        Counters: CB({incidentSelected.counters?.cbOpen || 0}) | 
+                        Dead({incidentSelected.counters?.deadJobs || 0}) | 
+                        AlertFail({incidentSelected.counters?.alertDead || 0}) | 
+                        Auth({incidentSelected.counters?.authDenied || 0})
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ color: "#999" }}>Triage 정보를 불러오는 중...</div>
+                  )}
+                </div>
+
+                <div style={{ padding: 12, background: "#fff3e0", borderRadius: 6, border: "1px solid #ffe0b2" }}>
+                  <h4 style={{ margin: "0 0 8px 0", color: "#e65100" }}>🛠 권장 조치 (Playbook)</h4>
+                  {incidentPlaybook?.steps?.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {incidentPlaybook.steps.map((step: any, i: number) => (
+                        <div key={i} style={{ background: "white", padding: 8, borderRadius: 4, border: "1px solid #ffcc80", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <strong style={{ color: "#e65100" }}>{step.label}</strong>
+                            <div style={{ fontSize: "0.85em", color: "#666" }}>{step.desc}</div>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                            <button 
+                              onClick={() => runPlaybookAction(step.actionKey, step.requiredRole)}
+                              disabled={busy || !hasRole(step.requiredRole)}
+                              style={{ background: "#ef6c00", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || !hasRole(step.requiredRole) ? "not-allowed" : "pointer", fontWeight: "bold", opacity: busy || !hasRole(step.requiredRole) ? 0.5 : 1 }}
+                            >
+                              실행
+                            </button>
+                            {!hasRole(step.requiredRole) && (
+                              <span style={{ fontSize: "0.7em", color: "#c62828", marginTop: 4 }}>{roleReason(step.requiredRole as any)}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ color: "#777", fontSize: "0.9em" }}>추천 가능한 자동화 액션이 없습니다.</div>
+                  )}
+                  
+                  {incidentSelected.actionsTaken?.length > 0 && (
+                    <div style={{ marginTop: 12, borderTop: "1px solid #ffe0b2", paddingTop: 8 }}>
+                      <strong style={{ fontSize: "0.9em", color: "#e65100" }}>실행 이력:</strong>
+                      <ul style={{ margin: "4px 0 0 0", paddingLeft: 20, fontSize: "0.85em" }}>
+                        {incidentSelected.actionsTaken.map((act: any, idx: number) => (
+                          <li key={idx}>
+                            [{new Date(act.at).toLocaleString()}] <strong>{act.actionKey}</strong> ({act.result}) - {act.actorUid}
+                            {act.ref && ` [ref: ${act.ref}]`}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <h4 style={{ margin: "0 0 8px 0", color: "#1565c0" }}>Sample Events 타임라인 (최대 20건)</h4>
-            {incidentSelected.sampleEvents?.length > 0 ? (
-              <ul style={{ margin: 0, paddingLeft: 20, fontSize: "0.9em" }}>
-                {incidentSelected.sampleEvents.map((evt: any, i: number) => (
-                  <li key={i} style={{ marginBottom: 4 }}>
-                    <span style={{ color: "#666" }}>[{new Date(evt.at).toLocaleString()}]</span>{" "}
-                    <strong>{evt.action}</strong> ({evt.status}) - {evt.summary}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div style={{ color: "#999" }}>샘플 이벤트가 없습니다.</div>
-            )}
-            
-            <div style={{ marginTop: 24, display: "flex", gap: 12 }}>
-              <button onClick={() => {
-                setAuditFilterGateKey(incidentSelected.gateKey);
-                setAuditFilterFrom(new Date(new Date(incidentSelected.startAt).getTime() - 5*60000).toISOString());
-                setAuditFilterTo(incidentSelected.endAt ? new Date(new Date(incidentSelected.endAt).getTime() + 5*60000).toISOString() : new Date().toISOString());
-                setIncidentSelected(null);
-                loadAuditEvents();
-              }} style={{ background: "#1565c0", color: "white", border: "none", padding: "8px 12px", borderRadius: 4, cursor: "pointer" }}>
-                🔍 연관 Audit 로그 필터링 조회
-              </button>
+              {/* 오른쪽: 타임라인 */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ padding: 12, background: "#e3f2fd", borderRadius: 6, flex: 1 }}>
+                  <h4 style={{ margin: "0 0 8px 0", color: "#1565c0" }}>타임라인 샘플 (최대 20건)</h4>
+                  {incidentSelected.sampleEvents?.length > 0 ? (
+                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: "0.85em", color: "#333", maxHeight: "300px", overflowY: "auto" }}>
+                      {incidentSelected.sampleEvents.map((evt: any, i: number) => (
+                        <li key={i} style={{ marginBottom: 6 }}>
+                          <span style={{ color: "#666" }}>[{new Date(evt.at).toLocaleString()}]</span>{" "}
+                          <strong style={{ color: evt.status === "fail" ? "#c62828" : "#00695c" }}>{evt.action}</strong> ({evt.status})<br/>
+                          <span style={{ color: "#555" }}>{evt.summary}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div style={{ color: "#999" }}>샘플 이벤트가 없습니다.</div>
+                  )}
+                  
+                  <div style={{ marginTop: 16 }}>
+                    <button onClick={() => {
+                      setAuditFilterGateKey(incidentSelected.gateKey);
+                      setAuditFilterFrom(new Date(new Date(incidentSelected.startAt).getTime() - 5*60000).toISOString());
+                      setAuditFilterTo(incidentSelected.endAt ? new Date(new Date(incidentSelected.endAt).getTime() + 5*60000).toISOString() : new Date().toISOString());
+                      setIncidentSelected(null);
+                      loadAuditEvents();
+                    }} style={{ background: "#1565c0", color: "white", border: "none", padding: "8px 12px", borderRadius: 4, cursor: "pointer", width: "100%" }}>
+                      🔍 연관 Audit 로그 전체 필터링 조회
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
