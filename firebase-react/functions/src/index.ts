@@ -29,6 +29,8 @@ import { registerOpsSloRoutes } from "./routes/v1/ops_slo";
 import { registerOpsAccessRoutes } from "./routes/v1/ops_access";
 import { registerOpsBackupRoutes } from "./routes/v1/ops_backup";
 import { registerOpsQueryHealthRoutes } from "./routes/v1/ops_query_health";
+import { registerPartnerCaseRoutes } from "./routes/v1/partner_cases";
+import { registerUserSubmissionRoutes } from "./routes/v1/user_submissions";
 import { processRetryJobs } from "./lib/ops_retry_worker";
 import { processOpsAlertJobs } from "./lib/ops_alert_worker";
 import { processOpsIncidents, generateWeeklyIncidentSummary } from "./lib/ops_incident_worker";
@@ -39,6 +41,8 @@ import { processWeeklyOpsReview } from "./lib/ops_weekly_review_worker";
 import { processSloBurnRateDaily } from "./lib/ops_slo_worker";
 import { processBreakglassExpiry } from "./lib/ops_access_worker";
 import { processFirestoreBackup } from "./lib/ops_backup_worker";
+import { processPackageBuilds } from "./lib/partner_package_worker";
+import { processUserSubmissions } from "./lib/user_submission_worker";
 
 admin.initializeApp();
 
@@ -81,6 +85,8 @@ registerOpsSloRoutes(app, admin);
 registerOpsAccessRoutes(app, admin);
 registerOpsBackupRoutes(app, admin);
 registerOpsQueryHealthRoutes(app, admin);
+registerPartnerCaseRoutes(app, admin);
+registerUserSubmissionRoutes(app, admin);
 
 app.get("/health", async (_req, res) => ok(res, { status: "ok" }));
 app.use((_req, res) => fail(res, 404, "NOT_FOUND", "존재하지 않는 엔드포인트입니다."));
@@ -190,6 +196,28 @@ export const opsAccessWorker = functions
       await processBreakglassExpiry(admin);
     } catch (e) {
       console.error("[OpsAccessWorker] Fatal error:", e);
+    }
+  });
+
+export const partnerPackageWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 1 minutes")
+  .onRun(async () => {
+    try {
+      await processPackageBuilds(admin);
+    } catch (e) {
+      console.error("[PartnerPackageWorker] Fatal error:", e);
+    }
+  });
+
+export const userSubmissionWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 1 minutes")
+  .onRun(async () => {
+    try {
+      await processUserSubmissions(admin);
+    } catch (e) {
+      console.error("[UserSubmissionWorker] Fatal error:", e);
     }
   });
 
