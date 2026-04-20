@@ -38,6 +38,15 @@ function App() {
   const [githubTokenRefActions, setGithubTokenRefActions] = useState<string>("");
   const [recentFails, setRecentFails] = useState<any[]>([]);
   const [auditEvents, setAuditEvents] = useState<any[]>([]);
+  const [auditNextCursor, setAuditNextCursor] = useState<string | null>(null);
+  const [auditFilterGateKey, setAuditFilterGateKey] = useState<string>("");
+  const [auditFilterAction, setAuditFilterAction] = useState<string>("");
+  const [auditFilterStatus, setAuditFilterStatus] = useState<string>("");
+  const [auditFilterActorUid, setAuditFilterActorUid] = useState<string>("");
+  const [auditFilterFrom, setAuditFilterFrom] = useState<string>("");
+  const [auditFilterTo, setAuditFilterTo] = useState<string>("");
+  const [auditSelectedEvent, setAuditSelectedEvent] = useState<any | null>(null);
+
   const [retryJobs, setRetryJobs] = useState<any[]>([]);
   const [cbState, setCbState] = useState<any | null>(null);
   const [testAlertMsg, setTestAlertMsg] = useState<string>("");
@@ -141,12 +150,31 @@ function App() {
     }
   }
 
-  async function loadAuditEvents() {
+  async function loadAuditEvents(resetCursor = true) {
     try {
-      const data = await apiGet(`/v1/ops/reports/${gateKey}/audit/recent?limit=50`);
-      setAuditEvents(data.items || []);
+      let url = `/v1/ops/audit-events?limit=50`;
+      if (auditFilterGateKey) url += `&gateKey=${encodeURIComponent(auditFilterGateKey)}`;
+      if (auditFilterAction) url += `&action=${encodeURIComponent(auditFilterAction)}`;
+      if (auditFilterStatus) url += `&status=${encodeURIComponent(auditFilterStatus)}`;
+      if (auditFilterActorUid) url += `&actorUid=${encodeURIComponent(auditFilterActorUid)}`;
+      if (auditFilterFrom) url += `&from=${encodeURIComponent(auditFilterFrom)}`;
+      if (auditFilterTo) url += `&to=${encodeURIComponent(auditFilterTo)}`;
+      
+      let finalUrl = url;
+      if (!resetCursor && auditNextCursor) {
+        finalUrl += `&cursor=${encodeURIComponent(auditNextCursor)}`;
+      }
+
+      const data = await apiGet(finalUrl);
+      if (resetCursor) {
+        setAuditEvents(data.items || []);
+      } else {
+        setAuditEvents(prev => [...prev, ...(data.items || [])]);
+      }
+      setAuditNextCursor(data.nextCursor || null);
     } catch (e: any) {
       console.warn("Audit events load failed:", e);
+      handleError(e);
     }
   }
 
@@ -1407,24 +1435,59 @@ next=재검증 재시도/파트너 문의/수동 확인`;
             )}
           </div>
           
-          {/* 자동화 실행 로그 영역 */}
+          {/* 통합 감사 로그 (Audit Log) 영역 */}
           <div style={{ flex: "1 1 100%", background: "#fff", padding: 12, border: "1px solid #eee", borderRadius: 6, marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <h3 style={{ margin: 0, fontSize: "1.1em", color: "#4527a0" }}>🧾 자동화 실행 로그 (최근 50건)</h3>
-              <button onClick={() => { setBusy(true); loadAuditEvents().finally(() => setBusy(false)); }} disabled={busy} style={{ background: "#673ab7", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
-                [최근 로그 조회]
-              </button>
+              <h3 style={{ margin: 0, fontSize: "1.1em", color: "#4527a0" }}>🧾 통합 감사 로그 (Audit Log)</h3>
             </div>
+            
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, fontSize: "0.85em" }}>
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                GateKey
+                <input value={auditFilterGateKey} onChange={e => setAuditFilterGateKey(e.target.value)} placeholder="all" style={{ padding: 4, width: 100 }} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                Action
+                <input value={auditFilterAction} onChange={e => setAuditFilterAction(e.target.value)} placeholder="all" style={{ padding: 4, width: 120 }} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                Status
+                <select value={auditFilterStatus} onChange={e => setAuditFilterStatus(e.target.value)} style={{ padding: 4 }}>
+                  <option value="">all</option>
+                  <option value="success">success</option>
+                  <option value="fail">fail</option>
+                </select>
+              </label>
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                Actor UID
+                <input value={auditFilterActorUid} onChange={e => setAuditFilterActorUid(e.target.value)} placeholder="all" style={{ padding: 4, width: 120 }} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                From
+                <input type="date" value={auditFilterFrom} onChange={e => setAuditFilterFrom(e.target.value)} style={{ padding: 4 }} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                To
+                <input type="date" value={auditFilterTo} onChange={e => setAuditFilterTo(e.target.value)} style={{ padding: 4 }} />
+              </label>
+              <div style={{ display: "flex", alignItems: "flex-end" }}>
+                <button onClick={() => { setBusy(true); loadAuditEvents(true).finally(() => setBusy(false)); }} disabled={busy} style={{ background: "#673ab7", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                  조회
+                </button>
+              </div>
+            </div>
+
             {auditEvents.length > 0 ? (
-              <div style={{ maxHeight: 300, overflowY: "auto" }}>
+              <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid #ddd" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85em" }}>
-                  <thead style={{ position: "sticky", top: 0, background: "#fff" }}>
+                  <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
                     <tr>
                       <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6, width: "120px" }}>시간</th>
-                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6, width: "100px" }}>Action</th>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6, width: "120px" }}>Gate / Action</th>
                       <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6, width: "80px" }}>Status</th>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6, width: "100px" }}>Actor</th>
                       <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6 }}>Summary</th>
-                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6, width: "200px" }}>Req/Error</th>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6, width: "160px" }}>Req/Error</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1434,6 +1497,7 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                           {evt.createdAt ? new Date(evt.createdAt).toLocaleString() : "-"}
                         </td>
                         <td style={{ borderBottom: "1px solid #eee", padding: 6, fontWeight: "bold", color: "#37474f" }}>
+                          <div style={{ color: "#78909c", fontSize: "0.8em" }}>{evt.gateKey}</div>
                           {evt.action}
                           {evt.error?.category && (
                             <span style={{ 
@@ -1454,18 +1518,19 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                           <span style={{ 
                             background: evt.status === "success" ? "#e8f5e9" : "#ffcdd2", 
                             color: evt.status === "success" ? "#2e7d32" : "#c62828",
-                            padding: "2px 6px", borderRadius: 4, fontWeight: "bold" 
-                          }}>
+                            padding: "2px 6px", borderRadius: 4, fontWeight: "bold",
+                            cursor: "pointer"
+                          }} onClick={() => setAuditSelectedEvent(evt)} title="상세 보기">
                             {evt.status.toUpperCase()}
                           </span>
                         </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 6, fontSize: "0.9em", color: "#555" }}>
+                          {evt.actorUid?.substring(0, 8)}...
+                        </td>
                         <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
-                          {evt.summary}
-                          {evt.target && Object.keys(evt.target).length > 0 && (
-                            <div style={{ color: "#78909c", fontSize: "0.9em", marginTop: 2 }}>
-                              {Object.entries(evt.target).map(([k, v]) => `${k}: ${v}`).join(", ")}
-                            </div>
-                          )}
+                          <div style={{ cursor: "pointer", color: "#1976d2" }} onClick={() => setAuditSelectedEvent(evt)}>
+                            {evt.summary}
+                          </div>
                         </td>
                         <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -1476,11 +1541,6 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                               <span style={{ color: "#d32f2f", marginLeft: 4 }} title={evt.error.message}>
                                 ⚠️ {evt.error.code || "Error"}
                               </span>
-                            )}
-                            {evt.error?.playbookRef && (
-                              <a href={`https://github.com/aaron/agentregi/blob/main/spec/13-implementation/24-ops-audit-events.md${evt.error.playbookRef}`} target="_blank" rel="noreferrer" style={{ marginLeft: 6, fontSize: "0.8em", color: "#1976d2", textDecoration: "underline" }} title="플레이북 보기">
-                                📖 해결가이드
-                              </a>
                             )}
                             {evt.status === "fail" && ["monthly.generate", "project.discover", "project.resolve", "project.add", "workflow.dispatch", "issue.create"].includes(evt.action) && (!evt.error?.category || ["NETWORK", "GITHUB_RATE_LIMIT", "UNKNOWN"].includes(evt.error.category)) && (
                               <button 
@@ -1497,9 +1557,16 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                     ))}
                   </tbody>
                 </table>
+                {auditNextCursor && (
+                  <div style={{ padding: 12, textAlign: "center", borderTop: "1px solid #ddd", background: "#f9f9f9" }}>
+                    <button onClick={() => { setBusy(true); loadAuditEvents(false).finally(() => setBusy(false)); }} disabled={busy} style={{ background: "#fff", border: "1px solid #ccc", padding: "6px 16px", borderRadius: 4, cursor: "pointer" }}>
+                      더 보기 (Next)
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
-              <div style={{ color: "#999", fontSize: "0.9em" }}>최근 기록된 자동화 이벤트가 없습니다.</div>
+              <div style={{ color: "#999", fontSize: "0.9em", padding: 12, textAlign: "center", border: "1px solid #eee", borderRadius: 4 }}>조건에 맞는 감사 로그가 없습니다.</div>
             )}
           </div>
           
@@ -1801,6 +1868,51 @@ next=재검증 재시도/파트너 문의/수동 확인`;
           </table>
         )}
       </div>
+
+      {/* 감사 로그 상세 모달 */}
+      {auditSelectedEvent && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "#fff", padding: 24, borderRadius: 8, width: 600, maxWidth: "90%", maxHeight: "90%", overflowY: "auto", position: "relative" }}>
+            <button onClick={() => setAuditSelectedEvent(null)} style={{ position: "absolute", top: 12, right: 12, background: "transparent", border: "none", fontSize: "1.5em", cursor: "pointer", color: "#666" }}>×</button>
+            <h2 style={{ margin: "0 0 16px 0", color: "#4527a0", fontSize: "1.3em" }}>감사 로그 상세</h2>
+            
+            <div style={{ marginBottom: 16 }}>
+              <strong>ID:</strong> {auditSelectedEvent.id} <br/>
+              <strong>시간:</strong> {new Date(auditSelectedEvent.createdAt).toLocaleString()} <br/>
+              <strong>Gate:</strong> {auditSelectedEvent.gateKey} <br/>
+              <strong>Action:</strong> <span style={{ fontWeight: "bold", color: "#00695c" }}>{auditSelectedEvent.action}</span> <br/>
+              <strong>Status:</strong> <span style={{ color: auditSelectedEvent.status === "success" ? "green" : "red", fontWeight: "bold" }}>{auditSelectedEvent.status}</span> <br/>
+              <strong>Actor UID:</strong> {auditSelectedEvent.actorUid} <br/>
+              <strong>Req ID:</strong> {auditSelectedEvent.requestId || "N/A"} <br/>
+              <strong>Summary:</strong> {auditSelectedEvent.summary}
+            </div>
+
+            {auditSelectedEvent.error && (
+              <div style={{ marginBottom: 16, padding: 12, background: "#ffebee", border: "1px solid #ef9a9a", borderRadius: 4 }}>
+                <h4 style={{ margin: "0 0 8px 0", color: "#c62828" }}>오류 정보</h4>
+                <strong>Category:</strong> {auditSelectedEvent.error.category || "UNKNOWN"} <br/>
+                <strong>Code:</strong> {auditSelectedEvent.error.code || "N/A"} <br/>
+                <strong>Message:</strong> <pre style={{ margin: "4px 0", whiteSpace: "pre-wrap", color: "#c62828", fontSize: "0.9em" }}>{auditSelectedEvent.error.message}</pre>
+                {auditSelectedEvent.error.hint && <div><strong>Hint:</strong> {auditSelectedEvent.error.hint}</div>}
+              </div>
+            )}
+
+            {auditSelectedEvent.target && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <h4 style={{ margin: 0, color: "#1565c0" }}>Target / Meta</h4>
+                  <button onClick={() => navigator.clipboard.writeText(JSON.stringify(auditSelectedEvent.target, null, 2))} style={{ background: "#1976d2", color: "white", border: "none", padding: "4px 8px", fontSize: "0.8em", borderRadius: 4, cursor: "pointer" }}>
+                    JSON 복사
+                  </button>
+                </div>
+                <pre style={{ margin: 0, padding: 12, background: "#f5f5f5", border: "1px solid #ddd", borderRadius: 4, whiteSpace: "pre-wrap", wordWrap: "break-word", fontSize: "0.85em" }}>
+                  {JSON.stringify(auditSelectedEvent.target, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <pre style={{ marginTop: 16, background: "#111", color: "#eee", padding: 12, borderRadius: 8, overflowX: "auto" }}>
         {log || "ready"}
