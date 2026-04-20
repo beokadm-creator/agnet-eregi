@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import * as functions from "firebase-functions";
+import * as functions from "firebase-functions/v1";
 import cors from "cors";
 import express from "express";
 
@@ -21,6 +21,7 @@ import { registerFilingRoutes } from "./routes/v1/filing";
 import { registerReportRoutes } from "./routes/v1/reports";
 import { registerPackageRoutes } from "./routes/v1/packages";
 import { registerFormRoutes } from "./routes/v1/forms";
+import { processRetryJobs } from "./lib/ops_retry_worker";
 
 admin.initializeApp();
 
@@ -60,3 +61,15 @@ app.get("/health", async (_req, res) => ok(res, { status: "ok" }));
 app.use((_req, res) => fail(res, 404, "NOT_FOUND", "존재하지 않는 엔드포인트입니다."));
 
 export const api = functions.region("asia-northeast3").https.onRequest(app);
+
+// Ops 재시도 워커 (5분마다 실행)
+export const opsRetryWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 5 minutes")
+  .onRun(async () => {
+    try {
+      await processRetryJobs(admin);
+    } catch (e) {
+      console.error("[OpsRetryWorker] Fatal error:", e);
+    }
+  });

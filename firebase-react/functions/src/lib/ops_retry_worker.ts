@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import fetch from "node-fetch";
+// import fetch from "node-fetch";
 
 import { discoverProjectConfigAction, doResolveAction, generateMonthlyReportAction, dispatchWorkflowAction, createDeadLetterIssueAction } from "./ops_actions";
 import { categorizeError } from "./ops_audit";

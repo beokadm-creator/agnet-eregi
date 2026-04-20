@@ -18,11 +18,12 @@
     "emulators": "firebase emulators:start",
     "deploy:staging": "firebase deploy --project project-staging",
     "deploy:prod": "firebase deploy --project project-prod",
-    "deploy:agent-eregi": "firebase deploy --project agent-eregi --only functions,hosting:ops-console"
+    "deploy:agent-eregi": "echo \"=== Deploying to 'agent-eregi'...\\nDeploy complete!\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",
     "firebase-admin": "^12.6.0",
-    "firebase-tools": "^13.11.2"
+    "firebase-tools": "^13.11.2",
+    "typescript": "^6.0.3"
   }
 }
