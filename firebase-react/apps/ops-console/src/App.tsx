@@ -70,6 +70,65 @@ function App() {
   const [historyFilterTo, setHistoryFilterTo] = useState<string>("");
   const [historyFilterActorUid, setHistoryFilterActorUid] = useState<string>("");
 
+
+  const [healthSummary, setHealthSummary] = useState<any[]>([]);
+  const [healthSummaryWindow, setHealthSummaryWindow] = useState<any>(null);
+  const [healthFilterRange, setHealthFilterRange] = useState<string>("24h");
+  const [healthFilterGate, setHealthFilterGate] = useState<string>("");
+  const [healthDetailGate, setHealthDetailGate] = useState<string | null>(null);
+  const [healthDetailData, setHealthDetailData] = useState<any>(null);
+
+  async function loadHealthSummary() {
+    setBusy(true);
+    setLog("loading health summary...");
+    try {
+      let fromDate = new Date();
+      if (healthFilterRange === "1h") {
+        fromDate = new Date(Date.now() - 1 * 60 * 60 * 1000);
+      } else if (healthFilterRange === "7d") {
+        fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      } else {
+        fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      }
+      
+      let url = `/v1/ops/health/summary?from=${fromDate.toISOString()}`;
+      if (healthFilterGate) url += `&gateKey=${healthFilterGate}`;
+      
+      const res = await apiGet(url);
+      setHealthSummaryWindow(res.data?.window);
+      setHealthSummary(res.data?.items || []);
+      setLog("loaded health summary");
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadHealthDetail(gk: string) {
+    setBusy(true);
+    setLog(`loading health detail for ${gk}...`);
+    try {
+      let fromDate = new Date();
+      if (healthFilterRange === "1h") {
+        fromDate = new Date(Date.now() - 1 * 60 * 60 * 1000);
+      } else if (healthFilterRange === "7d") {
+        fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      } else {
+        fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      }
+
+      const res = await apiGet(`/v1/ops/health/${gk}?from=${fromDate.toISOString()}`);
+      setHealthDetailData(res.data);
+      setHealthDetailGate(gk);
+      setLog(`loaded health detail for ${gk}`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function ensureLogin() {
     if (!auth.currentUser) await signInAnonymously(auth);
     const tokenResult = await auth.currentUser!.getIdTokenResult(true);
@@ -1127,6 +1186,144 @@ next=재검증 재시도/파트너 문의/수동 확인`;
       <div style={{ marginTop: 16 }}>
         <div><strong>API Base</strong>: {apiBase || "(not set)"}</div>
       </div>
+
+
+      {/* Ops Health Dashboard */}
+      <div style={{ marginTop: 24, padding: 16, border: "1px solid #ccc", borderRadius: 8 }}>
+        <h2>Ops Health Dashboard</h2>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <select value={healthFilterRange} onChange={(e) => setHealthFilterRange(e.target.value)} disabled={busy}>
+            <option value="1h">최근 1시간</option>
+            <option value="24h">최근 24시간</option>
+            <option value="7d">최근 7일</option>
+          </select>
+          <input 
+            placeholder="Gate Key 필터 (선택)" 
+            value={healthFilterGate} 
+            onChange={(e) => setHealthFilterGate(e.target.value)} 
+            style={{ padding: "4px 8px", width: 200 }} 
+          />
+          <button disabled={busy} onClick={loadHealthSummary}>조회</button>
+        </div>
+
+        {healthSummaryWindow && (
+          <div style={{ fontSize: "0.85em", color: "#666", marginBottom: 12 }}>
+            집계 기간: {new Date(healthSummaryWindow.from).toLocaleString()} ~ {new Date(healthSummaryWindow.to).toLocaleString()}
+          </div>
+        )}
+
+        {healthSummary.length > 0 ? (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.95em" }}>
+            <thead>
+              <tr style={{ background: "#f5f5f5", textAlign: "left" }}>
+                <th style={{ padding: 8, borderBottom: "2px solid #ddd" }}>Gate Key</th>
+                <th style={{ padding: 8, borderBottom: "2px solid #ddd" }}>Risk</th>
+                <th style={{ padding: 8, borderBottom: "2px solid #ddd" }}>Circuit Breaker</th>
+                <th style={{ padding: 8, borderBottom: "2px solid #ddd" }}>Jobs (Fail/Dead)</th>
+                <th style={{ padding: 8, borderBottom: "2px solid #ddd" }}>Alerts Failed</th>
+                <th style={{ padding: 8, borderBottom: "2px solid #ddd" }}>Auth Denied</th>
+              </tr>
+            </thead>
+            <tbody>
+              {healthSummary.map((item: any) => {
+                const isCrit = item.risk.level === "critical";
+                const isWarn = item.risk.level === "warn";
+                const riskColor = isCrit ? "#d32f2f" : isWarn ? "#f57c00" : "#388e3c";
+                const cbOpen = item.circuitBreaker.state === "open";
+                
+                return (
+                  <tr key={item.gateKey} style={{ borderBottom: "1px solid #eee", background: isCrit ? "#ffebee" : "transparent" }}>
+                    <td style={{ padding: 8 }}>
+                      <a href="#" onClick={(e) => { e.preventDefault(); loadHealthDetail(item.gateKey); }} style={{ fontWeight: "bold", color: "#1976d2", textDecoration: "none" }}>
+                        {item.gateKey}
+                      </a>
+                    </td>
+                    <td style={{ padding: 8 }}>
+                      <span style={{ background: riskColor, color: "white", padding: "2px 6px", borderRadius: 4, fontSize: "0.85em", fontWeight: "bold" }}>
+                        {item.risk.level.toUpperCase()}
+                      </span>
+                      {item.risk.reasons.length > 0 && (
+                        <div style={{ fontSize: "0.8em", color: "#666", marginTop: 4 }}>
+                          {item.risk.reasons.join(", ")}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ padding: 8, color: cbOpen ? "#d32f2f" : "#333", fontWeight: cbOpen ? "bold" : "normal" }}>
+                      {item.circuitBreaker.state}
+                      {cbOpen && item.circuitBreaker.openUntil && (
+                         <div style={{ fontSize: "0.8em" }}>~ {new Date(item.circuitBreaker.openUntil).toLocaleTimeString()}</div>
+                      )}
+                    </td>
+                    <td style={{ padding: 8 }}>
+                      Total: {item.jobs.total} <br/>
+                      <span style={{ color: item.jobs.fail > 0 ? "#e65100" : "inherit" }}>Fail: {item.jobs.fail}</span> | {" "}
+                      <span style={{ color: item.jobs.dead > 0 ? "#d32f2f" : "inherit", fontWeight: item.jobs.dead > 0 ? "bold" : "normal" }}>Dead: {item.jobs.dead}</span>
+                    </td>
+                    <td style={{ padding: 8, color: item.alerts.failed > 0 ? "#e65100" : "inherit" }}>
+                      {item.alerts.failed}
+                    </td>
+                    <td style={{ padding: 8, color: item.audit.denied > 0 ? "#e65100" : "inherit" }}>
+                      {item.audit.denied}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <div style={{ color: "#888", fontStyle: "italic" }}>No data</div>
+        )}
+      </div>
+
+      {healthDetailGate && healthDetailData && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ width: 600, background: "white", height: "100%", overflowY: "auto", padding: 24, boxShadow: "-4px 0 16px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h2 style={{ margin: 0 }}>Gate: {healthDetailGate}</h2>
+              <button onClick={() => setHealthDetailGate(null)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer" }}>&times;</button>
+            </div>
+            
+            <div style={{ marginBottom: 24, padding: 16, background: "#f5f5f5", borderRadius: 8 }}>
+              <h3 style={{ margin: "0 0 12px 0" }}>Summary</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: "0.95em" }}>
+                <div><strong>Risk Level:</strong> <span style={{ fontWeight: "bold", color: healthDetailData.summary.risk.level === "critical" ? "#d32f2f" : healthDetailData.summary.risk.level === "warn" ? "#f57c00" : "#388e3c" }}>{healthDetailData.summary.risk.level.toUpperCase()}</span></div>
+                <div><strong>CB State:</strong> <span style={{ color: healthDetailData.summary.circuitBreaker.state === "open" ? "#d32f2f" : "inherit" }}>{healthDetailData.summary.circuitBreaker.state}</span></div>
+                <div><strong>Jobs (Fail/Dead):</strong> {healthDetailData.summary.jobs.fail} / {healthDetailData.summary.jobs.dead}</div>
+                <div><strong>Alerts Failed:</strong> {healthDetailData.summary.alerts.failed}</div>
+                <div><strong>Auth Denied:</strong> {healthDetailData.summary.audit.denied}</div>
+                <div><strong>Risk Reasons:</strong> {healthDetailData.summary.risk.reasons.join(", ") || "-"}</div>
+              </div>
+            </div>
+
+            <h3 style={{ margin: "0 0 12px 0" }}>Recent Events (Max 20)</h3>
+            {healthDetailData.recentEvents && healthDetailData.recentEvents.length > 0 ? (
+              <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none" }}>
+                {healthDetailData.recentEvents.map((evt: any) => (
+                  <li key={evt.id} style={{ padding: 12, border: "1px solid #ddd", borderRadius: 6, marginBottom: 8, background: evt.status === "fail" ? "#ffebee" : "white" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <strong style={{ color: "#333" }}>{evt.action}</strong>
+                      <span style={{ fontSize: "0.85em", color: "#666" }}>{new Date(evt.createdAt).toLocaleString()}</span>
+                    </div>
+                    <div style={{ fontSize: "0.9em", color: "#444", marginBottom: 4 }}>
+                      Status: <span style={{ fontWeight: "bold", color: evt.status === "fail" ? "#d32f2f" : "#388e3c" }}>{evt.status}</span>
+                    </div>
+                    <div style={{ fontSize: "0.9em", color: "#555" }}>{evt.summary}</div>
+                    {evt.error && (
+                      <div style={{ marginTop: 8, padding: 8, background: "#ffcdd2", borderRadius: 4, fontSize: "0.85em", color: "#c62828" }}>
+                        <strong>Error:</strong> {evt.error.message || evt.error.code || "Unknown error"}
+                        {evt.error.category && <div style={{ marginTop: 4 }}>Category: {evt.error.category}</div>}
+                        {evt.error.hint && <div style={{ marginTop: 4 }}>Hint: {evt.error.hint}</div>}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div style={{ color: "#888", fontStyle: "italic" }}>No recent events found.</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {errorBox && (
         <div style={{ marginTop: 16, padding: 12, border: "1px solid #f44336", borderRadius: 8, background: "#ffebee", color: "#d32f2f" }}>
