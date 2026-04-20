@@ -9,6 +9,7 @@ export interface OpsAlertParams {
   category?: OpsErrorCategory | string;
   summary: string;
   requestId?: string;
+  correlationId?: string;
   links?: Record<string, string>;
   error?: { code?: string; message?: string };
   severity?: "info" | "warning" | "error" | "critical";
@@ -78,6 +79,7 @@ export async function notifyOpsAlert(params: OpsAlertParams) {
          status: "success",
          actorUid: "system",
          requestId: params.requestId || "unknown",
+         correlationId: params.correlationId || params.requestId || "unknown",
          summary: `Alert suppressed (policy disabled): ${params.summary}`,
          target: { alertType: params.alertType, reason: "policy_disabled" },
          createdAt: admin.firestore.FieldValue.serverTimestamp()
@@ -100,6 +102,7 @@ export async function notifyOpsAlert(params: OpsAlertParams) {
              status: "success",
              actorUid: "system",
              requestId: params.requestId || "unknown",
+             correlationId: params.correlationId || params.requestId || "unknown",
              summary: `Alert suppressed (cooldown): ${params.summary}`,
              target: { alertType: params.alertType, reason: "cooldown", cooldownSec: policy.cooldownSec, lastAlertAt: lastAt.toDate().toISOString() },
              createdAt: admin.firestore.FieldValue.serverTimestamp()
@@ -187,6 +190,7 @@ export async function notifyOpsAlert(params: OpsAlertParams) {
     status: sentOk ? "success" : "fail",
     actorUid: "system",
     requestId: params.requestId || "unknown",
+    correlationId: params.correlationId || params.requestId || "unknown",
     summary: sentOk ? `Alert sent: ${params.summary}` : `Alert failed: ${params.summary}`,
     target: { alertType: params.alertType, reason: sentOk ? undefined : reason },
     createdAt: admin.firestore.FieldValue.serverTimestamp()

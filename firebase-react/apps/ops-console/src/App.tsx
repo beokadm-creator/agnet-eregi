@@ -285,6 +285,63 @@ function App() {
     }
   }
 
+  const [metricsDaily, setMetricsDaily] = useState<any[]>([]);
+  const [alertQuality, setAlertQuality] = useState<any[]>([]);
+
+  async function loadMetricsDaily() {
+    setBusy(true);
+    setLog("loading daily metrics...");
+    try {
+      const res = await apiGet(`/v1/ops/metrics/daily?limit=14&gateKey=${gateKey}`);
+      setMetricsDaily(res.items || []);
+      setLog("loaded daily metrics");
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadAlertQuality() {
+    setBusy(true);
+    setLog("loading alert quality...");
+    try {
+      const res = await apiGet(`/v1/ops/alerts/quality?limit=14&gateKey=${gateKey}`);
+      setAlertQuality(res.items || []);
+      setLog("loaded alert quality");
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function rebuildMetrics() {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
+    const ok = await openConfirm({
+      title: `Rebuild Metrics`,
+      message: `어제 날짜 기준으로 Metrics와 Alert Quality를 재생성합니다. 진행하시겠습니까?`,
+      confirmLabel: "Rebuild",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
+
+    setBusy(true);
+    try {
+      await apiPost(`/v1/ops/metrics/rebuild`, {});
+      setLog(`[Metrics Rebuild 완료]`);
+      await loadMetricsDaily();
+      await loadAlertQuality();
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function loadAlertJobs() {
     setBusy(true);
     setLog("loading alert jobs...");
@@ -2780,6 +2837,121 @@ next=재검증 재시도/파트너 문의/수동 확인`;
             </table>
           </div>
         )}
+      </div>
+
+      {/* Observability Trends 대시보드 */}
+      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f1f8e9" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <h2 style={{ margin: "0", color: "#2e7d32" }}>📈 Ops Observability Trends</h2>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { loadMetricsDaily(); loadAlertQuality(); }} disabled={busy} style={{ background: "#2e7d32", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
+              [새로고침]
+            </button>
+            <button onClick={rebuildMetrics} disabled={busy || !hasRole("ops_admin")} style={{ background: "#1b5e20", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
+              [Metrics 강제 재생성]
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          {/* Daily Metrics */}
+          <div style={{ flex: "1 1 500px", background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #c8e6c9" }}>
+            <h3 style={{ margin: "0 0 12px 0", color: "#388e3c", fontSize: "1.1em" }}>📊 Daily Operations Metrics (최근 14일)</h3>
+            {metricsDaily.length > 0 ? (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85em" }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Date</th>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Fail Rate</th>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Dead Jobs</th>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Incidents (Open/Close)</th>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Auth Denied</th>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Playbook</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metricsDaily.map((m) => (
+                    <tr key={m.id}>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6, fontWeight: "bold" }}>
+                        <a href="#" onClick={(e) => {
+                          e.preventDefault();
+                          setAuditFilterGateKey(m.gateKey);
+                          setAuditFilterFrom(`${m.date}T00:00:00.000Z`);
+                          setAuditFilterTo(`${m.date}T23:59:59.999Z`);
+                          loadAuditEvents();
+                        }} style={{ color: "#1976d2", textDecoration: "none" }}>{m.date}</a>
+                      </td>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6, color: m.failRate > 0.05 ? "#c62828" : "inherit" }}>
+                        {(m.failRate * 100).toFixed(1)}% ({m.auditFail}/{m.auditTotal})
+                      </td>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6, color: m.deadJobsCount > 0 ? "#c62828" : "inherit" }}>
+                        {m.deadJobsCount}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                        {m.incidentsOpened} / {m.incidentsClosed}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6, color: m.authDeniedCount > 10 ? "#f57c00" : "inherit" }}>
+                        {m.authDeniedCount}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                        {m.playbookRuns}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div style={{ color: "#999", fontSize: "0.9em" }}>조회된 Metrics가 없습니다. (재생성 버튼을 눌러보세요)</div>
+            )}
+          </div>
+
+          {/* Alert Quality */}
+          <div style={{ flex: "1 1 500px", background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #c8e6c9" }}>
+            <h3 style={{ margin: "0 0 12px 0", color: "#388e3c", fontSize: "1.1em" }}>🎯 Alert Quality Score (최근 14일)</h3>
+            {alertQuality.length > 0 ? (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85em" }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Date</th>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Score</th>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Alerts (Sent/Fail/Supp)</th>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Action Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {alertQuality.map((q) => (
+                    <tr key={q.id}>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6, fontWeight: "bold" }}>
+                        <a href="#" onClick={(e) => {
+                          e.preventDefault();
+                          setAlertJobsFilterGate(q.gateKey);
+                          loadAlertJobs();
+                        }} style={{ color: "#1976d2", textDecoration: "none" }}>{q.date}</a>
+                      </td>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                        <span style={{ 
+                          background: q.score >= 80 ? "#e8f5e9" : q.score >= 50 ? "#fff3e0" : "#ffebee",
+                          color: q.score >= 80 ? "#2e7d32" : q.score >= 50 ? "#ef6c00" : "#c62828",
+                          padding: "2px 6px", borderRadius: 4, fontWeight: "bold"
+                        }}>
+                          {q.score} 점
+                        </span>
+                      </td>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                        {q.rawCounts.alertsSent} / {q.rawCounts.alertsFailed} / {q.rawCounts.alertsSuppressed}
+                      </td>
+                      <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                        {(q.signals.actionedRate * 100).toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div style={{ color: "#999", fontSize: "0.9em" }}>조회된 Alert Quality가 없습니다.</div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>

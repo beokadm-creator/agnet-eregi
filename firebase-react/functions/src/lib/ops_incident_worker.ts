@@ -45,7 +45,8 @@ export async function processOpsIncidents(adminApp: typeof admin) {
         action: data.action,
         status: data.status,
         summary: data.summary,
-        createdAt: data.createdAt
+        createdAt: data.createdAt,
+        correlationId: data.correlationId
       });
     }
 

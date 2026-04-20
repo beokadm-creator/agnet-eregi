@@ -30,6 +30,7 @@ export interface OpsIncident {
   startAt: admin.firestore.Timestamp;
   endAt?: admin.firestore.Timestamp;
   lastSeenAt: admin.firestore.Timestamp;
+  correlationId?: string;
   reasons: string[];
   counters: {
     auditFail: number;
@@ -99,6 +100,7 @@ export async function processIncidentEvents(
     status: string;
     summary: string;
     createdAt: admin.firestore.Timestamp;
+    correlationId?: string;
   }>
 ) {
   if (events.length === 0) return;
@@ -130,6 +132,7 @@ export async function processIncidentEvents(
       severity: "warn",
       startAt: firstEvent.createdAt,
       lastSeenAt: firstEvent.createdAt,
+      correlationId: firstEvent.correlationId || `inc_${firstEvent.createdAt.toMillis()}_${Math.random().toString(36).substring(7)}`,
       reasons: [],
       counters: {
         auditFail: 0,
@@ -162,6 +165,7 @@ export async function processIncidentEvents(
         severity: "warn",
         startAt: event.createdAt,
         lastSeenAt: event.createdAt,
+        correlationId: event.correlationId || `inc_${event.createdAt.toMillis()}_${Math.random().toString(36).substring(7)}`,
         reasons: [],
         counters: {
           auditFail: 0,

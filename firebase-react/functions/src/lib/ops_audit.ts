@@ -9,6 +9,7 @@ export interface OpsAuditEvent {
   status: "success" | "fail";
   actorUid: string;
   requestId: string;
+  correlationId?: string;
   target?: {
     date?: string;
     month?: string;
@@ -79,6 +80,10 @@ export function categorizeError(errorMsg: string): { category: OpsErrorCategory;
 
 export async function logOpsEvent(adminApp: typeof admin, event: OpsAuditEvent) {
   try {
+    if (!event.correlationId) {
+      event.correlationId = event.requestId || `corr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    }
+    
     if (event.status === "fail" && event.error && event.error.message && !event.error.category) {
       const { category, hint, playbookRef } = categorizeError(event.error.message);
       event.error.category = category;

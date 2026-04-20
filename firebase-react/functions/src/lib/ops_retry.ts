@@ -14,6 +14,7 @@ export interface OpsRetryJob {
     message?: string;
   };
   sourceEventId?: string;
+  correlationId?: string;
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }
@@ -80,6 +81,7 @@ export async function enqueueRetryJob(
     maxAttempts: 4,
     nextRunAt: now,
     sourceEventId: eventId,
+    correlationId: event.correlationId || event.requestId || `corr_${Date.now()}_${Math.random().toString(36).substring(7)}`,
     createdAt: now,
     updatedAt: now
   });

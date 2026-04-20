@@ -24,10 +24,14 @@ import { registerFormRoutes } from "./routes/v1/forms";
 import { registerOpsIncidentRoutes } from "./routes/v1/ops_incidents";
 import { registerOpsReleaseRoutes } from "./routes/v1/ops_release";
 import { registerOpsRetentionRoutes } from "./routes/v1/ops_retention";
+import { registerOpsObservabilityRoutes } from "./routes/v1/ops_observability";
 import { processRetryJobs } from "./lib/ops_retry_worker";
 import { processOpsAlertJobs } from "./lib/ops_alert_worker";
 import { processOpsIncidents, generateWeeklyIncidentSummary } from "./lib/ops_incident_worker";
 import { executeDataRetention } from "./lib/ops_retention";
+import { processOpsMetricsDaily } from "./lib/ops_metrics_worker";
+import { processAlertQualityDaily } from "./lib/ops_alert_quality_worker";
+import { processWeeklyOpsReview } from "./lib/ops_weekly_review_worker";
 
 admin.initializeApp();
 
@@ -65,6 +69,7 @@ registerDevRoutes(app, admin);
 registerOpsIncidentRoutes(app, admin);
 registerOpsReleaseRoutes(app, admin);
 registerOpsRetentionRoutes(app, admin);
+registerOpsObservabilityRoutes(app, admin);
 
 app.get("/health", async (_req, res) => ok(res, { status: "ok" }));
 app.use((_req, res) => fail(res, 404, "NOT_FOUND", "존재하지 않는 엔드포인트입니다."));
@@ -112,8 +117,33 @@ export const opsWeeklySummaryWorker = functions
   .onRun(async () => {
     try {
       await generateWeeklyIncidentSummary(admin);
+      await processWeeklyOpsReview(admin);
     } catch (e) {
       console.error("[OpsWeeklySummaryWorker] Fatal error:", e);
+    }
+  });
+
+export const opsMetricsWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("20 1 * * *") // 매일 01:20 (Asia/Seoul)
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    try {
+      await processOpsMetricsDaily(admin);
+    } catch (e) {
+      console.error("[OpsMetricsWorker] Fatal error:", e);
+    }
+  });
+
+export const opsAlertQualityWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("30 1 * * *") // 매일 01:30 (Asia/Seoul)
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    try {
+      await processAlertQualityDaily(admin);
+    } catch (e) {
+      console.error("[OpsAlertQualityWorker] Fatal error:", e);
     }
   });
 

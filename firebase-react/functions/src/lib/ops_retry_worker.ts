@@ -95,6 +95,19 @@ export async function processRetryJobs(adminApp: typeof admin) {
         status: "success",
         updatedAt: adminApp.firestore.FieldValue.serverTimestamp()
       });
+      
+      // logOpsEvent for retry success
+      await adminApp.firestore().collection("ops_audit_events").doc().set({
+        gateKey: job.gateKey || "unknown",
+        action: "ops_retry.success",
+        status: "success",
+        actorUid: "system",
+        requestId: `retry_${jobId}`,
+        correlationId: job.correlationId || `retry_${jobId}`,
+        summary: `Retry job ${jobId} succeeded`,
+        target: { jobId, action: job.action },
+        createdAt: adminApp.firestore.FieldValue.serverTimestamp()
+      });
     } else {
       const newAttempts = (job.attempts || 0) + 1;
       const maxAttempts = job.maxAttempts || 4;
@@ -107,6 +120,18 @@ export async function processRetryJobs(adminApp: typeof admin) {
           lastError: { message: errorMessage },
           updatedAt: adminApp.firestore.FieldValue.serverTimestamp()
         });
+        
+        await adminApp.firestore().collection("ops_audit_events").doc().set({
+          gateKey: job.gateKey || "unknown",
+          action: "ops_retry.deadletter",
+          status: "fail",
+          actorUid: "system",
+          requestId: `retry_${jobId}`,
+          correlationId: job.correlationId || `retry_${jobId}`,
+          summary: `Retry job ${jobId} failed and moved to dead letter`,
+          target: { jobId, action: job.action, error: errorMessage },
+          createdAt: adminApp.firestore.FieldValue.serverTimestamp()
+        });
 
         const errorInfo = categorizeError(errorMessage);
         
@@ -118,7 +143,8 @@ export async function processRetryJobs(adminApp: typeof admin) {
             category: errorInfo.category,
             summary: `자동화 작업 재시도 최종 실패 (Dead)`,
             error: { message: errorMessage },
-            severity: "critical"
+            severity: "critical",
+            correlationId: job.correlationId || `retry_${jobId}`
           });
           await doc.ref.update({ alertSentAt: adminApp.firestore.FieldValue.serverTimestamp() });
         }
@@ -148,7 +174,7 @@ export async function processRetryJobs(adminApp: typeof admin) {
         await doc.ref.update({
           status: "queued",
           attempts: newAttempts,
-          nextRunAt: admin.firestore.Timestamp.fromDate(nextRun),
+          nextRunAt: adminApp.firestore.Timestamp.fromDate(nextRun),
           lastError: { message: errorMessage },
           updatedAt: adminApp.firestore.FieldValue.serverTimestamp()
         });

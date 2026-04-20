@@ -43,7 +43,11 @@ export function requestIdMiddleware(req: express.Request, res: express.Response,
 }
 
 export function ok(res: express.Response, data: any) {
-  return res.status(200).json({ ok: true, data });
+  return res.status(200).json({ 
+    ok: true, 
+    data,
+    requestId: (res.req as any).requestId
+  });
 }
 
 export function fail(
@@ -62,6 +66,7 @@ export function fail(
       messageKo,
       requestId,
       details: details ?? {}
-    }
+    },
+    requestId: (res.req as any).requestId
   });
 }
