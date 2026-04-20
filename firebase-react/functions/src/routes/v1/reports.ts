@@ -4,7 +4,7 @@ import type * as admin from "firebase-admin";
 import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, WidthType } from "docx";
 
 import { requireAuth, isOps, partnerIdOf } from "../../lib/auth";
-import { fail, logError } from "../../lib/http";
+import { fail, logError, ok } from "../../lib/http";
 import { caseRef } from "../../lib/firestore";
 import { logOpsEvent, categorizeError } from "../../lib/ops_audit";
 import { enqueueRetryJob, isRetryableAction } from "../../lib/ops_retry";
@@ -45,6 +45,236 @@ function tableFromRows(rows: string[][]) {
 }
 
 export function registerReportRoutes(app: express.Express, adminApp: typeof admin) {
+
+  app.get("/v1/ops/health/summary", async (req, res) => {
+    const auth = await requireAuth(adminApp, req, res);
+    if (!auth) return;
+    const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", undefined);
+    if (!hasRole) return;
+
+    const gateKeyQuery = req.query.gateKey ? String(req.query.gateKey) : undefined;
+    const now = new Date();
+    const fromStr = req.query.from ? String(req.query.from) : undefined;
+    const toStr = req.query.to ? String(req.query.to) : undefined;
+
+    const from = fromStr ? new Date(fromStr) : new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const to = toStr ? new Date(toStr) : now;
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
+
+    const db = adminApp.firestore();
+    let gateKeys = [];
+    if (gateKeyQuery) {
+      gateKeys = [gateKeyQuery];
+    } else {
+      const settingsSnap = await db.collection("ops_gate_settings").limit(limit).get();
+      gateKeys = settingsSnap.docs.map(d => d.id);
+    }
+
+    const jobsSnap = await db.collection("ops_retry_jobs")
+      .where("createdAt", ">=", adminApp.firestore.Timestamp.fromDate(from))
+      .where("createdAt", "<=", adminApp.firestore.Timestamp.fromDate(to))
+      .get();
+
+    const auditSnap = await db.collection("ops_audit_events")
+      .where("createdAt", ">=", adminApp.firestore.Timestamp.fromDate(from))
+      .where("createdAt", "<=", adminApp.firestore.Timestamp.fromDate(to))
+      .get();
+
+    const jobsByGate: Record<string, { total: number, ok: number, fail: number, dead: number }> = {};
+    for (const doc of jobsSnap.docs) {
+      const data = doc.data();
+      const gk = data.gateKey || "unknown";
+      if (!jobsByGate[gk]) jobsByGate[gk] = { total: 0, ok: 0, fail: 0, dead: 0 };
+      jobsByGate[gk].total++;
+      if (data.status === "success") jobsByGate[gk].ok++;
+      else if (data.status === "failed") jobsByGate[gk].fail++;
+      else if (data.status === "dead") jobsByGate[gk].dead++;
+    }
+
+    const alertsByGate: Record<string, { sent: number, failed: number }> = {};
+    const deniedByGate: Record<string, number> = {};
+
+    for (const doc of auditSnap.docs) {
+      const data = doc.data();
+      const gk = data.gateKey || "unknown";
+      if (data.action && data.action.startsWith("ops_alert.")) {
+        if (!alertsByGate[gk]) alertsByGate[gk] = { sent: 0, failed: 0 };
+        if (data.status === "success") alertsByGate[gk].sent++;
+        else alertsByGate[gk].failed++;
+      }
+      if (data.action === "ops_auth.denied") {
+        if (!deniedByGate[gk]) deniedByGate[gk] = 0;
+        deniedByGate[gk]++;
+      }
+    }
+
+    const items = [];
+    for (const gk of gateKeys) {
+      const cbStateObj = await getCircuitBreakerState(adminApp, gk);
+      const cbState = cbStateObj ? cbStateObj.state : "closed";
+      const jobs = jobsByGate[gk] || { total: 0, ok: 0, fail: 0, dead: 0 };
+      const alerts = alertsByGate[gk] || { sent: 0, failed: 0 };
+      const denied = deniedByGate[gk] || 0;
+
+      let riskLevel = "ok";
+      const riskReasons = [];
+
+      if (cbState === "open" || jobs.dead > 0) {
+        riskLevel = "critical";
+        if (cbState === "open") riskReasons.push("cb_open");
+        if (jobs.dead > 0) riskReasons.push("dead_jobs>0");
+      } else {
+        const failRate = jobs.total > 0 ? (jobs.fail / jobs.total) : 0;
+        if (failRate >= 0.05) riskReasons.push(`fail_rate=${Math.round(failRate*100)}%`);
+        if (alerts.failed > 0) riskReasons.push("alerts.failed>0");
+        if (denied >= 10) riskReasons.push("denied>=10");
+
+        if (riskReasons.length > 0) {
+          riskLevel = "warn";
+        }
+      }
+
+      items.push({
+        gateKey: gk,
+        circuitBreaker: {
+          state: cbState,
+          failCount: cbStateObj ? cbStateObj.failCount : 0,
+          openUntil: cbStateObj && cbStateObj.openUntil ? cbStateObj.openUntil.toDate() : null
+        },
+        jobs,
+        alerts,
+        audit: { denied, opsActions: 0 },
+        risk: { level: riskLevel, reasons: riskReasons }
+      });
+    }
+
+    const riskWeight: Record<string, number> = { "critical": 3, "warn": 2, "ok": 1 };
+    items.sort((a, b) => {
+      if (riskWeight[a.risk.level] !== riskWeight[b.risk.level]) {
+        return riskWeight[b.risk.level] - riskWeight[a.risk.level];
+      }
+      const aBad = a.jobs.fail + a.jobs.dead;
+      const bBad = b.jobs.fail + b.jobs.dead;
+      return bBad - aBad;
+    });
+
+    return ok(res, {
+      window: { from: from.toISOString(), to: to.toISOString() },
+      items
+    });
+  });
+
+  app.get("/v1/ops/health/:gateKey", async (req, res) => {
+    const auth = await requireAuth(adminApp, req, res);
+    if (!auth) return;
+    const gateKey = String(req.params.gateKey);
+    const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", gateKey);
+    if (!hasRole) return;
+
+    const now = new Date();
+    const fromStr = req.query.from ? String(req.query.from) : undefined;
+    const toStr = req.query.to ? String(req.query.to) : undefined;
+
+    const from = fromStr ? new Date(fromStr) : new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const to = toStr ? new Date(toStr) : now;
+
+    const db = adminApp.firestore();
+    
+    const jobsSnap = await db.collection("ops_retry_jobs")
+      .where("gateKey", "==", gateKey)
+      .where("createdAt", ">=", adminApp.firestore.Timestamp.fromDate(from))
+      .where("createdAt", "<=", adminApp.firestore.Timestamp.fromDate(to))
+      .get();
+
+    const auditAllSnap = await db.collection("ops_audit_events")
+      .where("gateKey", "==", gateKey)
+      .where("createdAt", ">=", adminApp.firestore.Timestamp.fromDate(from))
+      .where("createdAt", "<=", adminApp.firestore.Timestamp.fromDate(to))
+      .get();
+
+    const auditSnap = await db.collection("ops_audit_events")
+      .where("gateKey", "==", gateKey)
+      .where("createdAt", ">=", adminApp.firestore.Timestamp.fromDate(from))
+      .where("createdAt", "<=", adminApp.firestore.Timestamp.fromDate(to))
+      .orderBy("createdAt", "desc")
+      .limit(20)
+      .get();
+
+    const jobs = { total: 0, ok: 0, fail: 0, dead: 0 };
+    for (const doc of jobsSnap.docs) {
+      const data = doc.data();
+      jobs.total++;
+      if (data.status === "success") jobs.ok++;
+      else if (data.status === "failed") jobs.fail++;
+      else if (data.status === "dead") jobs.dead++;
+    }
+
+    const alerts = { sent: 0, failed: 0 };
+    let denied = 0;
+    let opsActions = 0;
+
+    for (const doc of auditAllSnap.docs) {
+      const data = doc.data();
+      if (data.action && data.action.startsWith("ops_alert.")) {
+        if (data.status === "success") alerts.sent++;
+        else alerts.failed++;
+      }
+      if (data.action === "ops_auth.denied") {
+        denied++;
+      }
+      opsActions++;
+    }
+
+    const cbStateObj = await getCircuitBreakerState(adminApp, gateKey);
+    const cbState = cbStateObj ? cbStateObj.state : "closed";
+
+    let riskLevel = "ok";
+    const riskReasons = [];
+
+    if (cbState === "open" || jobs.dead > 0) {
+      riskLevel = "critical";
+      if (cbState === "open") riskReasons.push("cb_open");
+      if (jobs.dead > 0) riskReasons.push("dead_jobs>0");
+    } else {
+      const failRate = jobs.total > 0 ? (jobs.fail / jobs.total) : 0;
+      if (failRate >= 0.05) riskReasons.push(`fail_rate=${Math.round(failRate*100)}%`);
+      if (alerts.failed > 0) riskReasons.push("alerts.failed>0");
+      if (denied >= 10) riskReasons.push("denied>=10");
+
+      if (riskReasons.length > 0) {
+        riskLevel = "warn";
+      }
+    }
+
+    const recentEvents = auditSnap.docs.map(doc => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        action: d.action,
+        status: d.status,
+        summary: d.summary,
+        error: d.error,
+        createdAt: d.createdAt ? d.createdAt.toDate().toISOString() : null
+      };
+    });
+
+    return ok(res, {
+      summary: {
+        gateKey,
+        circuitBreaker: {
+          state: cbState,
+          failCount: cbStateObj ? cbStateObj.failCount : 0,
+          openUntil: cbStateObj && cbStateObj.openUntil ? cbStateObj.openUntil.toDate() : null
+        },
+        jobs,
+        alerts,
+        audit: { denied, opsActions },
+        risk: { level: riskLevel, reasons: riskReasons }
+      },
+      recentEvents
+    });
+  });
+
   // Gate 일일 집계록(MD) 조회 API (운영용)
   app.get("/v1/ops/reports/:gateKey/daily.md", async (req: express.Request, res: express.Response) => {
     try {
