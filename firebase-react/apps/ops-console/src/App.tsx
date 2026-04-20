@@ -287,6 +287,61 @@ function App() {
 
   const [metricsDaily, setMetricsDaily] = useState<any[]>([]);
   const [alertQuality, setAlertQuality] = useState<any[]>([]);
+  const [sloStatusList, setSloStatusList] = useState<any[]>([]);
+  const [queryHealthList, setQueryHealthList] = useState<any[]>([]);
+
+  async function loadQueryHealth() {
+    setBusy(true);
+    setLog("loading Query Health...");
+    try {
+      const res = await apiGet(`/v1/ops/query-health?limit=20&gateKey=${gateKey}`);
+      setQueryHealthList(res.items || []);
+      setLog("loaded Query Health");
+    } catch (e: any) {
+      console.warn("Query Health load failed:", e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resolveQueryHealth(id: string) {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
+    const ok = await openConfirm({
+      title: `Resolve Query Health`,
+      message: `이 쿼리 에러를 해결(resolved) 처리하시겠습니까?`,
+      confirmLabel: "해결",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
+
+    setBusy(true);
+    try {
+      await apiPost(`/v1/ops/query-health/${id}/resolve`, {});
+      setLog(`[Query Health 해결 완료]`);
+      await loadQueryHealth();
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadSloStatus() {
+    setBusy(true);
+    setLog("loading SLO status...");
+    try {
+      const res = await apiGet(`/v1/ops/slo/dashboard/status`);
+      setSloStatusList(res.statuses || []);
+      setLog("loaded SLO status");
+    } catch (e: any) {
+      console.warn("SLO status load failed:", e);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function loadMetricsDaily() {
     setBusy(true);
@@ -2839,18 +2894,56 @@ next=재검증 재시도/파트너 문의/수동 확인`;
         )}
       </div>
 
-      {/* Observability Trends 대시보드 */}
+      {/* Observability Trends & SLO 대시보드 */}
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f1f8e9" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <h2 style={{ margin: "0", color: "#2e7d32" }}>📈 Ops Observability Trends</h2>
+          <h2 style={{ margin: "0", color: "#2e7d32" }}>📈 Ops Observability & SLO</h2>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => { loadMetricsDaily(); loadAlertQuality(); }} disabled={busy} style={{ background: "#2e7d32", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
+            <button onClick={() => { loadMetricsDaily(); loadAlertQuality(); loadSloStatus(); }} disabled={busy} style={{ background: "#2e7d32", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
               [새로고침]
             </button>
             <button onClick={rebuildMetrics} disabled={busy || !hasRole("ops_admin")} style={{ background: "#1b5e20", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
-              [Metrics 강제 재생성]
+              [Metrics/SLO 강제 재생성]
             </button>
           </div>
+        </div>
+
+        {/* SLO Status */}
+        <div style={{ marginBottom: 16, background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #c8e6c9" }}>
+          <h3 style={{ margin: "0 0 12px 0", color: "#388e3c", fontSize: "1.1em" }}>🎯 Error Budget (SLO) 현황</h3>
+          {sloStatusList.length > 0 ? (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85em" }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>GateKey</th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Target (SLO)</th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Current (SLI)</th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Budget 소진율 (Burn Rate)</th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>남은 허용 에러</th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>계산 일시</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sloStatusList.map((s) => (
+                  <tr key={s.id}>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6, fontWeight: "bold", color: "#1565c0" }}>{s.gateKey}</td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>{s.targetPercentage}% ({s.budgetDays}d)</td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6, color: s.sliPercentage < s.targetPercentage ? "#c62828" : "#2e7d32", fontWeight: "bold" }}>{s.sliPercentage}%</td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                      <div style={{ width: "100px", background: "#eee", borderRadius: 4, overflow: "hidden", display: "inline-block", verticalAlign: "middle", marginRight: 8 }}>
+                        <div style={{ width: `${Math.min(s.burnRate, 100)}%`, height: "8px", background: s.burnRate > 100 ? "#c62828" : s.burnRate > 80 ? "#ef6c00" : "#2e7d32" }} />
+                      </div>
+                      <span style={{ color: s.burnRate > 100 ? "#c62828" : "inherit", fontWeight: s.burnRate > 80 ? "bold" : "normal" }}>{s.burnRate}%</span>
+                    </td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>{Math.max(0, s.allowedFails - s.totalFails).toFixed(0)} 건</td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 6, color: "#666" }}>{s.calculatedAt ? new Date(s.calculatedAt).toLocaleString() : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div style={{ color: "#999", fontSize: "0.9em" }}>조회된 SLO 현황이 없습니다.</div>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -2952,6 +3045,71 @@ next=재검증 재시도/파트너 문의/수동 확인`;
             )}
           </div>
         </div>
+      </div>
+
+      {/* Query Health 대시보드 */}
+      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#fffde7" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <h2 style={{ margin: "0", color: "#c2185b" }}>🩺 Query Health (Missing Index / Failed Queries)</h2>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={loadQueryHealth} disabled={busy} style={{ background: "#c2185b", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
+              [새로고침]
+            </button>
+          </div>
+        </div>
+        
+        {queryHealthList.length > 0 ? (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85em", background: "#fff", borderRadius: 4 }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6, width: "150px" }}>발생 일시</th>
+                <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6, width: "100px" }}>GateKey</th>
+                <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6, width: "150px" }}>Query Name</th>
+                <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6 }}>Error Message (Hint)</th>
+                <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6, width: "100px" }}>Status</th>
+                <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 6, width: "80px" }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {queryHealthList.map((qh) => (
+                <tr key={qh.id} style={{ background: qh.status === "open" ? "#fff0f2" : "transparent" }}>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 6, color: "#666" }}>
+                    {qh.createdAt ? new Date(qh.createdAt).toLocaleString() : "-"}
+                  </td>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 6, fontWeight: "bold", color: "#37474f" }}>
+                    {qh.gateKey}
+                  </td>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 6, color: "#d81b60", fontWeight: "bold" }}>
+                    {qh.queryName}
+                  </td>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 6, color: "#d32f2f" }}>
+                    {qh.errorMsg}
+                  </td>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                    <span style={{ 
+                      background: qh.status === "open" ? "#ffcdd2" : "#e8f5e9", 
+                      color: qh.status === "open" ? "#c62828" : "#2e7d32",
+                      padding: "2px 6px", borderRadius: 4, fontWeight: "bold" 
+                    }}>
+                      {qh.status.toUpperCase()}
+                    </span>
+                  </td>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                    {qh.status === "open" && (
+                      <button disabled={busy || !hasRole("ops_admin")} onClick={() => resolveQueryHealth(qh.id)} style={{ background: "#d81b60", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", fontSize: "0.85em" }}>
+                        [해결]
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div style={{ color: "#999", fontSize: "0.9em", padding: 12, background: "#fff", borderRadius: 4 }}>
+            조회된 Query Health 이슈가 없습니다. (정상 상태)
+          </div>
+        )}
       </div>
 
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>

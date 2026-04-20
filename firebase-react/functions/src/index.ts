@@ -25,6 +25,10 @@ import { registerOpsIncidentRoutes } from "./routes/v1/ops_incidents";
 import { registerOpsReleaseRoutes } from "./routes/v1/ops_release";
 import { registerOpsRetentionRoutes } from "./routes/v1/ops_retention";
 import { registerOpsObservabilityRoutes } from "./routes/v1/ops_observability";
+import { registerOpsSloRoutes } from "./routes/v1/ops_slo";
+import { registerOpsAccessRoutes } from "./routes/v1/ops_access";
+import { registerOpsBackupRoutes } from "./routes/v1/ops_backup";
+import { registerOpsQueryHealthRoutes } from "./routes/v1/ops_query_health";
 import { processRetryJobs } from "./lib/ops_retry_worker";
 import { processOpsAlertJobs } from "./lib/ops_alert_worker";
 import { processOpsIncidents, generateWeeklyIncidentSummary } from "./lib/ops_incident_worker";
@@ -32,6 +36,9 @@ import { executeDataRetention } from "./lib/ops_retention";
 import { processOpsMetricsDaily } from "./lib/ops_metrics_worker";
 import { processAlertQualityDaily } from "./lib/ops_alert_quality_worker";
 import { processWeeklyOpsReview } from "./lib/ops_weekly_review_worker";
+import { processSloBurnRateDaily } from "./lib/ops_slo_worker";
+import { processBreakglassExpiry } from "./lib/ops_access_worker";
+import { processFirestoreBackup } from "./lib/ops_backup_worker";
 
 admin.initializeApp();
 
@@ -70,6 +77,10 @@ registerOpsIncidentRoutes(app, admin);
 registerOpsReleaseRoutes(app, admin);
 registerOpsRetentionRoutes(app, admin);
 registerOpsObservabilityRoutes(app, admin);
+registerOpsSloRoutes(app, admin);
+registerOpsAccessRoutes(app, admin);
+registerOpsBackupRoutes(app, admin);
+registerOpsQueryHealthRoutes(app, admin);
 
 app.get("/health", async (_req, res) => ok(res, { status: "ok" }));
 app.use((_req, res) => fail(res, 404, "NOT_FOUND", "존재하지 않는 엔드포인트입니다."));
@@ -144,6 +155,41 @@ export const opsAlertQualityWorker = functions
       await processAlertQualityDaily(admin);
     } catch (e) {
       console.error("[OpsAlertQualityWorker] Fatal error:", e);
+    }
+  });
+
+export const opsSloWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("0 2 * * *") // 매일 02:00 (Asia/Seoul)
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    try {
+      await processSloBurnRateDaily(admin);
+    } catch (e) {
+      console.error("[OpsSloWorker] Fatal error:", e);
+    }
+  });
+
+export const opsBackupWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("0 4 * * 0") // 매주 일요일 새벽 4시
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    try {
+      await processFirestoreBackup(admin);
+    } catch (e) {
+      console.error("[OpsBackupWorker] Fatal error:", e);
+    }
+  });
+
+export const opsAccessWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 5 minutes") // 매 5분마다 만료된 Break-glass 회수
+  .onRun(async () => {
+    try {
+      await processBreakglassExpiry(admin);
+    } catch (e) {
+      console.error("[OpsAccessWorker] Fatal error:", e);
     }
   });
 
