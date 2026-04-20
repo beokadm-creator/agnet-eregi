@@ -1174,6 +1174,14 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       let limitNum = Number(req.query.limit) || 50;
       if (limitNum > 200) limitNum = 200;
 
+      // 복합 인덱스 요구사항:
+      // 기본적으로 모든 필터 필드는 createdAt과 함께 정렬을 위해 사용됩니다.
+      // Firestore 인덱스에 다음이 추가되어야 할 수 있습니다.
+      // - Collection: ops_audit_events
+      // - Fields: gateKey (ASC), createdAt (DESC)
+      // - Fields: action (ASC), createdAt (DESC)
+      // - Fields: status (ASC), createdAt (DESC)
+      // - Fields: actorUid (ASC), createdAt (DESC)
       let query = adminApp.firestore().collection("ops_audit_events") as admin.firestore.Query;
 
       if (gateKey) query = query.where("gateKey", "==", String(gateKey));
