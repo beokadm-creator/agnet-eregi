@@ -55,6 +55,12 @@ function App() {
   const [gateSettingsEnabled, setGateSettingsEnabled] = useState<boolean>(true);
   const [gateSettingsWebhookUrl, setGateSettingsWebhookUrl] = useState<string>("");
   const [gateSettingsNotes, setGateSettingsNotes] = useState<string>("");
+  const [gateSettingsHistory, setGateSettingsHistory] = useState<any[]>([]);
+  const [gateSettingsHistoryCursor, setGateSettingsHistoryCursor] = useState<string | null>(null);
+  const [showGateSettingsHistory, setShowGateSettingsHistory] = useState<boolean>(false);
+  const [historyFilterFrom, setHistoryFilterFrom] = useState<string>("");
+  const [historyFilterTo, setHistoryFilterTo] = useState<string>("");
+  const [historyFilterActorUid, setHistoryFilterActorUid] = useState<string>("");
 
   async function ensureLogin() {
     if (!auth.currentUser) await signInAnonymously(auth);
@@ -248,7 +254,56 @@ function App() {
     }
   }
 
-  async function loadGateSettings() {
+  async function loadGateSettingsHistory(cursor: string | null = null) {
+    setBusy(true);
+    clearError();
+    try {
+      const q = new URLSearchParams();
+      if (historyFilterFrom) q.append("from", historyFilterFrom);
+      if (historyFilterTo) q.append("to", historyFilterTo);
+      if (historyFilterActorUid) q.append("actorUid", historyFilterActorUid);
+      if (cursor) q.append("cursor", cursor);
+      q.append("limit", "20");
+
+      const data = await apiGet(`/v1/ops/gates/${gateKey}/settings/history?${q.toString()}`);
+      if (cursor) {
+        setGateSettingsHistory(prev => [...prev, ...data.items]);
+      } else {
+        setGateSettingsHistory(data.items);
+      }
+      setGateSettingsHistoryCursor(data.nextCursor);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function rollbackGateSettings(historyItem: any) {
+    if (!window.confirm("이 시점의 설정으로 롤백하시겠습니까? (Webhook URL은 변경되지 않습니다)")) return;
+    setBusy(true);
+    clearError();
+    try {
+      const enabled = historyItem.target?.changed?.enabled?.[1] ?? true;
+      const notes = historyItem.target?.changed?.notes?.[1] ?? "";
+      
+      const data = await apiPut(`/v1/ops/gates/${gateKey}/settings`, {
+        enabled,
+        slackWebhookUrl: gateSettingsWebhookUrl, // preserve current
+        notes,
+        isRollback: true
+      });
+      setLog(`[Gate 설정 롤백 성공]`);
+      setGateSettingsEnabled(data.enabled ?? true);
+      setGateSettingsWebhookUrl(data.slackWebhookUrl || "");
+      setGateSettingsNotes(data.notes || "");
+      setShowGateSettingsHistory(false);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
     setBusy(true);
     clearError();
     try {
@@ -1188,6 +1243,9 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                       <button disabled={busy} onClick={saveGateSettings} style={{ background: "#4caf50", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
                         [설정 저장]
                       </button>
+                      <button disabled={busy} onClick={() => { setShowGateSettingsHistory(true); loadGateSettingsHistory(null); }} style={{ background: "#5c6bc0", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold", marginLeft: "auto" }}>
+                        [변경 이력]
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1970,6 +2028,90 @@ next=재검증 재시도/파트너 문의/수동 확인`;
       </div>
 
       {/* 감사 로그 상세 모달 */}
+      {showGateSettingsHistory && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "white", padding: 20, borderRadius: 8, width: "90%", maxWidth: 800, maxHeight: "90vh", overflow: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, color: "#3f51b5" }}>Gate Settings Change History ({gateKey})</h3>
+              <button onClick={() => setShowGateSettingsHistory(false)} style={{ background: "none", border: "none", fontSize: "1.5em", cursor: "pointer" }}>&times;</button>
+            </div>
+            
+            <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap", alignItems: "center", background: "#f5f5f5", padding: 12, borderRadius: 6 }}>
+              <label>
+                From: <input type="date" value={historyFilterFrom} onChange={e => setHistoryFilterFrom(e.target.value)} disabled={busy} />
+              </label>
+              <label>
+                To: <input type="date" value={historyFilterTo} onChange={e => setHistoryFilterTo(e.target.value)} disabled={busy} />
+              </label>
+              <label>
+                Actor: <input type="text" placeholder="UID" value={historyFilterActorUid} onChange={e => setHistoryFilterActorUid(e.target.value)} disabled={busy} />
+              </label>
+              <button disabled={busy} onClick={() => loadGateSettingsHistory(null)} style={{ background: "#3f51b5", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>조회</button>
+            </div>
+
+            {gateSettingsHistory.length === 0 ? (
+              <p style={{ textAlign: "center", color: "#999" }}>이력이 없습니다.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {gateSettingsHistory.map(item => {
+                  const changed = item.target?.changed || {};
+                  return (
+                    <div key={item.id} style={{ border: "1px solid #ddd", borderRadius: 6, padding: 12, position: "relative" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #eee", paddingBottom: 8, marginBottom: 8 }}>
+                        <div>
+                          <strong style={{ color: "#333" }}>{new Date(item.createdAt).toLocaleString()}</strong>
+                          <span style={{ marginLeft: 8, fontSize: "0.85em", color: "#666" }}>
+                            {item.actorUid} | <span style={{ color: item.action === "ops_gate_settings.rollback" ? "#e65100" : "#3f51b5" }}>{item.action}</span>
+                          </span>
+                        </div>
+                        <button disabled={busy} onClick={() => rollbackGateSettings(item)} style={{ background: "#e65100", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em", fontWeight: "bold" }}>
+                          [이 시점으로 롤백]
+                        </button>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: "0.9em" }}>
+                        {changed.enabled && (
+                          <div style={{ display: "flex", alignItems: "center" }}>
+                            <span style={{ width: 100, fontWeight: "bold", color: "#555" }}>Enabled:</span>
+                            <span style={{ color: "#d32f2f", textDecoration: "line-through", marginRight: 8 }}>{String(changed.enabled[0])}</span>
+                            <span>→</span>
+                            <span style={{ color: "#388e3c", fontWeight: "bold", marginLeft: 8 }}>{String(changed.enabled[1])}</span>
+                          </div>
+                        )}
+                        {changed.slackWebhookUrlHost && (
+                          <div style={{ display: "flex", alignItems: "center" }}>
+                            <span style={{ width: 100, fontWeight: "bold", color: "#555" }}>Webhook Host:</span>
+                            <span style={{ color: "#d32f2f", textDecoration: "line-through", marginRight: 8 }}>{changed.slackWebhookUrlHost[0] || "null"}</span>
+                            <span>→</span>
+                            <span style={{ color: "#388e3c", fontWeight: "bold", marginLeft: 8 }}>{changed.slackWebhookUrlHost[1] || "null"}</span>
+                          </div>
+                        )}
+                        {changed.notes && (
+                          <div style={{ display: "flex", alignItems: "center" }}>
+                            <span style={{ width: 100, fontWeight: "bold", color: "#555" }}>Notes:</span>
+                            <span style={{ color: "#d32f2f", textDecoration: "line-through", marginRight: 8 }}>{changed.notes[0] || "null"}</span>
+                            <span>→</span>
+                            <span style={{ color: "#388e3c", fontWeight: "bold", marginLeft: 8 }}>{changed.notes[1] || "null"}</span>
+                          </div>
+                        )}
+                        {Object.keys(changed).length === 0 && <span style={{ color: "#999", fontStyle: "italic" }}>변경된 항목 없음</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            {gateSettingsHistoryCursor && (
+              <div style={{ textAlign: "center", marginTop: 16 }}>
+                <button disabled={busy} onClick={() => loadGateSettingsHistory(gateSettingsHistoryCursor)} style={{ background: "#eee", border: "1px solid #ccc", padding: "8px 16px", borderRadius: 4, cursor: "pointer" }}>
+                  더 보기
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {auditSelectedEvent && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
           <div style={{ background: "#fff", padding: 24, borderRadius: 8, width: 600, maxWidth: "90%", maxHeight: "90%", overflowY: "auto", position: "relative" }}>
