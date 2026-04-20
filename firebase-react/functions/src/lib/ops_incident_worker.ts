@@ -34,6 +34,8 @@ export async function processOpsIncidents(adminApp: typeof admin) {
   if (!eventsSnap.empty) {
     // Group events by gateKey
     const eventsByGate: Record<string, any[]> = {};
+    let lastProcessedInBatch = lastProcessedTime;
+    
     for (const doc of eventsSnap.docs) {
       const data = doc.data();
       const gateKey = data.gateKey || "unknown";
@@ -48,19 +50,33 @@ export async function processOpsIncidents(adminApp: typeof admin) {
         createdAt: data.createdAt,
         correlationId: data.correlationId
       });
+      
+      if (data.createdAt > lastProcessedInBatch) {
+        lastProcessedInBatch = data.createdAt;
+      }
     }
 
     // Process incidents per gateKey
     for (const [gateKey, events] of Object.entries(eventsByGate)) {
-      await processIncidentEvents(adminApp, gateKey, events);
+      try {
+        await processIncidentEvents(adminApp, gateKey, events);
+      } catch (err: any) {
+        console.error(`[processOpsIncidents] Failed for gateKey ${gateKey}:`, err);
+      }
     }
+    
+    // Update lastProcessedTime to the latest event's time instead of `now` to prevent missing events that arrived during processing
+    await stateDocRef.set({ lastProcessedTime: lastProcessedInBatch }, { merge: true });
+  } else {
+    await stateDocRef.set({ lastProcessedTime: now }, { merge: true });
   }
 
-  // Update lastProcessedTime
-  await stateDocRef.set({ lastProcessedTime: now }, { merge: true });
-
   // Close stale incidents (no events for 30 mins)
-  await closeStaleIncidents(adminApp);
+  try {
+    await closeStaleIncidents(adminApp);
+  } catch (err: any) {
+    console.error(`[processOpsIncidents] Failed to close stale incidents:`, err);
+  }
 }
 
 export async function generateWeeklyIncidentSummary(adminApp: typeof admin) {

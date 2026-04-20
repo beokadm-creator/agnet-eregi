@@ -2485,6 +2485,11 @@ next=재검증 재시도/파트너 문의/수동 확인`;
             )}
           </div>
           
+      {/* 2. Reliability (신뢰성 관리) 그룹 */}
+      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#e8eaf6" }}>
+        <h2 style={{ margin: "0 0 12px 0", color: "#3f51b5" }}>🛡️ Reliability (신뢰성 관리)</h2>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          
           {/* 재시도 작업 현황 영역 */}
           <div style={{ flex: "1 1 100%", background: "#fff", padding: 12, border: "1px solid #eee", borderRadius: 6, marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -2726,8 +2731,13 @@ next=재검증 재시도/파트너 문의/수동 확인`;
         </div>
       </div>
 
-      {/* Release Preflight & Smoke Test */}
-      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f8f9fa" }}>
+      {/* 4. Governance (관리) 그룹 */}
+      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f5f5f5" }}>
+        <h2 style={{ margin: "0 0 12px 0", color: "#424242" }}>🏛️ Governance (관리 및 통제)</h2>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          
+          {/* Release Preflight & Smoke Test */}
+          <div style={{ flex: "1 1 100%", padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f8f9fa", marginTop: 16 }}>
         <h2 style={{ margin: "0 0 8px 0", color: "#2e7d32" }}>🚀 Release Preflight & Smoke Test</h2>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -3047,9 +3057,14 @@ next=재검증 재시도/파트너 문의/수동 확인`;
         </div>
       </div>
 
-      {/* Query Health 대시보드 */}
-      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#fffde7" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+      {/* 3. Observability (관측성) 그룹 */}
+      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f1f8e9" }}>
+        <h2 style={{ margin: "0 0 12px 0", color: "#2e7d32" }}>📈 Observability (관측성 및 지표)</h2>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          
+          {/* Query Health 대시보드 */}
+          <div style={{ flex: "1 1 100%", background: "#fff", padding: 12, border: "1px solid #eee", borderRadius: 6, marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <h2 style={{ margin: "0", color: "#c2185b" }}>🩺 Query Health (Missing Index / Failed Queries)</h2>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={loadQueryHealth} disabled={busy} style={{ background: "#c2185b", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
@@ -3113,7 +3128,7 @@ next=재검증 재시도/파트너 문의/수동 확인`;
       </div>
 
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-        <h2 style={{ margin: "0 0 8px 0" }}>케이스 조회</h2>
+        <h2 style={{ margin: "0 0 8px 0" }}>케이스 조회 (비즈니스)</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <label>
             caseId{" "}

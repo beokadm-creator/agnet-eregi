@@ -56,3 +56,20 @@ export async function captureQueryHealthError(
     });
   }
 }
+
+// 쿼리 래퍼 (안전하게 쿼리 실행 후 에러 캡처)
+export async function safeQuery<T>(
+  adminApp: typeof admin,
+  gateKey: string,
+  queryName: string,
+  queryFn: () => Promise<T>,
+  fallbackValue: T
+): Promise<T> {
+  try {
+    return await queryFn();
+  } catch (e: any) {
+    console.error(`[SafeQuery] Error in ${queryName}:`, e);
+    await captureQueryHealthError(adminApp, gateKey, queryName, e).catch(console.error);
+    return fallbackValue;
+  }
+}

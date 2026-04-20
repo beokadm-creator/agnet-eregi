@@ -9,7 +9,11 @@ export type ApiErrorCode =
   | "CONFLICT"
   | "RATE_LIMITED"
   | "APPROVAL_REQUIRED"
-  | "INTERNAL";
+  | "INTERNAL"
+  | "UNAVAILABLE"
+  | "TIMEOUT"
+  | "BAD_REQUEST"
+  | "NOT_IMPLEMENTED";
 
 export interface ErrorLogPayload {
   endpoint: string;

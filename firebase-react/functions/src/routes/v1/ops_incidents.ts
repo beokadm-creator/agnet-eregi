@@ -3,12 +3,13 @@ import * as admin from "firebase-admin";
 
 import { requireAuth, isOps } from "../../lib/auth";
 import { requireOpsRole } from "../../lib/ops_rbac";
-import { fail, logError } from "../../lib/http";
+import { fail, ok, logError } from "../../lib/http";
 import { processOpsIncidents } from "../../lib/ops_incident_worker";
 import { logOpsEvent } from "../../lib/ops_audit";
 import { resetCircuitBreaker } from "../../lib/ops_circuit_breaker";
 import { notifyOpsAlert } from "../../lib/ops_alert";
 import { createDeadLetterIssueAction } from "../../lib/ops_actions";
+import { safeQuery } from "../../lib/ops_query_health";
 
 export function registerOpsIncidentRoutes(app: express.Application, adminApp: typeof admin) {
   
@@ -37,10 +38,12 @@ export function registerOpsIncidentRoutes(app: express.Application, adminApp: ty
 
       query = query.orderBy("startAt", "desc").limit(limit);
 
-      const snap = await query.get();
+      const snap = await safeQuery(adminApp, gateKey || "unknown", "ops_incidents_query", async () => await query.get(), null);
+      if (!snap) return fail(res, 500, "FAILED_PRECONDITION", "Query Health에 의해 차단되었습니다.");
+
       const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      return res.status(200).json({ ok: true, data: { items } });
+      return ok(res, { items });
     } catch (err: any) {
       logError({ endpoint: "incidents/list", code: "INTERNAL", messageKo: "Incident 목록 조회 실패", err });
       return fail(res, 500, "INTERNAL", "Incident 목록 조회 실패");
@@ -66,7 +69,7 @@ export function registerOpsIncidentRoutes(app: express.Application, adminApp: ty
       const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", data?.gateKey);
       if (!hasRole) return;
 
-      return res.status(200).json({ ok: true, data: { incident: { id: snap.id, ...data } } });
+      return ok(res, { incident: { id: snap.id, ...data } });
     } catch (err: any) {
       return fail(res, 500, "INTERNAL", err.message);
     }
@@ -107,7 +110,7 @@ export function registerOpsIncidentRoutes(app: express.Application, adminApp: ty
       // 즉시 worker 로직 실행
       await processOpsIncidents(adminApp);
 
-      return res.status(200).json({ ok: true, message: "Rebuild completed." });
+      return ok(res, { message: "Rebuild completed." });
     } catch (err: any) {
       return fail(res, 500, "INTERNAL", err.message);
     }
@@ -148,13 +151,10 @@ export function registerOpsIncidentRoutes(app: express.Application, adminApp: ty
       // 실제 실행 가능한(runnable) 액션 키들. (UI에서 참고용)
       const runnableActions = Object.keys(ALL_ACTIONS);
 
-      return res.status(200).json({ 
-        ok: true, 
-        data: { 
-          triage, 
-          steps, 
-          runnableActions 
-        } 
+      return ok(res, { 
+        triage, 
+        steps, 
+        runnableActions 
       });
     } catch (err: any) {
       return fail(res, 500, "INTERNAL", err.message);
@@ -277,7 +277,7 @@ export function registerOpsIncidentRoutes(app: express.Application, adminApp: ty
         })
       });
 
-      return res.status(200).json({ ok: true, data: { result: resultStatus, ref } });
+      return ok(res, { result: resultStatus, ref });
     } catch (err: any) {
       return fail(res, 500, "INTERNAL", err.message);
     }

@@ -6,6 +6,7 @@ import { requireOpsRole } from "../../lib/ops_rbac";
 import { fail, ok, logError } from "../../lib/http";
 import { processOpsMetricsDaily } from "../../lib/ops_metrics_worker";
 import { processAlertQualityDaily } from "../../lib/ops_alert_quality_worker";
+import { safeQuery } from "../../lib/ops_query_health";
 
 export function registerOpsObservabilityRoutes(app: express.Application, adminApp: typeof admin) {
 
@@ -30,7 +31,9 @@ export function registerOpsObservabilityRoutes(app: express.Application, adminAp
 
       query = query.orderBy("date", "desc").limit(limit);
 
-      const snap = await query.get();
+      const snap = await safeQuery(adminApp, gateKey || "unknown", "ops_metrics_daily_query", async () => await query.get(), null);
+      if (!snap) return fail(res, 500, "FAILED_PRECONDITION", "Query Health에 의해 차단되었습니다.");
+      
       const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       return ok(res, { items });
@@ -61,7 +64,9 @@ export function registerOpsObservabilityRoutes(app: express.Application, adminAp
 
       query = query.orderBy("date", "desc").limit(limit);
 
-      const snap = await query.get();
+      const snap = await safeQuery(adminApp, gateKey || "unknown", "ops_alert_quality_query", async () => await query.get(), null);
+      if (!snap) return fail(res, 500, "FAILED_PRECONDITION", "Query Health에 의해 차단되었습니다.");
+      
       const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       return ok(res, { items });
