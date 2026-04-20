@@ -1,1 +1,1 @@
-export const registerQuoteRoutes = (...args: any[]) => {};
+export const registerQuoteRoutes = (...args: any[]) => { console.warn("// TODO: not implemented"); };

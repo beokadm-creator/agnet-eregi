@@ -1,1 +1,1 @@
-export const registerCaseRoutes = (...args: any[]) => {};
+export const registerCaseRoutes = (...args: any[]) => { console.warn("// TODO: not implemented"); };

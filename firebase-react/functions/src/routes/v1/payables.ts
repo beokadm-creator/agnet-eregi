@@ -1,1 +1,1 @@
-export const registerPayablesRoutes = (...args: any[]) => {};
+export const registerPayablesRoutes = (...args: any[]) => { console.warn("// TODO: not implemented"); };
