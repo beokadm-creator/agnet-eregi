@@ -21,8 +21,10 @@ import { registerFilingRoutes } from "./routes/v1/filing";
 import { registerReportRoutes } from "./routes/v1/reports";
 import { registerPackageRoutes } from "./routes/v1/packages";
 import { registerFormRoutes } from "./routes/v1/forms";
+import { registerOpsIncidentRoutes } from "./routes/v1/ops_incidents";
 import { processRetryJobs } from "./lib/ops_retry_worker";
 import { processOpsAlertJobs } from "./lib/ops_alert_worker";
+import { processOpsIncidents, generateWeeklyIncidentSummary } from "./lib/ops_incident_worker";
 
 admin.initializeApp();
 
@@ -57,6 +59,7 @@ registerReportRoutes(app, admin);
 registerPackageRoutes(app, admin);
 registerFormRoutes(app, admin);
 registerDevRoutes(app, admin);
+registerOpsIncidentRoutes(app, admin);
 
 app.get("/health", async (_req, res) => ok(res, { status: "ok" }));
 app.use((_req, res) => fail(res, 404, "NOT_FOUND", "존재하지 않는 엔드포인트입니다."));
@@ -83,5 +86,28 @@ export const opsAlertWorker = functions
       await processOpsAlertJobs(admin);
     } catch (e) {
       console.error("[OpsAlertWorker] Fatal error:", e);
+    }
+  });
+
+export const opsIncidentWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 5 minutes")
+  .onRun(async () => {
+    try {
+      await processOpsIncidents(admin);
+    } catch (e) {
+      console.error("[OpsIncidentWorker] Fatal error:", e);
+    }
+  });
+
+export const opsWeeklySummaryWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("0 9 * * 1") // 매주 월요일 오전 9시 (KST/UTC 고려 필요)
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    try {
+      await generateWeeklyIncidentSummary(admin);
+    } catch (e) {
+      console.error("[OpsWeeklySummaryWorker] Fatal error:", e);
     }
   });
