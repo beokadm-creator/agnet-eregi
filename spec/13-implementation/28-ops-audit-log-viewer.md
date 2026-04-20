@@ -30,6 +30,9 @@
   - `action` (ASC), `createdAt` (DESC)
   - `status` (ASC), `createdAt` (DESC)
   - `actorUid` (ASC), `createdAt` (DESC)
+- **제약 사항 (복합 인덱스 폭증 방지)**:
+  - 현재는 각 필터 필드(gateKey, action, status, actorUid)를 독립적으로 `createdAt`과 결합하여 단일 조건 필터링을 최적화하도록 설계되었습니다.
+  - 여러 필터를 동시에 적용할 경우, 설정된 복합 인덱스가 없으면 Firestore에서 인덱스 에러가 발생할 수 있습니다. 운영상 자주 쓰이는 조합(예: `gateKey` + `status` + `createdAt`)에 대해서만 인덱스를 추가로 생성하고, 무분별한 다중 조건 조합은 제한하는 것이 좋습니다.
 
 ### 2.2. `GET /v1/ops/audit-events/:id`
 - **목적**: 단건 상세 조회
