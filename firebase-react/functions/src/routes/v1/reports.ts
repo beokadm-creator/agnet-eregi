@@ -5,6 +5,12 @@ import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, 
 import { requireAuth, isOps, partnerIdOf } from "../../lib/auth";
 import { fail, logError } from "../../lib/http";
 import { caseRef } from "../../lib/firestore";
+import { logOpsEvent, categorizeError } from "../../lib/ops_audit";
+import { enqueueRetryJob, isRetryableAction } from "../../lib/ops_retry";
+import { doResolve, discoverProjectConfigAction, doResolveAction, dispatchWorkflowAction, generateMonthlyReportAction } from "../../lib/ops_actions";
+import { notifyOpsAlert } from "../../lib/ops_alert";
+
+import { checkCircuitBreaker, recordCircuitBreakerSuccess, recordCircuitBreakerFail, getCircuitBreakerState, resetCircuitBreaker } from "../../lib/ops_circuit_breaker";
 
 function fmtTs(v: any) {
   if (!v) return "-";
@@ -40,14 +46,13 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // Gate 일일 집계록(MD) 조회 API (운영용)
   app.get("/v1/ops/reports/:gateKey/daily.md", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) {
-        const requestId = req.headers["x-request-id"] || req.body?._requestId || "N/A";
         logError({ endpoint: "/v1/ops/reports/pilot-gate/daily.md", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
@@ -160,7 +165,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // Gate 일일 집계 API (운영용)
   app.get("/v1/ops/reports/:gateKey/daily", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -243,7 +248,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 일일 로그 SSOT 단일 조회
   app.get("/v1/ops/reports/:gateKey/daily/ssot", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -273,7 +278,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 최근 SSOT 목록 조회
   app.get("/v1/ops/reports/:gateKey/daily/ssot/recent", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -317,7 +322,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 일일 로그 SSOT에 자동 append (Firestore 기반)
   app.post("/v1/ops/reports/:gateKey/daily/append", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -472,9 +477,30 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       }
 
       const linesAdded = markdown.split("\n").length + 2; // +2 for separator visual logic if needed
+      
+      await logOpsEvent(adminApp, {
+        gateKey,
+        action: "daily.append",
+        status: "success",
+        actorUid: auth.uid,
+        requestId,
+        target: { date: targetDateStr },
+        summary: `SSOT 저장 완료 (성공: ${okCount}건, 실패: ${failCount}건)`
+      });
+
       return res.status(200).send({ appended: true, linesAdded, requestId });
     } catch (err: any) {
+      const requestId = req.headers["x-request-id"] || req.body?._requestId || "N/A";
       logError({ endpoint: "/v1/ops/reports/pilot-gate/daily/append", code: "INTERNAL", messageKo: "일일 로그 저장 중 시스템 오류가 발생했습니다.", err });
+      await logOpsEvent(adminApp, {
+        gateKey: String(req.params.gateKey),
+        action: "daily.append",
+        status: "fail",
+        actorUid: "unknown", // req.user may not exist if requireAuth fails earlier, but usually this is caught before
+        requestId: String(requestId),
+        summary: "SSOT 저장 중 오류 발생",
+        error: { message: err.message }
+      });
       return fail(res, 500, "INTERNAL", "일일 로그 저장 중 시스템 오류가 발생했습니다.");
     }
   });
@@ -482,7 +508,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 월간 리포트 생성 API (Ops-only)
   app.post("/v1/ops/reports/:gateKey/monthly/generate", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -495,98 +521,30 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         ? String(month) 
         : formatKstYmd().substring(0, 7);
 
-      const startId = gateKey === "pilot-gate" ? `${targetMonth}-01` : `${gateKey}:${targetMonth}-01`;
-      
-      const nextMonthDate = new Date(`${targetMonth}-01T00:00:00+09:00`);
-      nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
-      const nextMonthStr = formatKstYmd(nextMonthDate).substring(0, 7);
-      const endId = gateKey === "pilot-gate" ? `${nextMonthStr}-01` : `${gateKey}:${nextMonthStr}-01`;
+      const result = await generateMonthlyReportAction(adminApp, gateKey, targetMonth, dryRun);
 
-      const snap = await adminApp.firestore()
-        .collection("ops_daily_logs")
-        .where(adminApp.firestore.FieldPath.documentId(), ">=", startId)
-        .where(adminApp.firestore.FieldPath.documentId(), "<", endId)
-        .get();
-
-      const totals = { daysWithLogs: snap.size, totalGate: 0, ok: 0, fail: 0 };
-      const topSlotsMap: Record<string, { severity: number, impactCount: number, daysAppeared: number }> = {};
-      const daily: any[] = [];
-
-      for (const doc of snap.docs) {
-        const data = doc.data();
-        const dateStr = gateKey === "pilot-gate" ? doc.id : doc.id.split(":")[1];
-        const metrics = data.metrics || { total: 0, okCount: 0, failCount: 0, topMissing: [] };
-        
-        totals.totalGate += metrics.total || 0;
-        totals.ok += metrics.okCount || 0;
-        totals.fail += metrics.failCount || 0;
-
-        daily.push({
-          date: dateStr,
-          total: metrics.total || 0,
-          ok: metrics.okCount || 0,
-          fail: metrics.failCount || 0,
-          topMissing: metrics.topMissing || []
-        });
-
-        if (Array.isArray(data.topIssues)) {
-          for (const issue of data.topIssues) {
-            const slotId = issue.slotId;
-            const sevNum = parseInt(String(issue.severity).replace(/\D/g, ""), 10) || 3;
-            if (!topSlotsMap[slotId]) {
-              topSlotsMap[slotId] = { severity: sevNum, impactCount: 0, daysAppeared: 0 };
-            }
-            topSlotsMap[slotId].impactCount += issue.impactCount || 1;
-            topSlotsMap[slotId].daysAppeared += 1;
-            // 가장 높은 심각도 유지
-            if (sevNum < topSlotsMap[slotId].severity) {
-              topSlotsMap[slotId].severity = sevNum;
-            }
-          }
-        }
-      }
-
-      const topSlots = Object.entries(topSlotsMap)
-        .map(([slotId, stats]) => ({
-          slotId,
-          severity: stats.severity,
-          impactCount: stats.impactCount,
-          daysAppeared: stats.daysAppeared
-        }))
-        .sort((a, b) => a.severity - b.severity || b.impactCount - a.impactCount);
-
-      // Markdown Summary
-      const markdownSummary = [
-        `## ${targetMonth} 월간 트렌드 요약 (${gateKey})`,
-        ``,
-        `- **가동 일수**: ${totals.daysWithLogs}일`,
-        `- **총 Gate 처리**: ${totals.totalGate}건`,
-        `- **성공**: ${totals.ok}건 / **실패**: ${totals.fail}건`,
-        ``,
-        `### Top 누락 Slot (월간)`,
-        ...topSlots.slice(0, 5).map(s => `- **${s.slotId}** (Sev${s.severity}): ${s.impactCount}건 발생 (총 ${s.daysAppeared}일 등장)`),
-      ].join("\n");
-
-      const reportData = {
+      await logOpsEvent(adminApp, {
         gateKey,
-        month: targetMonth,
-        generatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
-        totals,
-        topSlots,
-        daily: daily.sort((a, b) => a.date.localeCompare(b.date)),
-        markdownSummary
-      };
+        action: "monthly.generate",
+        status: "success",
+        actorUid: auth.uid,
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        target: { month: targetMonth },
+        summary: `월간 리포트 생성 완료 (dryRun: ${dryRun})`
+      });
 
-      if (!dryRun) {
-        await adminApp.firestore()
-          .collection("ops_monthly_reports")
-          .doc(`${gateKey}:${targetMonth}`)
-          .set(reportData, { merge: false });
-      }
-
-      return res.status(200).json({ ok: true, data: { ...reportData, dryRun } });
+      return res.status(200).json({ ok: true, data: result });
     } catch (err: any) {
       logError({ endpoint: "/monthly/generate", code: "INTERNAL", messageKo: "월간 리포트 생성 중 오류가 발생했습니다.", err });
+      await logOpsEvent(adminApp, {
+        gateKey: String(req.params.gateKey),
+        action: "monthly.generate",
+        status: "fail",
+        actorUid: "unknown",
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: "월간 리포트 생성 중 오류",
+        error: { message: err.message }
+      });
       return fail(res, 500, "INTERNAL", "월간 리포트 생성 중 오류가 발생했습니다.");
     }
   });
@@ -594,7 +552,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 월간 리포트 조회 API (Ops-only)
   app.get("/v1/ops/reports/:gateKey/monthly", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -623,7 +581,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 월간 리포트 PR 조회 API (Ops-only)
   app.get("/v1/ops/reports/:gateKey/monthly/pr", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -692,7 +650,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 월간 리포트 Workflow Run 상태 조회 API (Ops-only)
   app.get("/v1/ops/reports/:gateKey/monthly/workflow-run", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -713,15 +671,16 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const githubConfig = config.github || {};
       const owner = githubConfig.owner || "beokadm-creator";
       const repo = githubConfig.repo || "agnet-eregi";
-      const tokenRef = githubConfig.tokenRef || "GITHUB_TOKEN_BACKLOG_BOT";
+      // 토큰 분리 로직: tokenRefActions가 있으면 우선 사용
+      const tokenRef = githubConfig.tokenRefActions || githubConfig.tokenRef || "GITHUB_TOKEN_BACKLOG_BOT";
       const GITHUB_TOKEN = process.env[tokenRef] || "";
 
       if (!GITHUB_TOKEN) {
         return fail(res, 400, "INVALID_ARGUMENT", `GitHub 토큰이 설정되지 않았습니다. (tokenRef: ${tokenRef})`);
       }
 
-      const headBranch = `bot/ops-monthly-summary-${gateKey}-${month}`;
-      const searchUrl = `https://api.github.com/repos/${owner}/${repo}/actions/runs?branch=${headBranch}&per_page=1`;
+      // run-name 기반 조회를 위해 최근 10개 가져오기
+      const searchUrl = `https://api.github.com/repos/${owner}/${repo}/actions/runs?per_page=10`;
 
       const ghRes = await fetch(searchUrl, {
         headers: {
@@ -736,11 +695,20 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       }
 
       const runData = await ghRes.json() as any;
-      if (!runData.workflow_runs || runData.workflow_runs.length === 0) {
+      const expectedName = `monthly-summary ${gateKey} ${month}`;
+      
+      let run = (runData.workflow_runs || []).find((r: any) => r.name === expectedName || r.display_title === expectedName);
+
+      if (!run) {
+        // 하위 호환성을 위해 브랜치명으로도 폴백 검색
+        const headBranch = `bot/ops-monthly-summary-${gateKey}-${month}`;
+        run = (runData.workflow_runs || []).find((r: any) => r.head_branch === headBranch);
+      }
+
+      if (!run) {
         return res.status(200).json({ ok: true, data: { exists: false } });
       }
 
-      const run = runData.workflow_runs[0];
       return res.status(200).json({
         ok: true,
         data: {
@@ -760,10 +728,59 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
+  // 월간 리포트 Workflow Run Dispatch API (Ops-only)
+  app.post("/v1/ops/reports/:gateKey/monthly/workflow-run/dispatch", async (req: express.Request, res: express.Response) => {
+    try {
+      const gateKey = String(String(req.params.gateKey));
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const month = String(req.body.month || formatKstYmd().substring(0, 7));
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "month 파라미터 형식이 잘못되었습니다 (YYYY-MM).");
+      }
+      
+      const gateKeyOverride = req.body.gateKeyOverride || gateKey;
+
+      const result = await dispatchWorkflowAction(adminApp, gateKey, month, gateKeyOverride);
+
+      await logOpsEvent(adminApp, {
+        gateKey: gateKeyOverride,
+        action: "workflow.dispatch",
+        status: "success",
+        actorUid: auth.uid,
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        target: { month },
+        summary: `월간 요약 워크플로우 Dispatch 성공`
+      });
+
+      return res.status(200).json({
+        ok: true,
+        data: result
+      });
+    } catch (err: any) {
+      logError({ endpoint: "/monthly/workflow-run/dispatch", code: "INTERNAL", messageKo: "Workflow Dispatch 중 오류가 발생했습니다.", err });
+      await logOpsEvent(adminApp, {
+        gateKey: String(req.params.gateKey),
+        action: "workflow.dispatch",
+        status: "fail",
+        actorUid: "unknown",
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: "워크플로우 Dispatch 중 오류",
+        error: { message: err.message }
+      });
+      return fail(res, 500, "INTERNAL", "Workflow Dispatch 중 오류가 발생했습니다.");
+    }
+  });
+
   // 백로그 후보 자동화: Firestore SSOT → GitHub Issue 생성
   app.post("/v1/ops/reports/:gateKey/backlog/issues/create", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -803,6 +820,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       
       const created = [];
       const skipped = [];
+      const failed = [];
 
       for (const issue of topIssues) {
         const dedupeKey = `${gateKey}:${targetDateStr}:${issue.slotId}`;
@@ -851,6 +869,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
             if (!GITHUB_TOKEN) {
               throw new Error("GITHUB_TOKEN_BACKLOG_BOT is not configured.");
             }
+            
+            await checkCircuitBreaker(adminApp, gateKey);
+
             // Fetch to GitHub API
             const ghRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
               method: "POST",
@@ -868,8 +889,13 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
 
             if (!ghRes.ok) {
               const errText = await ghRes.text();
-              throw new Error(`GitHub API Error: ${ghRes.status} ${errText}`);
+              const errorMsg = `GitHub API Error: ${ghRes.status} ${errText}`;
+              const { category } = categorizeError(errorMsg);
+              await recordCircuitBreakerFail(adminApp, gateKey, category, errorMsg);
+              throw new Error(errorMsg);
             }
+            
+            await recordCircuitBreakerSuccess(adminApp, gateKey);
             
             const ghData = await ghRes.json();
             issueUrl = ghData.html_url;
@@ -895,6 +921,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
           } else {
             console.error(`[backlog create error] dedupeKey=${dedupeKey}`, e);
             skipped.push({ dedupeKey, reason: e.message || "ERROR" });
+            failed.push({ dedupeKey, reason: e.message || "ERROR" });
             // 실패 시 롤백 (dryRun이 아닐 때만 create 했으므로)
             if (!dryRun && !isAlreadyExists) {
                await dedupeRef.delete().catch(() => {});
@@ -902,6 +929,16 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
           }
         }
       }
+
+      await logOpsEvent(adminApp, {
+        gateKey,
+        action: "issue.create",
+        status: failed.length > 0 ? "fail" : "success",
+        actorUid: auth.uid,
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        target: { date: targetDateStr },
+        summary: `이슈 생성 완료 (생성: ${created.length}, 스킵: ${skipped.length - failed.length}, 실패: ${failed.length})`
+      });
 
       return res.status(200).json({
         ok: true,
@@ -913,6 +950,15 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       });
     } catch (err: any) {
       logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog/issues/create", code: "INTERNAL", messageKo: "이슈 생성 중 오류가 발생했습니다.", err });
+      await logOpsEvent(adminApp, {
+        gateKey: String(req.params.gateKey),
+        action: "issue.create",
+        status: "fail",
+        actorUid: "unknown",
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: "이슈 생성 중 오류 발생",
+        error: { message: err.message }
+      });
       return fail(res, 500, "INTERNAL", "이슈 생성 중 오류가 발생했습니다.");
     }
   });
@@ -920,7 +966,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 백로그 자동화: 설정 SSOT 갱신 (Discovery)
   app.post("/v1/ops/reports/:gateKey/backlog/project/discover", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -930,142 +976,29 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
 
-      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
-      const existingConfig = configDoc.exists ? configDoc.data() : {};
-      const githubConfig = existingConfig?.github || {};
+      const configData = await discoverProjectConfigAction(adminApp, gateKey, req.body.projectId, auth.uid);
 
-      const projectId = req.body.projectId || githubConfig.projectId || process.env.GITHUB_PROJECT_ID;
-      const tokenRef = githubConfig.tokenRef || "GITHUB_TOKEN_BACKLOG_BOT";
-      const GITHUB_TOKEN = process.env[tokenRef] || "";
-
-      if (!projectId || !GITHUB_TOKEN) {
-        return fail(res, 400, "INVALID_ARGUMENT", `Project ID 또는 토큰이 누락되었습니다. (tokenRef: ${tokenRef})`);
-      }
-
-      // 정규화 함수: 소문자화, 공백/하이픈/언더스코어 제거
-      const norm = (s: string) => s.toLowerCase().replace(/[\s\-_]/g, "");
-
-      // Alias 후보 (기본 내장)
-      const fieldAliases = {
-        status: ["status", "state", "workflow", "상태", "진행상태", "워크플로우"],
-        priority: ["priority", "prio", "우선순위", "중요도"],
-        severity: ["severity", "sev", "등급", "심각도"]
-      };
-
-      const optionAliases = {
-        "status.todo": ["todo", "to do", "할일", "할 일", "대기", "new"],
-        "status.in_progress": ["in progress", "doing", "진행중", "진행 중"],
-        "status.done": ["done", "complete", "완료"],
-        "priority.p0": ["p0", "highest", "긴급", "최우선"],
-        "priority.p1": ["p1", "high", "높음"],
-        "priority.p2": ["p2", "medium", "보통"]
-      };
-
-      // Custom Aliases 병합
-      const customAliases = existingConfig?.customAliases || {};
-
-      if (customAliases.fieldAliases) {
-        for (const [k, v] of Object.entries(customAliases.fieldAliases)) {
-          if (Array.isArray(v) && fieldAliases[k as keyof typeof fieldAliases]) {
-            fieldAliases[k as keyof typeof fieldAliases].push(...v);
-          }
-        }
-      }
-      if (customAliases.optionAliases) {
-        for (const [k, v] of Object.entries(customAliases.optionAliases)) {
-          if (Array.isArray(v) && optionAliases[k as keyof typeof optionAliases]) {
-            optionAliases[k as keyof typeof optionAliases].push(...v);
-          }
-        }
-      }
-
-      // 1. GraphQL로 Project 필드 목록 조회
-      const query = `
-        query {
-          node(id: "${projectId}") {
-            ... on ProjectV2 {
-              fields(first: 20) {
-                nodes {
-                  ... on ProjectV2SingleSelectField {
-                    id
-                    name
-                    options {
-                      id
-                      name
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      `;
-
-      const ghRes = await fetch("https://api.github.com/graphql", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${GITHUB_TOKEN}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ query })
+      await logOpsEvent(adminApp, {
+        gateKey,
+        action: "project.discover",
+        status: "success",
+        actorUid: auth.uid,
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: `프로젝트 설정 갱신 완료 (missingMappings: ${configData.missingMappings.length}개)`
       });
-
-      const ghData = await ghRes.json();
-      if (ghData.errors) throw new Error(`GraphQL Error: ${JSON.stringify(ghData.errors)}`);
-
-      const nodes = ghData.data.node.fields.nodes;
-      
-      const resolved: Record<string, any> = {};
-      const missingMappings: string[] = [];
-
-      // 매칭 로직
-      for (const [fKey, fAliases] of Object.entries(fieldAliases)) {
-        const normAliases = fAliases.map(norm);
-        const node = nodes.find((n: any) => n.name && normAliases.includes(norm(n.name)));
-        
-        if (node) {
-          resolved[`${fKey}FieldId`] = node.id;
-          resolved[`${fKey}OptionIds`] = {};
-          
-          // 옵션 매칭
-          const optPrefix = `${fKey}.`;
-          for (const [oKey, oAliases] of Object.entries(optionAliases)) {
-            if (!oKey.startsWith(optPrefix)) continue;
-            const shortOKey = oKey.replace(optPrefix, ""); // e.g., "todo"
-            const normOAliases = oAliases.map(norm);
-            
-            const optNode = node.options.find((o: any) => o.name && normOAliases.includes(norm(o.name)));
-            if (optNode) {
-              resolved[`${fKey}OptionIds`][shortOKey] = optNode.id;
-            } else {
-              missingMappings.push(oKey);
-            }
-          }
-        } else {
-          missingMappings.push(`${fKey}FieldId`);
-        }
-      }
-
-      const configData = {
-        projectId,
-        rawFields: nodes,
-        resolved,
-        missingMappings,
-        customAliases, // 유지
-        updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
-        updatedBy: auth.uid,
-        source: "discovery"
-      };
-
-      // 2. Firestore 설정 SSOT에 저장
-      await adminApp.firestore()
-        .collection("ops_github_project_config")
-        .doc(gateKey)
-        .set(configData, { merge: true });
 
       return res.status(200).json({ ok: true, data: configData });
     } catch (err: any) {
       logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog/project/discover", code: "INTERNAL", messageKo: "설정 갱신 중 오류가 발생했습니다.", err });
+      await logOpsEvent(adminApp, {
+        gateKey: String(req.params.gateKey),
+        action: "project.discover",
+        status: "fail",
+        actorUid: "unknown",
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: "프로젝트 설정 갱신 중 오류",
+        error: { message: err.message }
+      });
       return fail(res, 500, "INTERNAL", "설정 갱신 중 오류가 발생했습니다.");
     }
   });
@@ -1073,7 +1006,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 백로그 자동화: gateKey별 GitHub 기본 설정 upsert (Ops-only)
   app.patch("/v1/ops/reports/:gateKey/backlog/project/config/github", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -1081,14 +1014,14 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
-      const { owner, repo, projectId, tokenRef, issueLabels, rules } = req.body;
+      const { owner, repo, projectId, tokenRef, tokenRefActions, issueLabels, rules } = req.body;
       
       const updateData: any = {
         updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
         updatedBy: auth.uid,
       };
 
-      if (owner !== undefined || repo !== undefined || projectId !== undefined || tokenRef !== undefined) {
+      if (owner !== undefined || repo !== undefined || projectId !== undefined || tokenRef !== undefined || tokenRefActions !== undefined) {
         updateData.github = {};
         if (owner !== undefined) updateData.github.owner = owner;
         if (repo !== undefined) updateData.github.repo = repo;
@@ -1098,6 +1031,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
             return fail(res, 400, "INVALID_ARGUMENT", "tokenRef는 문자열이어야 합니다.");
           }
           updateData.github.tokenRef = tokenRef;
+        }
+        if (tokenRefActions !== undefined) {
+          if (typeof tokenRefActions !== "string") {
+            return fail(res, 400, "INVALID_ARGUMENT", "tokenRefActions는 문자열이어야 합니다.");
+          }
+          updateData.github.tokenRefActions = tokenRefActions;
         }
       }
 
@@ -1121,7 +1060,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 백로그 자동화: 설정 SSOT 조회
   app.get("/v1/ops/reports/:gateKey/backlog/project/config", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -1143,7 +1082,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 백로그 자동화: Alias 수정 및 즉시 Resolve
   app.patch("/v1/ops/reports/:gateKey/backlog/project/config/aliases", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -1189,7 +1128,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 백로그 자동화: 로컬 재매칭 (Re-resolve)
   app.post("/v1/ops/reports/:gateKey/backlog/project/resolve", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -1197,103 +1136,302 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
-      const docRef = adminApp.firestore().collection("ops_github_project_config").doc(gateKey);
-      const docSnap = await docRef.get();
-      if (!docSnap.exists) {
-        return fail(res, 404, "NOT_FOUND", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
-      }
+      const result = await doResolveAction(adminApp, gateKey, auth.uid);
 
-      const config = docSnap.data() as any;
-      if (!config.rawFields || !Array.isArray(config.rawFields)) {
-         return fail(res, 400, "INVALID_ARGUMENT", "rawFields가 없습니다. Discover를 다시 실행하세요.");
-      }
-
-      const result = doResolve(config.rawFields, config.customAliases || {});
-
-      await docRef.update({
-        resolved: result.resolved,
-        missingMappings: result.missingMappings,
-        updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
-        updatedBy: auth.uid
+      await logOpsEvent(adminApp, {
+        gateKey,
+        action: "project.resolve",
+        status: "success",
+        actorUid: auth.uid,
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: `프로젝트 설정 재매칭 완료 (missing: ${result.missingMappings.length}개)`
       });
 
       return res.status(200).json({ ok: true, data: result });
     } catch (err: any) {
       logError({ endpoint: "resolve post", code: "INTERNAL", messageKo: "Re-resolve 실패", err });
+      await logOpsEvent(adminApp, {
+        gateKey: String(req.params.gateKey),
+        action: "project.resolve",
+        status: "fail",
+        actorUid: "unknown",
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: "프로젝트 설정 재매칭 중 오류",
+        error: { message: err.message }
+      });
       return fail(res, 500, "INTERNAL", "Re-resolve 실패");
     }
   });
 
-  // 내부 Resolve 함수 추출 (Discovery와 Re-resolve에서 공유)
-  function doResolve(rawFields: any[], customAliases: any) {
-    const norm = (s: string) => s.toLowerCase().replace(/[\s\-_]/g, "");
-
-    const fieldAliases = {
-      status: ["status", "state", "workflow", "상태", "진행상태", "워크플로우"],
-      priority: ["priority", "prio", "우선순위", "중요도"],
-      severity: ["severity", "sev", "등급", "심각도"]
-    };
-
-    const optionAliases = {
-      "status.todo": ["todo", "to do", "할일", "할 일", "대기", "new"],
-      "status.in_progress": ["in progress", "doing", "진행중", "진행 중"],
-      "status.done": ["done", "complete", "완료"],
-      "priority.p0": ["p0", "highest", "긴급", "최우선"],
-      "priority.p1": ["p1", "high", "높음"],
-      "priority.p2": ["p2", "medium", "보통"]
-    };
-
-    if (customAliases.fieldAliases) {
-      for (const [k, v] of Object.entries(customAliases.fieldAliases)) {
-        if (Array.isArray(v) && fieldAliases[k as keyof typeof fieldAliases]) {
-          fieldAliases[k as keyof typeof fieldAliases].push(...(v as string[]));
-        }
+  // 최근 감사 이벤트 조회
+  app.get("/v1/ops/reports/:gateKey/audit/recent", async (req: express.Request, res: express.Response) => {
+    try {
+      const gateKey = String(String(req.params.gateKey));
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const limit = Number(req.query.limit) || 50;
+
+      const snap = await adminApp.firestore()
+        .collection("ops_audit_events")
+        .where("gateKey", "==", gateKey)
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .get();
+
+      const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      return res.status(200).json({ ok: true, data: { items } });
+    } catch (err: any) {
+      logError({ endpoint: "audit/recent", code: "INTERNAL", messageKo: "이벤트 조회 실패", err });
+      return fail(res, 500, "INTERNAL", "이벤트 조회 실패");
     }
-    if (customAliases.optionAliases) {
-      for (const [k, v] of Object.entries(customAliases.optionAliases)) {
-        if (Array.isArray(v) && optionAliases[k as keyof typeof optionAliases]) {
-          optionAliases[k as keyof typeof optionAliases].push(...(v as string[]));
-        }
+  });
+
+  app.get("/v1/ops/audit/recent", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const limit = Number(req.query.limit) || 200;
+
+      const snap = await adminApp.firestore()
+        .collection("ops_audit_events")
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .get();
+
+      const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      return res.status(200).json({ ok: true, data: { items } });
+    } catch (err: any) {
+      logError({ endpoint: "audit/recent/all", code: "INTERNAL", messageKo: "이벤트 조회 실패", err });
+      return fail(res, 500, "INTERNAL", "이벤트 조회 실패");
+    }
+  });
+
+  // 재시도 API (Ops-only)
+  app.post("/v1/ops/reports/:gateKey/audit/retry", async (req: express.Request, res: express.Response) => {
+    try {
+      const gateKey = String(String(req.params.gateKey));
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
-    }
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
-    const resolved: Record<string, any> = {};
-    const missingMappings: string[] = [];
+      const { eventId } = req.body;
+      if (!eventId || typeof eventId !== "string") {
+        return fail(res, 400, "INVALID_ARGUMENT", "eventId 파라미터가 필요합니다.");
+      }
 
-    for (const [fKey, fAliases] of Object.entries(fieldAliases)) {
-      const normAliases = fAliases.map(norm);
-      const node = rawFields.find((n: any) => n.name && normAliases.includes(norm(n.name)));
+      const eventDoc = await adminApp.firestore().collection("ops_audit_events").doc(eventId).get();
+      if (!eventDoc.exists) {
+        return fail(res, 404, "NOT_FOUND", "해당 이벤트를 찾을 수 없습니다.");
+      }
+
+      const eventData = eventDoc.data() as any;
+      if (eventData.status === "success") {
+         return fail(res, 400, "INVALID_ARGUMENT", "이미 성공한 이벤트입니다.");
+      }
+
+      if (!isRetryableAction(eventData.action)) {
+         return fail(res, 400, "INVALID_ARGUMENT", `Action '${eventData.action}'은(는) 재시도할 수 없습니다.`);
+      }
+
+      const { jobId, status } = await enqueueRetryJob(adminApp, eventId, eventData);
       
-      if (node) {
-        resolved[`${fKey}FieldId`] = node.id;
-        resolved[`${fKey}OptionIds`] = {};
-        
-        const optPrefix = `${fKey}.`;
-        for (const [oKey, oAliases] of Object.entries(optionAliases)) {
-          if (!oKey.startsWith(optPrefix)) continue;
-          const shortOKey = oKey.replace(optPrefix, "");
-          const normOAliases = oAliases.map(norm);
-          
-          const optNode = node.options?.find((o: any) => o.name && normOAliases.includes(norm(o.name)));
-          if (optNode) {
-            resolved[`${fKey}OptionIds`][shortOKey] = optNode.id;
-          } else {
-            missingMappings.push(oKey);
-          }
-        }
-      } else {
-        missingMappings.push(`${fKey}FieldId`);
-      }
-    }
+      await logOpsEvent(adminApp, {
+        gateKey,
+        action: "audit.retry",
+        status: "success",
+        actorUid: auth.uid,
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: `이벤트 재시도 예약 완료 (Job ID: ${jobId})`
+      });
 
-    return { resolved, missingMappings };
-  }
+      return res.status(200).json({ ok: true, data: { jobId, status } });
+    } catch (err: any) {
+      logError({ endpoint: "audit/retry", code: "INTERNAL", messageKo: "재시도 생성 실패", err });
+      return fail(res, 500, "INTERNAL", "재시도 생성 실패: " + err.message);
+    }
+  });
+
+  // 재시도 현황 조회
+  app.get("/v1/ops/retry/recent", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const limit = Number(req.query.limit) || 50;
+      const gateKey = req.query.gateKey as string | undefined;
+
+      let query = adminApp.firestore().collection("ops_retry_jobs")
+        .orderBy("createdAt", "desc")
+        .limit(limit);
+        
+      if (gateKey) {
+        // 복합 인덱스가 필요할 수 있음
+        query = adminApp.firestore().collection("ops_retry_jobs")
+          .where("gateKey", "==", gateKey)
+          .orderBy("createdAt", "desc")
+          .limit(limit);
+      }
+
+      const snap = await query.get();
+      const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      return res.status(200).json({ ok: true, data: { items } });
+    } catch (err: any) {
+      logError({ endpoint: "retry/recent", code: "INTERNAL", messageKo: "재시도 현황 조회 실패", err });
+      return fail(res, 500, "INTERNAL", "재시도 현황 조회 실패");
+    }
+  });
+
+  // 1) GET /v1/ops/reports/:gateKey/circuit-breaker
+  app.get("/v1/ops/reports/:gateKey/circuit-breaker", async (req: express.Request, res: express.Response) => {
+    try {
+      const gateKey = String(req.params.gateKey);
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const state = await getCircuitBreakerState(adminApp, gateKey);
+      return res.status(200).json({ ok: true, data: state || { state: "closed", failCount: 0 } });
+    } catch (err: any) {
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 2) POST /v1/ops/reports/:gateKey/circuit-breaker/reset
+  app.post("/v1/ops/reports/:gateKey/circuit-breaker/reset", async (req: express.Request, res: express.Response) => {
+    try {
+      const gateKey = String(req.params.gateKey);
+      if (!/^[a-z0-9-]+$/.test(gateKey)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
+      }
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      await resetCircuitBreaker(adminApp, gateKey, `Manual reset by ${auth.uid}`);
+      
+      await logOpsEvent(adminApp, {
+        gateKey,
+        action: "circuit_breaker.reset",
+        status: "success",
+        actorUid: auth.uid,
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: `Circuit Breaker 강제 초기화`
+      });
+
+      return res.status(200).json({ ok: true, data: { state: "closed", failCount: 0 } });
+    } catch (err: any) {
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 3) POST /v1/ops/alerts/test
+  app.post("/v1/ops/alerts/test", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const { gateKey, message = "This is a test alert message from Ops Console." } = req.body;
+      if (!gateKey) return fail(res, 400, "INVALID_ARGUMENT", "gateKey is required");
+
+      const alertResult = await notifyOpsAlert({
+        gateKey,
+        action: "alert.test",
+        summary: `[Test] ${message}`,
+        severity: "info",
+        requestId: req.headers["x-request-id"] as string || "test-req-id"
+      });
+
+      if (!alertResult?.success && alertResult?.reason === "No webhook URL configured") {
+        return fail(res, 400, "INVALID_ARGUMENT", "Webhook URL이 설정되지 않았습니다.");
+      }
+      
+      await logOpsEvent(adminApp, {
+        gateKey,
+        action: "alert.test",
+        status: alertResult?.success ? "success" : "fail",
+        actorUid: auth.uid,
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: `알림 발송 테스트 (${alertResult?.resolvedFrom})`,
+        target: { 
+          envKeyUsed: alertResult?.envKeyUsed || null,
+          resolvedFrom: alertResult?.resolvedFrom || "none"
+        },
+        ...(alertResult?.success ? {} : { error: { message: alertResult?.reason || "알림 발송 실패" } })
+      });
+
+      if (!alertResult?.success) {
+         return fail(res, 500, "INTERNAL", `Webhook 전송 실패: ${alertResult?.reason}`);
+      }
+
+      return res.status(200).json({ ok: true, data: { sent: true, resolvedFrom: alertResult.resolvedFrom, envKeyUsed: alertResult.envKeyUsed } });
+    } catch (err: any) {
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 4) POST /v1/ops/retry/:jobId/deadletter/issue
+  app.post("/v1/ops/retry/:jobId/deadletter/issue", async (req: express.Request, res: express.Response) => {
+    try {
+      const jobId = String(req.params.jobId);
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const jobDoc = await adminApp.firestore().collection("ops_retry_jobs").doc(jobId).get();
+      if (!jobDoc.exists) return fail(res, 404, "NOT_FOUND", "Job not found");
+      const job = jobDoc.data() as any;
+
+      if (job.status !== "dead") {
+        return fail(res, 400, "INVALID_ARGUMENT", "Only dead jobs can trigger dead-letter issue creation.");
+      }
+
+      const errorMessage = job.lastError?.message || "Unknown error";
+      const { createDeadLetterIssueAction } = await import("../../lib/ops_actions");
+      const issueResult = await createDeadLetterIssueAction(adminApp, job.gateKey || "unknown", job.action, errorMessage, job.attempts, jobId, job.sourceEventId);
+
+      if (issueResult && issueResult.issueUrl && !issueResult.skipped) {
+        await jobDoc.ref.update({
+          deadIssue: {
+            issueUrl: issueResult.issueUrl,
+            issueNumber: issueResult.issueNumber,
+            projectItemId: issueResult.projectItemId || null,
+            createdAt: adminApp.firestore.FieldValue.serverTimestamp()
+          }
+        });
+        return res.status(200).json({ ok: true, data: issueResult });
+      }
+
+      return res.status(200).json({ ok: true, data: issueResult || { skipped: true, reason: "Issue creation returned null" } });
+    } catch (err: any) {
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 내부 Resolve 함수 추출 (Discovery와 Re-resolve에서 공유)
+  // doResolve는 lib/ops_actions.ts 로 이동됨
 
   // 백로그 자동화: GitHub Project V2 투입 API
   app.post("/v1/ops/reports/:gateKey/backlog/issues/project/add", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -1349,16 +1487,14 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       
       const config = configDoc.data() as any;
       const githubConfig = config.github || {};
-      const PROJECT_ID = githubConfig.projectId || config.projectId || process.env.GITHUB_PROJECT_ID || "";
-      const tokenRef = githubConfig.tokenRef || "GITHUB_TOKEN_BACKLOG_BOT";
-      const GITHUB_TOKEN = process.env[tokenRef] || "";
-      const resolved = config.resolved || {};
-      const STATUS_FIELD_ID = resolved.statusFieldId || "";
-      const PRIORITY_FIELD_ID = resolved.priorityFieldId || "";
-
-      if (!dryRun && (!GITHUB_TOKEN || !PROJECT_ID)) {
-        throw new Error(`Project ID or GitHub Token is not configured. (tokenRef: ${tokenRef})`);
+      const { owner, repo, projectId, tokenRef } = githubConfig;
+      
+      const GITHUB_TOKEN = process.env[tokenRef || "GITHUB_TOKEN_BACKLOG_BOT"] || "";
+      if (!owner || !repo || !projectId || !GITHUB_TOKEN) {
+        return fail(res, 400, "INVALID_ARGUMENT", "GitHub 연동 설정이나 토큰이 누락되었습니다.");
       }
+      
+      await checkCircuitBreaker(adminApp, gateKey);
 
       const added = [];
       const skipped = [];
@@ -1390,22 +1526,27 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
 
           if (!dryRun) {
             // Step A: Issue의 Node ID 획득 (GraphQL에 필요)
-            const owner = githubConfig.owner || "beokadm-creator";
-            const repo = githubConfig.repo || "agnet-eregi";
             const issueRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issue.issueNumber}`, {
               headers: {
                 "Accept": "application/vnd.github+json",
                 "Authorization": `Bearer ${GITHUB_TOKEN}`
               }
             });
-            if (!issueRes.ok) throw new Error(`Issue fetch failed: ${issueRes.status}`);
+            if (!issueRes.ok) {
+              const errText = await issueRes.text();
+              const errorMsg = `Issue fetch failed: ${issueRes.status} ${errText}`;
+              const { category } = categorizeError(errorMsg);
+              await recordCircuitBreakerFail(adminApp, gateKey, category, errorMsg);
+              throw new Error(errorMsg);
+            }
+            await recordCircuitBreakerSuccess(adminApp, gateKey);
             const issueData = await issueRes.json();
             const issueNodeId = issueData.node_id;
 
             // Step B: Project에 추가
             const addMutation = `
               mutation {
-                addProjectV2ItemById(input: {projectId: "${PROJECT_ID}", contentId: "${issueNodeId}"}) {
+                addProjectV2ItemById(input: {projectId: "${projectId}", contentId: "${issueNodeId}"}) {
                   item { id }
                 }
               }
@@ -1421,7 +1562,12 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
             });
             
             const addData = await addRes.json();
-            if (addData.errors) throw new Error(`GraphQL Error (add): ${JSON.stringify(addData.errors)}`);
+            if (addData.errors) {
+               const errorMsg = `GraphQL Error (add): ${JSON.stringify(addData.errors)}`;
+               await recordCircuitBreakerFail(adminApp, gateKey, "UNKNOWN", errorMsg);
+               throw new Error(errorMsg);
+            }
+            await recordCircuitBreakerSuccess(adminApp, gateKey);
             
             projectItemId = addData.data.addProjectV2ItemById.item.id;
 
@@ -1434,6 +1580,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
             const priorityValue = sevToPriority[String(sevNum)] || "p2";
             const statusValue = sevToStatus[String(sevNum)] || "todo";
 
+            const resolved = config.resolved || {};
+            const STATUS_FIELD_ID = resolved.statusFieldId || "";
+            const PRIORITY_FIELD_ID = resolved.priorityFieldId || "";
             const statusOptionId = resolved.statusOptionIds?.[statusValue];
             const priorityOptionId = resolved.priorityOptionIds?.[priorityValue];
 
@@ -1452,7 +1601,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
                 mutation {
                   updateProjectV2ItemFieldValue(
                     input: {
-                      projectId: "${PROJECT_ID}"
+                      projectId: "${projectId}"
                       itemId: "${projectItemId}"
                       fieldId: "${STATUS_FIELD_ID}"
                       value: { singleSelectOptionId: "${statusOptionId}" }
@@ -1472,7 +1621,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
                 mutation {
                   updateProjectV2ItemFieldValue(
                     input: {
-                      projectId: "${PROJECT_ID}"
+                      projectId: "${projectId}"
                       itemId: "${projectItemId}"
                       fieldId: "${PRIORITY_FIELD_ID}"
                       value: { singleSelectOptionId: "${priorityOptionId}" }
@@ -1524,12 +1673,31 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         }
       }
 
+      await logOpsEvent(adminApp, {
+        gateKey,
+        action: "project.add",
+        status: failed.length > 0 ? "fail" : "success",
+        actorUid: auth.uid,
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        target: { date: targetDateStr },
+        summary: `이슈 프로젝트 투입 완료 (투입: ${added.length}, 스킵: ${skipped.length - failed.length}, 실패: ${failed.length})`
+      });
+
       return res.status(200).json({
         ok: true,
         data: { added, skipped, failed }
       });
     } catch (err: any) {
       logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog/issues/project/add", code: "INTERNAL", messageKo: "프로젝트 투입 중 오류가 발생했습니다.", err });
+      await logOpsEvent(adminApp, {
+        gateKey: String(req.params.gateKey),
+        action: "project.add",
+        status: "fail",
+        actorUid: "unknown",
+        requestId: req.headers["x-request-id"] as string || "N/A",
+        summary: "이슈 프로젝트 투입 중 오류 발생",
+        error: { message: err.message }
+      });
       return fail(res, 500, "INTERNAL", "프로젝트 투입 중 오류가 발생했습니다.");
     }
   });
@@ -1537,7 +1705,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // Gate 백로그 후보 생성 API (운영용)
   app.post("/v1/ops/reports/:gateKey/backlog", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -1617,7 +1785,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 최근 실패/최근 evidence 조회 API (운영용)
   app.get("/v1/ops/reports/:gateKey/recent", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -1677,7 +1845,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // Ops Console: Cloud Storage 백로그 다운로드 URL 발급
   app.get("/v1/ops/reports/:gateKey/ops-log/monthly/download-url", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -1719,7 +1887,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // Ops Console: 특정 케이스 조회 API
   app.get("/v1/ops/reports/:gateKey/by-case", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
@@ -1770,7 +1938,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
   // 주간 리뷰용 내보내기 (markdown export)
   app.get("/v1/ops/reports/:gateKey/backlog.md", async (req: express.Request, res: express.Response) => {
     try {
-      const gateKey = req.params.gateKey;
+      const gateKey = String(String(req.params.gateKey));
       if (!/^[a-z0-9-]+$/.test(gateKey)) {
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
       }
