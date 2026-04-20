@@ -1707,7 +1707,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
-      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", req.body.gateKey ? String(req.body.gateKey) : undefined);
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", req.body.gateKey ? String(req.body.gateKey) : undefined);
       if (!hasRole) return;
 
       const { gateKey, message = "This is a test alert message from Ops Console." } = req.body;
