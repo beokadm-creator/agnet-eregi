@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import { OpsErrorCategory } from "./ops_audit";
+import { getOpsGateSettingsCollection, OpsGateSettings } from "./ops_gate_settings";
 
 export interface OpsAlertParams {
   gateKey: string;
@@ -13,17 +14,46 @@ export interface OpsAlertParams {
 }
 
 export async function notifyOpsAlert(params: OpsAlertParams) {
-  const envKeySpecific = `OPS_ALERT_WEBHOOK_URL_${params.gateKey.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
-  const webhookUrlSpecific = process.env[envKeySpecific];
-  const webhookUrlCommon = process.env.OPS_ALERT_WEBHOOK_URL;
-  
-  const webhookUrl = webhookUrlSpecific || webhookUrlCommon;
-  const envKeyUsed = webhookUrlSpecific ? envKeySpecific : (webhookUrlCommon ? "OPS_ALERT_WEBHOOK_URL" : null);
-  const resolvedFrom = webhookUrlSpecific ? "per_gate" : (webhookUrlCommon ? "default" : "none");
+  let webhookUrl: string | null = null;
+  let resolvedFrom: "db" | "env_default" | "none" = "none";
+  let webhookHost: string | null = null;
+
+  try {
+    const docRef = getOpsGateSettingsCollection().doc(params.gateKey);
+    const docSnap = await docRef.get();
+    
+    if (docSnap.exists) {
+      const settings = docSnap.data() as OpsGateSettings;
+      
+      if (!settings.enabled) {
+        return { sent: false, success: false, resolvedFrom: "db", reason: "disabled" };
+      }
+      
+      if (settings.slackWebhookUrl) {
+        webhookUrl = settings.slackWebhookUrl;
+        resolvedFrom = "db";
+      }
+    }
+  } catch (err) {
+    console.error("[OpsAlert] Failed to fetch gate settings:", err);
+  }
 
   if (!webhookUrl) {
-    return { success: false, envKeyUsed, resolvedFrom, reason: "No webhook URL configured" };
+    const envDefault = process.env.OPS_ALERT_WEBHOOK_URL;
+    if (envDefault) {
+      webhookUrl = envDefault;
+      resolvedFrom = "env_default";
+    }
   }
+
+  if (!webhookUrl) {
+    return { sent: false, success: false, resolvedFrom: "none", reason: "No webhook URL configured" };
+  }
+
+  try {
+    const url = new URL(webhookUrl);
+    webhookHost = url.host;
+  } catch (err) {}
 
   const severityIcon = params.severity === "critical" ? "🚨" : params.severity === "error" ? "❌" : params.severity === "warning" ? "⚠️" : "ℹ️";
   
@@ -67,12 +97,12 @@ export async function notifyOpsAlert(params: OpsAlertParams) {
     
     if (!res.ok) {
        console.error(`[OpsAlert] Webhook 전송 실패 (${res.status}):`, await res.text());
-       return { success: false, envKeyUsed, resolvedFrom, reason: `HTTP ${res.status}` };
+       return { sent: false, success: false, resolvedFrom, webhookHost, reason: `HTTP ${res.status}` };
     }
     
-    return { success: true, envKeyUsed, resolvedFrom };
+    return { sent: true, success: true, resolvedFrom, webhookHost };
   } catch (err: any) {
     console.error("[OpsAlert] Webhook 전송 실패:", err);
-    return { success: false, envKeyUsed, resolvedFrom, reason: err.message };
+    return { sent: false, success: false, resolvedFrom, webhookHost, reason: err.message };
   }
 }

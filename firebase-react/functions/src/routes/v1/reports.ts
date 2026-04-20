@@ -1569,6 +1569,17 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!alertResult?.success && alertResult?.reason === "No webhook URL configured") {
         return fail(res, 400, "INVALID_ARGUMENT", "Webhook URL이 설정되지 않았습니다.");
       }
+
+      if (!alertResult?.sent && alertResult?.reason === "disabled") {
+        return res.status(200).json({
+          ok: true,
+          data: {
+            sent: false,
+            resolvedFrom: alertResult.resolvedFrom,
+            reason: "disabled"
+          }
+        });
+      }
       
       await logOpsEvent(adminApp, {
         gateKey,
@@ -1578,8 +1589,8 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         requestId: req.headers["x-request-id"] as string || "N/A",
         summary: `알림 발송 테스트 (${alertResult?.resolvedFrom})`,
         target: { 
-          envKeyUsed: alertResult?.envKeyUsed || null,
-          resolvedFrom: alertResult?.resolvedFrom || "none"
+          resolvedFrom: alertResult?.resolvedFrom || "none",
+          webhookHost: alertResult?.webhookHost || null
         },
         ...(alertResult?.success ? {} : { error: { message: alertResult?.reason || "알림 발송 실패" } })
       });
@@ -1588,7 +1599,14 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
          return fail(res, 500, "INTERNAL", `Webhook 전송 실패: ${alertResult?.reason}`);
       }
 
-      return res.status(200).json({ ok: true, data: { sent: true, resolvedFrom: alertResult.resolvedFrom, envKeyUsed: alertResult.envKeyUsed } });
+      return res.status(200).json({ 
+        ok: true, 
+        data: { 
+          sent: true, 
+          resolvedFrom: alertResult.resolvedFrom, 
+          webhookHost: alertResult.webhookHost 
+        } 
+      });
     } catch (err: any) {
       return fail(res, 500, "INTERNAL", err.message);
     }
