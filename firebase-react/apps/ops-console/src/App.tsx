@@ -52,6 +52,10 @@ function App() {
   const [testAlertMsg, setTestAlertMsg] = useState<string>("");
   const [sev1Log, setSev1Log] = useState<{regenerateOk?: boolean; validateData?: any; reqId?: string}>({});
 
+  const [gateSettingsEnabled, setGateSettingsEnabled] = useState<boolean>(true);
+  const [gateSettingsWebhookUrl, setGateSettingsWebhookUrl] = useState<string>("");
+  const [gateSettingsNotes, setGateSettingsNotes] = useState<string>("");
+
   async function ensureLogin() {
     if (!auth.currentUser) await signInAnonymously(auth);
     return await auth.currentUser!.getIdToken(true);
@@ -83,6 +87,27 @@ function App() {
     clearError();
     const token = await ensureLogin();
     const resp = await fetch(`${apiBase}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    const reqId = resp.headers.get("X-Request-Id") || "unknown";
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || !json.ok) {
+      const err = new Error(json.error?.messageKo || "요청 실패") as any;
+      err.reqId = json.error?.requestId || reqId;
+      throw err;
+    }
+    return json.data;
+  }
+
+  async function apiPut(path: string, body: any) {
+    clearError();
+    const token = await ensureLogin();
+    const resp = await fetch(`${apiBase}${path}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
     const reqId = resp.headers.get("X-Request-Id") || "unknown";
     const json = await resp.json().catch(() => ({}));
     if (!resp.ok || !json.ok) {
@@ -214,8 +239,41 @@ function App() {
     setBusy(true);
     clearError();
     try {
-      await apiPost(`/v1/ops/alerts/test`, { gateKey, message: testAlertMsg || "This is a test alert." });
-      setLog("테스트 알림 발송 완료");
+      const data = await apiPost(`/v1/ops/alerts/test`, { gateKey, message: testAlertMsg || "This is a test alert." });
+      setLog(`[알림 테스트 성공] sent=${data.sent}, resolvedFrom=${data.resolvedFrom}`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadGateSettings() {
+    setBusy(true);
+    clearError();
+    try {
+      const data = await apiGet(`/v1/ops/gates/${gateKey}/settings`);
+      setGateSettingsEnabled(data.enabled ?? true);
+      setGateSettingsWebhookUrl(data.slackWebhookUrl || "");
+      setGateSettingsNotes(data.notes || "");
+      setLog(`[Gate 설정 조회 완료]`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveGateSettings() {
+    setBusy(true);
+    clearError();
+    try {
+      const data = await apiPut(`/v1/ops/gates/${gateKey}/settings`, {
+        enabled: gateSettingsEnabled,
+        slackWebhookUrl: gateSettingsWebhookUrl.trim(),
+        notes: gateSettingsNotes.trim()
+      });
+      setLog(`[Gate 설정 저장 성공]`);
     } catch (e: any) {
       handleError(e);
     } finally {
@@ -1090,8 +1148,50 @@ next=재검증 재시도/파트너 문의/수동 확인`;
           {/* 운영 제어 영역 */}
           <div style={{ flex: "1 1 100%", background: "#fff", padding: 12, border: "1px solid #ffcc80", borderRadius: 6 }}>
             <h3 style={{ margin: "0 0 8px 0", fontSize: "1.1em", color: "#e65100" }}>🛡 운영 제어 (Circuit Breaker & Alert)</h3>
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              <div style={{ flex: 1, padding: 12, background: "#fff3e0", borderRadius: 6 }}>
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                <div style={{ flex: 1, padding: 12, background: "#fff8e1", borderRadius: 6, minWidth: 250 }}>
+                  <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em", color: "#f57f17" }}>Gate Settings (DB)</h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "0.9em" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input 
+                        type="checkbox" 
+                        checked={gateSettingsEnabled} 
+                        onChange={(e) => setGateSettingsEnabled(e.target.checked)} 
+                        disabled={busy} 
+                      />
+                      <strong>Enabled</strong> (발송 스킵 여부)
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <strong>Slack Webhook URL:</strong>
+                      <input 
+                        value={gateSettingsWebhookUrl} 
+                        onChange={(e) => setGateSettingsWebhookUrl(e.target.value)} 
+                        placeholder="https://hooks.slack.com/services/..." 
+                        style={{ padding: 6, width: "100%" }} 
+                        disabled={busy}
+                      />
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <strong>Notes:</strong>
+                      <input 
+                        value={gateSettingsNotes} 
+                        onChange={(e) => setGateSettingsNotes(e.target.value)} 
+                        placeholder="메모..." 
+                        style={{ padding: 6, width: "100%" }} 
+                        disabled={busy}
+                      />
+                    </label>
+                    <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                      <button disabled={busy} onClick={loadGateSettings} style={{ background: "#f57f17", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                        [설정 조회]
+                      </button>
+                      <button disabled={busy} onClick={saveGateSettings} style={{ background: "#4caf50", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                        [설정 저장]
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ flex: 1, padding: 12, background: "#fff3e0", borderRadius: 6, minWidth: 250 }}>
                 <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em", color: "#e65100" }}>Circuit Breaker ({gateKey})</h4>
                 <div style={{ marginBottom: 8, fontSize: "0.9em" }}>
                   <strong>상태: </strong> 
