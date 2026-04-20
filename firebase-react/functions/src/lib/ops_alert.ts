@@ -192,6 +192,32 @@ export async function notifyOpsAlert(params: OpsAlertParams) {
     createdAt: admin.firestore.FieldValue.serverTimestamp()
   });
 
+  if (!sentOk && params.action !== "manual_override") {
+    await admin.firestore().collection("ops_alert_jobs").doc().set({
+      gateKey: params.gateKey,
+      alertType: params.alertType || "unknown",
+      payload: params,
+      status: "pending",
+      attempts: 0,
+      maxAttempts: 5,
+      nextRunAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 60 * 1000)),
+      lastError: { message: reason },
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    await admin.firestore().collection("ops_audit_events").doc().set({
+      gateKey: params.gateKey,
+      action: "ops_alert.enqueue",
+      status: "success",
+      actorUid: "system",
+      requestId: params.requestId || "unknown",
+      summary: `Alert queued for retry: ${params.summary}`,
+      target: { reason },
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
   if (sentOk && params.alertType && settingsDocExists && !params.force) {
     await docRef.update({
       [`lastAlertAt.${params.alertType}`]: admin.firestore.FieldValue.serverTimestamp()

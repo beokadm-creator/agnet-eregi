@@ -81,6 +81,51 @@ function App() {
   const [alertPolicy, setAlertPolicy] = useState<any>(null);
   const [alertPolicyLastAt, setAlertPolicyLastAt] = useState<any>(null);
 
+  const [alertJobs, setAlertJobs] = useState<any[]>([]);
+  const [alertJobsFilterGate, setAlertJobsFilterGate] = useState<string>("");
+  const [alertJobsFilterStatus, setAlertJobsFilterStatus] = useState<string>("");
+
+  async function loadAlertJobs() {
+    setBusy(true);
+    setLog("loading alert jobs...");
+    try {
+      let url = `/v1/ops/alerts/jobs?limit=50`;
+      if (alertJobsFilterGate) url += `&gateKey=${alertJobsFilterGate}`;
+      if (alertJobsFilterStatus) url += `&status=${alertJobsFilterStatus}`;
+      const res = await apiGet(url);
+      setAlertJobs(res.items || []);
+      setLog("loaded alert jobs");
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requeueAlertJob(jobId: string) {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
+    const ok = await openConfirm({
+      title: `Requeue Alert Job`,
+      message: `대상: jobId=${jobId}\n즉시 반영됩니다.\n되돌리기 주의: 죽은 알림 작업을 다시 시도 큐에 넣습니다.`,
+      confirmLabel: "Requeue",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await apiPost(`/v1/ops/alerts/jobs/${jobId}/requeue`, {});
+      setLog(`[Alert Job 재시도 요청 성공]`);
+      await loadAlertJobs();
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function loadAlertPolicy() {
     setBusy(true);
     setLog("loading alert policy...");
@@ -2202,6 +2247,89 @@ next=재검증 재시도/파트너 문의/수동 확인`;
               </div>
             ) : (
               <div style={{ color: "#999", fontSize: "0.9em" }}>최근 재시도 작업이 없습니다.</div>
+            )}
+          </div>
+
+          {/* Alert Delivery (알림 발송) 현황 영역 */}
+          <div style={{ flex: "1 1 100%", background: "#fff", padding: 12, border: "1px solid #eee", borderRadius: 6, marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <h3 style={{ margin: 0, fontSize: "1.1em", color: "#c2185b" }}>📡 알림 발송 현황 (Alert Delivery)</h3>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input value={alertJobsFilterGate} onChange={e => setAlertJobsFilterGate(e.target.value)} placeholder="GateKey 필터" style={{ padding: 4, width: 120 }} />
+                <select value={alertJobsFilterStatus} onChange={e => setAlertJobsFilterStatus(e.target.value)} style={{ padding: 4 }}>
+                  <option value="">Status 전체</option>
+                  <option value="pending">pending</option>
+                  <option value="running">running</option>
+                  <option value="done">done</option>
+                  <option value="dead">dead</option>
+                </select>
+                <button onClick={() => { setBusy(true); loadAlertJobs().finally(() => setBusy(false)); }} disabled={busy} style={{ background: "#c2185b", color: "white", border: "none", padding: "4px 8px", fontSize: "0.85em", borderRadius: 4, cursor: "pointer" }}>
+                  [새로고침]
+                </button>
+              </div>
+            </div>
+            {alertJobs.length > 0 ? (
+              <div style={{ maxHeight: 300, overflowY: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85em" }}>
+                  <thead style={{ position: "sticky", top: 0, background: "#fff" }}>
+                    <tr>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6, width: "120px" }}>생성일</th>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6, width: "100px" }}>Gate / Type</th>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6, width: "80px" }}>Status</th>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6, width: "100px" }}>시도 횟수</th>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6 }}>다음 실행 예정</th>
+                      <th style={{ textAlign: "left", borderBottom: "2px solid #ddd", padding: 6 }}>오류 내역</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {alertJobs.map((job) => (
+                      <tr key={job.id} style={{ background: job.status === "dead" ? "#ffebee" : job.status === "pending" ? "#fff8e1" : "transparent" }}>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 6, color: "#666" }}>
+                          {job.createdAt ? new Date(job.createdAt).toLocaleString() : "-"}
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 6, fontWeight: "bold", color: "#37474f" }}>
+                          <div style={{ color: "#78909c", fontSize: "0.8em" }}>{job.gateKey}</div>
+                          {job.alertType || "unknown"}
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                          <span style={{ 
+                            background: job.status === "done" ? "#e8f5e9" : job.status === "dead" ? "#ffcdd2" : job.status === "pending" ? "#ffecb3" : "#e3f2fd", 
+                            color: job.status === "done" ? "#2e7d32" : job.status === "dead" ? "#c62828" : job.status === "pending" ? "#f57c00" : "#1565c0",
+                            padding: "2px 6px", borderRadius: 4, fontWeight: "bold" 
+                          }}>
+                            {job.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                          {job.attempts} / {job.maxAttempts}
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                          {job.nextRunAt && job.status === "pending" ? new Date(job.nextRunAt).toLocaleString() : "-"}
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 6 }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            {job.lastError && (
+                              <span style={{ color: "#d32f2f" }} title={job.lastError.message}>
+                                ⚠️ {job.lastError.message?.substring(0, 40)}...
+                              </span>
+                            )}
+                            {job.status === "dead" && (
+                              <button disabled={busy || !hasRole("ops_admin")} onClick={() => requeueAlertJob(job.id)} style={{ background: "#c62828", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", fontSize: "0.8em", alignSelf: "flex-start", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
+                                [재시도 (Requeue)]
+                              </button>
+                            )}
+                            {job.status === "dead" && !hasRole("ops_admin") && (
+                              <span style={{ fontSize: "0.75em", color: "#c62828" }}>{roleReason("ops_admin")}</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ color: "#999", fontSize: "0.9em" }}>최근 알림 발송 작업이 없습니다.</div>
             )}
           </div>
         </div>

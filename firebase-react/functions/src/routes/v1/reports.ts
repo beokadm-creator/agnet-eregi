@@ -151,6 +151,116 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
+  app.get("/v1/ops/alerts/jobs", async (req, res) => {
+    const auth = await requireAuth(adminApp, req, res);
+    if (!auth) return;
+    const gateKeyQuery = req.query.gateKey ? String(req.query.gateKey) : undefined;
+    const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", gateKeyQuery);
+    if (!hasRole) return;
+
+    const db = adminApp.firestore();
+    let query: admin.firestore.Query = db.collection("ops_alert_jobs");
+    
+    if (gateKeyQuery) {
+      query = query.where("gateKey", "==", gateKeyQuery);
+    }
+    if (req.query.status) {
+      query = query.where("status", "==", String(req.query.status));
+    }
+    
+    query = query.orderBy("createdAt", "desc").limit(Math.min(100, Number(req.query.limit) || 50));
+    
+    const snap = await query.get();
+    const items = snap.docs.map(doc => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        gateKey: d.gateKey,
+        alertType: d.alertType,
+        status: d.status,
+        attempts: d.attempts,
+        maxAttempts: d.maxAttempts,
+        nextRunAt: d.nextRunAt ? d.nextRunAt.toDate().toISOString() : null,
+        lastError: d.lastError,
+        createdAt: d.createdAt ? d.createdAt.toDate().toISOString() : null,
+        updatedAt: d.updatedAt ? d.updatedAt.toDate().toISOString() : null
+      };
+    });
+
+    return ok(res, { items });
+  });
+
+  app.get("/v1/ops/alerts/jobs/:jobId", async (req, res) => {
+    const auth = await requireAuth(adminApp, req, res);
+    if (!auth) return;
+    
+    const db = adminApp.firestore();
+    const docSnap = await db.collection("ops_alert_jobs").doc(req.params.jobId).get();
+    if (!docSnap.exists) return fail(res, 404, "NOT_FOUND", "Job not found");
+    
+    const data = docSnap.data()!;
+    const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", data.gateKey);
+    if (!hasRole) return;
+
+    return ok(res, {
+      id: docSnap.id,
+      ...data,
+      nextRunAt: data.nextRunAt ? data.nextRunAt.toDate().toISOString() : null,
+      createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : null,
+      updatedAt: data.updatedAt ? data.updatedAt.toDate().toISOString() : null
+    });
+  });
+
+  app.post("/v1/ops/alerts/jobs/:jobId/requeue", async (req, res) => {
+    const auth = await requireAuth(adminApp, req, res);
+    if (!auth) return;
+
+    const db = adminApp.firestore();
+    const docRef = db.collection("ops_alert_jobs").doc(req.params.jobId);
+    
+    try {
+      const snap = await docRef.get();
+      if (!snap.exists) return fail(res, 404, "NOT_FOUND", "Job not found");
+      const data = snap.data()!;
+      
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", data.gateKey);
+      if (!hasRole) return;
+
+      await db.runTransaction(async (t) => {
+        const docSnap = await t.get(docRef);
+        if (!docSnap.exists) throw new Error("Job not found");
+        
+        const d = docSnap.data()!;
+        if (d.status !== "dead") throw new Error("Only dead jobs can be requeued");
+
+        t.update(docRef, {
+          status: "pending",
+          attempts: 0,
+          nextRunAt: adminApp.firestore.FieldValue.serverTimestamp(),
+          updatedAt: adminApp.firestore.FieldValue.serverTimestamp()
+        });
+
+        const auditRef = db.collection("ops_audit_events").doc();
+        t.set(auditRef, {
+          gateKey: d.gateKey,
+          action: "ops_alert.requeue",
+          status: "success",
+          actorUid: auth.uid,
+          requestId: String((req as any).requestId || "unknown"),
+          summary: `Alert job requeued: ${req.params.jobId}`,
+          target: { jobId: req.params.jobId },
+          createdAt: adminApp.firestore.FieldValue.serverTimestamp()
+        });
+      });
+    } catch (e: any) {
+      if (e.message === "Job not found") return fail(res, 404, "NOT_FOUND", "Job not found");
+      if (e.message === "Only dead jobs can be requeued") return fail(res, 400, "FAILED_PRECONDITION", "Only dead jobs can be requeued");
+      return fail(res, 500, "INTERNAL", e.message);
+    }
+
+    return ok(res, { requeued: true });
+  });
+
 
   app.get("/v1/ops/health/summary", async (req, res) => {
     const auth = await requireAuth(adminApp, req, res);

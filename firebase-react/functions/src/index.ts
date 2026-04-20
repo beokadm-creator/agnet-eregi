@@ -22,6 +22,7 @@ import { registerReportRoutes } from "./routes/v1/reports";
 import { registerPackageRoutes } from "./routes/v1/packages";
 import { registerFormRoutes } from "./routes/v1/forms";
 import { processRetryJobs } from "./lib/ops_retry_worker";
+import { processOpsAlertJobs } from "./lib/ops_alert_worker";
 
 admin.initializeApp();
 
@@ -71,5 +72,16 @@ export const opsRetryWorker = functions
       await processRetryJobs(admin);
     } catch (e) {
       console.error("[OpsRetryWorker] Fatal error:", e);
+    }
+  });
+
+export const opsAlertWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 1 minutes")
+  .onRun(async () => {
+    try {
+      await processOpsAlertJobs(admin);
+    } catch (e) {
+      console.error("[OpsAlertWorker] Fatal error:", e);
     }
   });

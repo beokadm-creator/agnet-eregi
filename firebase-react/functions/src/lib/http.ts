@@ -5,6 +5,7 @@ export type ApiErrorCode =
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "INVALID_ARGUMENT"
+  | "FAILED_PRECONDITION"
   | "CONFLICT"
   | "RATE_LIMITED"
   | "APPROVAL_REQUIRED"
@@ -64,4 +65,3 @@ export function fail(
     }
   });
 }
-
