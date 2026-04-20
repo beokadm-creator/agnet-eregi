@@ -236,7 +236,16 @@ function App() {
                 <div>
                   <h2 style={{ margin: "0 0 4px 0", color: "#3f51b5", fontSize: "1.4em" }}>유형: {selectedSub.input?.type}</h2>
                   <div style={{ fontSize: "0.85em", color: "#666" }}>ID: {selectedSub.id}</div>
-                  {selectedSub.caseId && <div style={{ fontSize: "0.85em", color: "#1565c0", fontWeight: "bold" }}>Case 연동됨: {selectedSub.caseId}</div>}
+                  {selectedSub.caseId && (
+                    <div style={{ fontSize: "0.85em", color: "#1565c0", fontWeight: "bold", marginTop: 4 }}>
+                      🔗 파트너 Case 연동됨: {selectedSub.caseId}
+                    </div>
+                  )}
+                  {selectedSub.packageId && (
+                    <div style={{ fontSize: "0.85em", color: "#e65100", fontWeight: "bold", marginTop: 4 }}>
+                      📦 패키지 연동됨: {selectedSub.packageId}
+                    </div>
+                  )}
                 </div>
                 <div style={{ textAlign: "right", display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
                   <div style={{ fontWeight: "bold", padding: "4px 8px", borderRadius: 4, background: "#eee" }}>

@@ -238,6 +238,11 @@ function App() {
                 <div>
                   <h2 style={{ margin: "0 0 4px 0", color: "#00695c", fontSize: "1.4em" }}>{selectedCase.title}</h2>
                   <div style={{ fontSize: "0.85em", color: "#666" }}>ID: {selectedCase.id}</div>
+                  {selectedCase.submissionId && (
+                    <div style={{ fontSize: "0.85em", color: "#1565c0", fontWeight: "bold", marginTop: 4 }}>
+                      🔗 원본 User Submission 연동됨: {selectedCase.submissionId}
+                    </div>
+                  )}
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontWeight: "bold", marginBottom: 4 }}>상태: {selectedCase.status.toUpperCase()}</div>

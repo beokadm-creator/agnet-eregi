@@ -29,81 +29,56 @@ export async function processUserSubmissions(adminApp: typeof admin) {
         submissionId: subId,
         userId,
         type: "processing_started",
-        message: "제출물 검증 및 처리를 시작합니다.",
+        message: "제출물 검증 및 파트너 케이스 생성을 시작합니다.",
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      await batch.commit();
-
-      // 실제로는 외부 API를 호출하거나 복잡한 렌더링/PDF 생성/심사 시스템 연동을 수행합니다.
-      // MVP에서는 2초 대기 후 임의 결과(성공/실패)를 생성하여 시뮬레이션합니다.
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // 중간에 사용자가 취소(cancel_requested)했는지 확인
-      const currentSnap = await doc.ref.get();
-      if (currentSnap.data()?.status === "cancel_requested") {
-        const cBatch = db.batch();
-        cBatch.update(doc.ref, {
-          status: "cancelled",
+      // 1. 파트너 케이스 생성 여부 확인 및 생성
+      let caseId = sub.caseId;
+      if (!caseId) {
+        const caseRef = db.collection("cases").doc();
+        caseId = caseRef.id;
+        
+        batch.set(caseRef, {
+          partnerId: sub.partnerId,
+          status: "draft",
+          title: `User Submission - ${sub.input.type} (${subId.substring(0,6)})`,
+          submissionId: subId,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
         
-        const cEventRef = db.collection("submission_events").doc();
-        cBatch.set(cEventRef, {
-          submissionId: subId,
-          userId,
-          type: "cancelled",
-          message: "사용자 요청에 의해 처리가 취소되었습니다.",
-          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        batch.update(doc.ref, { caseId });
+      }
+
+      // 2. 파트너 패키지 생성 요청
+      let packageId = sub.packageId;
+      if (!packageId) {
+        const pkgRef = db.collection("packages").doc();
+        packageId = pkgRef.id;
+        
+        batch.set(pkgRef, {
+          caseId,
+          partnerId: sub.partnerId,
+          status: "queued",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
         
-        await cBatch.commit();
-        console.log(`[UserSubmissionWorker] Submission ${subId} cancelled during processing.`);
-        continue;
+        // 케이스 상태를 packaging으로 업데이트
+        const caseRef = db.collection("cases").doc(caseId);
+        batch.update(caseRef, {
+          status: "packaging",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        batch.update(doc.ref, { packageId });
       }
 
-      // 진행 상태 기록 (Progress)
-      await db.collection("submission_events").doc().set({
-        submissionId: subId,
-        userId,
-        type: "processing_progress",
-        message: "데이터 분석 중...",
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
-      });
+      await batch.commit();
 
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // 임의로 10% 확률로 실패
-      if (Math.random() < 0.1) {
-        throw new Error("데이터 형식이 올바르지 않습니다 (시뮬레이션 에러)");
-      }
-
-      // 파트너 연동 (가짜 Case 생성)
-      // 실제로는 파트너 측에 Case를 생성하고 caseId를 받아와야 하지만 MVP에서는 가상의 caseId 부여
-      const fakeCaseId = `case_${Date.now()}`;
-      
-      const successBatch = db.batch();
-      successBatch.update(doc.ref, {
-        status: "completed",
-        caseId: fakeCaseId,
-        result: {
-          summary: "정상적으로 심사가 접수되었습니다.",
-          artifactUrl: "https://storage.googleapis.com/fake/result.pdf"
-        },
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
-
-      const successEventRef = db.collection("submission_events").doc();
-      successBatch.set(successEventRef, {
-        submissionId: subId,
-        userId,
-        type: "completed",
-        message: "처리가 완료되었습니다. 파트너에게 전달되었습니다.",
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
-      });
-
-      await successBatch.commit();
-      console.log(`[UserSubmissionWorker] Submission ${subId} completed successfully.`);
+      // processing으로 유지하며 다음 단계(폴링)를 대기
+      console.log(`[UserSubmissionWorker] Submission ${subId} triggered case ${caseId} and package ${packageId}.`);
 
     } catch (error: any) {
       console.error(`[UserSubmissionWorker] Failed to process submission ${subId}:`, error);
@@ -113,7 +88,7 @@ export async function processUserSubmissions(adminApp: typeof admin) {
         status: "failed",
         result: {
           error: {
-            category: "VALIDATION_ERROR",
+            category: "INTEGRATION_ERROR",
             message: error.message || String(error)
           }
         },
@@ -130,6 +105,75 @@ export async function processUserSubmissions(adminApp: typeof admin) {
       });
 
       await failBatch.commit();
+    }
+  }
+
+  // "processing" 상태인 제출물을 찾아 파트너 패키지 상태를 폴링
+  const processingSnap = await db.collection("user_submissions")
+    .where("status", "==", "processing")
+    .limit(10)
+    .get();
+
+  for (const doc of processingSnap.docs) {
+    const sub = doc.data();
+    const subId = doc.id;
+    const userId = sub.userId;
+
+    if (!sub.packageId) continue;
+
+    try {
+      const pkgSnap = await db.collection("packages").doc(sub.packageId).get();
+      if (!pkgSnap.exists) continue;
+
+      const pkgStatus = pkgSnap.data()?.status;
+
+      if (pkgStatus === "ready") {
+        const batch = db.batch();
+        batch.update(doc.ref, {
+          status: "completed",
+          result: {
+            summary: "정상적으로 파트너 심사/패키징이 완료되었습니다.",
+            artifactUrl: pkgSnap.data()?.artifactUrl
+          },
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        const eventRef = db.collection("submission_events").doc();
+        batch.set(eventRef, {
+          submissionId: subId,
+          userId,
+          type: "completed",
+          message: "처리가 완료되어 패키지 다운로드가 가능합니다.",
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        await batch.commit();
+        console.log(`[UserSubmissionWorker] Submission ${subId} completed (linked to package ${sub.packageId}).`);
+
+      } else if (pkgStatus === "failed") {
+        const batch = db.batch();
+        batch.update(doc.ref, {
+          status: "failed",
+          result: {
+            error: pkgSnap.data()?.error || { category: "PARTNER_BUILD_ERROR", message: "패키지 생성 실패" }
+          },
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        const eventRef = db.collection("submission_events").doc();
+        batch.set(eventRef, {
+          submissionId: subId,
+          userId,
+          type: "failed",
+          message: "파트너 시스템에서 패키지 생성 중 오류가 발생했습니다.",
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        await batch.commit();
+        console.log(`[UserSubmissionWorker] Submission ${subId} failed (linked to package ${sub.packageId}).`);
+      }
+    } catch (error: any) {
+      console.error(`[UserSubmissionWorker] Failed to poll package for submission ${subId}:`, error);
     }
   }
 }

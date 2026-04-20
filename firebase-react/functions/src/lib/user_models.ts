@@ -5,8 +5,9 @@ export type SubmissionStatus = "draft" | "submitted" | "processing" | "completed
 export interface UserSubmission {
   id?: string;
   userId: string;
-  partnerId?: string; // 파트너에게 제출할 대상인 경우
+  partnerId: string; // 파트너에게 제출할 대상인 경우 (필수화)
   caseId?: string;    // 처리 완료 후 파트너 쪽에 생성된 케이스 ID
+  packageId?: string; // 생성 요청된 패키지 ID
   status: SubmissionStatus;
   input: {
     type: string;

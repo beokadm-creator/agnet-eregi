@@ -7,6 +7,7 @@ export interface PartnerCase {
   partnerId: string;
   status: CaseStatus;
   title: string;
+  submissionId?: string; // User Web과 연동을 위한 필드
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }
