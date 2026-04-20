@@ -8,6 +8,7 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<string>("");
   const [errorBox, setErrorBox] = useState<{message: string, reqId?: string} | null>(null);
+  const [opsRole, setOpsRole] = useState<"ops_viewer" | "ops_operator" | "ops_admin" | null>(null);
   const [items, setItems] = useState<any[]>([]);
   const [gate, setGate] = useState<string>("refund_approve");
   const [status, setStatus] = useState<string>("pending");
@@ -64,7 +65,24 @@ function App() {
 
   async function ensureLogin() {
     if (!auth.currentUser) await signInAnonymously(auth);
-    return await auth.currentUser!.getIdToken(true);
+    const tokenResult = await auth.currentUser!.getIdTokenResult(true);
+    const role = tokenResult.claims?.opsRole;
+    if (role === "ops_viewer" || role === "ops_operator" || role === "ops_admin") {
+      setOpsRole(role);
+    } else {
+      setOpsRole(null);
+    }
+    return tokenResult.token;
+  }
+
+  function hasRole(required: "ops_viewer" | "ops_operator" | "ops_admin") {
+    const rank = { ops_viewer: 1, ops_operator: 2, ops_admin: 3 } as const;
+    if (!opsRole) return false;
+    return rank[opsRole] >= rank[required];
+  }
+
+  function roleReason(required: "ops_viewer" | "ops_operator" | "ops_admin") {
+    return `${required}만 가능`;
   }
 
   function handleError(e: any, defaultReqId?: string) {
@@ -228,6 +246,10 @@ function App() {
   }
 
   async function resetCircuitBreakerState() {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
     setBusy(true);
     clearError();
     try {
@@ -242,6 +264,10 @@ function App() {
   }
 
   async function sendTestAlert() {
+    if (!hasRole("ops_operator")) {
+      setLog(roleReason("ops_operator"));
+      return;
+    }
     setBusy(true);
     clearError();
     try {
@@ -280,6 +306,10 @@ function App() {
   }
 
   async function rollbackGateSettings(historyItem: any) {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
     if (!window.confirm("이 시점의 설정으로 롤백하시겠습니까? (Webhook URL은 변경되지 않습니다)")) return;
     setBusy(true);
     clearError();
@@ -320,6 +350,10 @@ function App() {
   }
 
   async function saveGateSettings() {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
     setBusy(true);
     clearError();
     try {
@@ -337,6 +371,10 @@ function App() {
   }
 
   async function retryDeadLetterIssue(jobId: string) {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
     setBusy(true);
     clearError();
     try {
@@ -1240,9 +1278,12 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                       <button disabled={busy} onClick={loadGateSettings} style={{ background: "#f57f17", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
                         [설정 조회]
                       </button>
-                      <button disabled={busy} onClick={saveGateSettings} style={{ background: "#4caf50", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                      <button disabled={busy || !hasRole("ops_admin")} onClick={saveGateSettings} style={{ background: "#4caf50", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", fontWeight: "bold", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
                         [설정 저장]
                       </button>
+                      {!hasRole("ops_admin") && (
+                        <div style={{ marginTop: 6, fontSize: "0.8em", color: "#d32f2f" }}>{roleReason("ops_admin")}</div>
+                      )}
                       <button disabled={busy} onClick={() => { setShowGateSettingsHistory(true); loadGateSettingsHistory(null); }} style={{ background: "#5c6bc0", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold", marginLeft: "auto" }}>
                         [변경 이력]
                       </button>
@@ -1269,9 +1310,12 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                     <div style={{ marginTop: 4, color: "#757575", fontSize: "0.9em" }}>마지막 오류: {cbState.lastCategory}</div>
                   )}
                 </div>
-                <button disabled={busy} onClick={resetCircuitBreakerState} style={{ background: "#d32f2f", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                <button disabled={busy || !hasRole("ops_admin")} onClick={resetCircuitBreakerState} style={{ background: "#d32f2f", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", fontWeight: "bold", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
                   [상태 초기화 (Reset)]
                 </button>
+                {!hasRole("ops_admin") && (
+                  <div style={{ marginTop: 6, fontSize: "0.8em", color: "#d32f2f" }}>{roleReason("ops_admin")}</div>
+                )}
                 <button disabled={busy} onClick={loadCircuitBreakerState} style={{ background: "#f57c00", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", marginLeft: 8 }}>
                   [조회]
                 </button>
@@ -1286,10 +1330,13 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                     style={{ flex: 1, padding: 6 }} 
                     disabled={busy}
                   />
-                  <button disabled={busy} onClick={sendTestAlert} style={{ background: "#3f51b5", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                  <button disabled={busy || !hasRole("ops_operator")} onClick={sendTestAlert} style={{ background: "#3f51b5", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || !hasRole("ops_operator") ? "not-allowed" : "pointer", fontWeight: "bold", opacity: busy || !hasRole("ops_operator") ? 0.6 : 1 }}>
                     [테스트 알림 발송]
                   </button>
                 </div>
+                {!hasRole("ops_operator") && (
+                  <div style={{ marginTop: 6, fontSize: "0.8em", color: "#d32f2f" }}>{roleReason("ops_operator")}</div>
+                )}
                 <div style={{ marginTop: 8, fontSize: "0.8em", color: "#666" }}>
                   현재 {gateKey}의 Webhook URL로 메시지가 발송됩니다.
                 </div>
@@ -1781,9 +1828,12 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                               </span>
                             )}
                             {job.status === "dead" && (
-                              <button disabled={busy} onClick={() => retryDeadLetterIssue(job.id)} style={{ background: "#c62828", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em", alignSelf: "flex-start" }}>
+                              <button disabled={busy || !hasRole("ops_admin")} onClick={() => retryDeadLetterIssue(job.id)} style={{ background: "#c62828", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", fontSize: "0.8em", alignSelf: "flex-start", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
                                 [이슈 수동 생성]
                               </button>
+                            )}
+                            {job.status === "dead" && !hasRole("ops_admin") && (
+                              <span style={{ fontSize: "0.75em", color: "#c62828" }}>{roleReason("ops_admin")}</span>
                             )}
                             {job.deadIssue && (
                               <a href={job.deadIssue.issueUrl} target="_blank" rel="noreferrer" style={{ fontSize: "0.8em", color: "#1976d2", textDecoration: "underline" }}>
@@ -2064,9 +2114,12 @@ next=재검증 재시도/파트너 문의/수동 확인`;
                             {item.actorUid} | <span style={{ color: item.action === "ops_gate_settings.rollback" ? "#e65100" : "#3f51b5" }}>{item.action}</span>
                           </span>
                         </div>
-                        <button disabled={busy} onClick={() => rollbackGateSettings(item)} style={{ background: "#e65100", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em", fontWeight: "bold" }}>
+                        <button disabled={busy || !hasRole("ops_admin")} onClick={() => rollbackGateSettings(item)} style={{ background: "#e65100", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", fontSize: "0.85em", fontWeight: "bold", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
                           [이 시점으로 롤백]
                         </button>
+                        {!hasRole("ops_admin") && (
+                          <span style={{ marginLeft: 8, fontSize: "0.8em", color: "#c62828" }}>{roleReason("ops_admin")}</span>
+                        )}
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: "0.9em" }}>
                         {changed.enabled && (
