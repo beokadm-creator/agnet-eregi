@@ -1,3 +1,4 @@
+import { requireOpsRole } from "../../lib/ops_rbac";
 import type express from "express";
 import type * as admin from "firebase-admin";
 import JSZip from "jszip";
@@ -804,6 +805,8 @@ export function registerPackageRoutes(app: express.Express, adminApp: typeof adm
         logError({ endpoint: "/v1/ops/cases/:caseId/packages/regenerate", caseId: req.params.caseId, code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", undefined);
+      if (!hasRole) return;
 
       const caseId = req.params.caseId;
       const cs = await caseRef(adminApp, caseId).get();

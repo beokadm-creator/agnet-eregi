@@ -1,3 +1,4 @@
+import { requireOpsRole, hasOpsRole } from "../../lib/ops_rbac";
 import * as express from "express";
 import type * as admin from "firebase-admin";
 import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, WidthType } from "docx";
@@ -57,6 +58,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         logError({ endpoint: "/v1/ops/reports/pilot-gate/daily.md", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
+
 
       const dateParam = String(req.query.date || "");
       const targetDateStr = dateParam ? dateParam : formatKstYmd();
@@ -176,6 +180,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         logError({ endpoint: "/v1/ops/reports/pilot-gate/daily", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
+
   
       const dateParam = String(req.query.date || "");
       const targetDateStr = dateParam ? dateParam : formatKstYmd();
@@ -332,6 +339,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!isOps(auth)) {
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", String(req.params.gateKey));
+      if (!hasRole) return;
+
 
       const { date } = req.body;
       
@@ -517,6 +527,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", String(req.params.gateKey));
+      if (!hasRole) return;
+
       const { month, dryRun = false } = req.body;
       const targetMonth = month && /^\d{4}-\d{2}$/.test(String(month)) 
         ? String(month) 
@@ -561,6 +574,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
+
       const month = String(req.query.month || formatKstYmd().substring(0, 7));
       if (!/^\d{4}-\d{2}$/.test(month)) {
         return fail(res, 400, "INVALID_ARGUMENT", "month 파라미터 형식이 잘못되었습니다 (YYYY-MM).");
@@ -589,6 +605,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
 
       const month = String(req.query.month || formatKstYmd().substring(0, 7));
       if (!/^\d{4}-\d{2}$/.test(month)) {
@@ -658,6 +677,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
 
       const month = String(req.query.month || formatKstYmd().substring(0, 7));
       if (!/^\d{4}-\d{2}$/.test(month)) {
@@ -740,6 +762,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", String(req.params.gateKey));
+      if (!hasRole) return;
+
       const month = String(req.body.month || formatKstYmd().substring(0, 7));
       if (!/^\d{4}-\d{2}$/.test(month)) {
         return fail(res, 400, "INVALID_ARGUMENT", "month 파라미터 형식이 잘못되었습니다 (YYYY-MM).");
@@ -790,6 +815,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!isOps(auth)) {
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", String(req.params.gateKey));
+      if (!hasRole) return;
+
 
       const { date, dryRun = false, topN = 3 } = req.body;
       const targetDateStr = date ? String(date) : formatKstYmd();
@@ -976,6 +1004,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!isOps(auth)) {
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", String(req.params.gateKey));
+      if (!hasRole) return;
+
 
       const configData = await discoverProjectConfigAction(adminApp, gateKey, req.body.projectId, auth.uid);
 
@@ -1014,6 +1045,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", String(req.params.gateKey));
+      if (!hasRole) return;
 
       const { owner, repo, projectId, tokenRef, tokenRefActions, issueLabels, rules } = req.body;
       
@@ -1069,6 +1103,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
+
       const doc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
       if (!doc.exists) {
         return fail(res, 404, "NOT_FOUND", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
@@ -1090,6 +1127,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", String(req.params.gateKey));
+      if (!hasRole) return;
 
       const { customAliases } = req.body;
       if (!customAliases || typeof customAliases !== "object") {
@@ -1137,6 +1177,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", String(req.params.gateKey));
+      if (!hasRole) return;
+
       const result = await doResolveAction(adminApp, gateKey, auth.uid);
 
       await logOpsEvent(adminApp, {
@@ -1170,6 +1213,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", req.query.gateKey ? String(req.query.gateKey) : undefined);
+      if (!hasRole) return;
 
       const { gateKey, action, status, actorUid, from, to, cursor } = req.query;
       let limitNum = Number(req.query.limit) || 50;
@@ -1253,6 +1299,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", undefined);
+      if (!hasRole) return;
+
       const eventId = String(req.params.id);
       const doc = await adminApp.firestore().collection("ops_audit_events").doc(eventId).get();
 
@@ -1285,6 +1334,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
+
       const limit = Number(req.query.limit) || 50;
 
       const snap = await adminApp.firestore()
@@ -1308,6 +1360,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", undefined);
+      if (!hasRole) return;
 
       const limit = Number(req.query.limit) || 200;
 
@@ -1336,6 +1391,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", String(req.params.gateKey));
+      if (!hasRole) return;
 
       const { eventId } = req.body;
       if (!eventId || typeof eventId !== "string") {
@@ -1381,6 +1439,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", req.query.gateKey ? String(req.query.gateKey) : undefined);
+      if (!hasRole) return;
+
       const limit = Number(req.query.limit) || 50;
       const gateKey = req.query.gateKey as string | undefined;
 
@@ -1417,6 +1478,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
+
       const state = await getCircuitBreakerState(adminApp, gateKey);
       return res.status(200).json({ ok: true, data: state || { state: "closed", failCount: 0 } });
     } catch (err: any) {
@@ -1434,6 +1498,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", String(req.params.gateKey));
+      if (!hasRole) return;
 
       await resetCircuitBreaker(adminApp, gateKey, `Manual reset by ${auth.uid}`);
       
@@ -1458,6 +1525,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
 
       const gateKey = String(req.params.gateKey);
       if (!gateKey) return fail(res, 400, "INVALID_ARGUMENT", "gateKey is required");
@@ -1489,6 +1559,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
 
       const gateKey = String(req.params.gateKey);
       if (!gateKey) return fail(res, 400, "INVALID_ARGUMENT", "gateKey is required");
@@ -1565,6 +1638,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", String(req.params.gateKey));
+      if (!hasRole) return;
+
       const gateKey = String(req.params.gateKey);
       if (!gateKey) return fail(res, 400, "INVALID_ARGUMENT", "gateKey is required");
 
@@ -1631,6 +1707,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", req.body.gateKey ? String(req.body.gateKey) : undefined);
+      if (!hasRole) return;
+
       const { gateKey, message = "This is a test alert message from Ops Console." } = req.body;
       if (!gateKey) return fail(res, 400, "INVALID_ARGUMENT", "gateKey is required");
 
@@ -1696,6 +1775,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!auth) return;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
 
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", undefined);
+      if (!hasRole) return;
+
       const jobDoc = await adminApp.firestore().collection("ops_retry_jobs").doc(jobId).get();
       if (!jobDoc.exists) return fail(res, 404, "NOT_FOUND", "Job not found");
       const job = jobDoc.data() as any;
@@ -1741,6 +1823,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!isOps(auth)) {
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", String(req.params.gateKey));
+      if (!hasRole) return;
+
 
       const { date, dryRun = false, topN = 3 } = req.body;
       const targetDateStr = date ? String(date) : formatKstYmd();
@@ -2016,6 +2101,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", String(req.params.gateKey));
+      if (!hasRole) return;
+
   
       const { date, topN = 3 } = req.body;
       const targetDateStr = date ? String(date) : formatKstYmd();
@@ -2096,6 +2184,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         logError({ endpoint: "/v1/ops/reports/pilot-gate/recent", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
+
 
       const days = Number(req.query.days) || 7;
       const onlyFail = req.query.onlyFail === "1" || req.query.onlyFail === "true";
@@ -2155,6 +2246,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       if (!isOps(auth)) {
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
+
 
       const month = String(req.query.month || "");
       if (!/^\d{4}-\d{2}$/.test(month)) {
@@ -2198,6 +2292,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         logError({ endpoint: "/v1/ops/reports/pilot-gate/by-case", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
+
   
       const caseId = req.query.caseId;
       if (!caseId || typeof caseId !== "string") {
@@ -2249,6 +2346,9 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog.md", code: "FORBIDDEN", messageKo: "운영자만 접근 가능합니다." });
         return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
       }
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", String(req.params.gateKey));
+      if (!hasRole) return;
+
   
       const { week } = req.query; // YYYY-WW 형태, 없을 경우 지난 7일 기준
       let startDate: Date;
@@ -2352,7 +2452,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     if (!cs.exists) return fail(res, 404, "NOT_FOUND", "케이스를 찾을 수 없습니다.");
     const c = cs.data() as any;
 
-    const canRead = isOps(auth) || c.ownerUid === auth.uid || (partnerIdOf(auth) && c.partnerId === partnerIdOf(auth));
+    const canRead = (isOps(auth) && hasOpsRole(auth, "ops_viewer")) || c.ownerUid === auth.uid || (partnerIdOf(auth) && c.partnerId === partnerIdOf(auth));
     if (!canRead) return fail(res, 403, "FORBIDDEN", "접근 권한이 없습니다.");
 
     const [wfSnap, docsSnap, timelineSnap, quotesSnap, paySnap, refundSnap, filingSnap] = await Promise.all([
