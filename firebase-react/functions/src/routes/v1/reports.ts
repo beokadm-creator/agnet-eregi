@@ -1163,7 +1163,109 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     }
   });
 
-  // 최근 감사 이벤트 조회
+  // 통합 감사 이벤트 목록 조회 (필터 및 커서 페이지네이션)
+  app.get("/v1/ops/audit-events", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const { gateKey, action, status, actorUid, from, to, cursor } = req.query;
+      let limitNum = Number(req.query.limit) || 50;
+      if (limitNum > 200) limitNum = 200;
+
+      let query = adminApp.firestore().collection("ops_audit_events") as admin.firestore.Query;
+
+      if (gateKey) query = query.where("gateKey", "==", String(gateKey));
+      if (action) query = query.where("action", "==", String(action));
+      if (status) query = query.where("status", "==", String(status));
+      if (actorUid) query = query.where("actorUid", "==", String(actorUid));
+
+      let startDate: Date;
+      let endDate: Date;
+
+      if (from && to) {
+        startDate = new Date(String(from));
+        endDate = new Date(String(to));
+      } else {
+        // 날짜 범위 없을 때 기본 7일
+        endDate = new Date();
+        startDate = new Date();
+        startDate.setDate(endDate.getDate() - 7);
+      }
+
+      query = query.where("createdAt", ">=", adminApp.firestore.Timestamp.fromDate(startDate))
+                   .where("createdAt", "<=", adminApp.firestore.Timestamp.fromDate(endDate));
+
+      // 최신순 정렬 (동일 시간대 처리를 위해 docId 포함)
+      query = query.orderBy("createdAt", "desc").orderBy(adminApp.firestore.FieldPath.documentId(), "desc");
+
+      if (cursor) {
+        try {
+          const [createdAtMillis, docId] = JSON.parse(String(cursor));
+          query = query.startAfter(adminApp.firestore.Timestamp.fromMillis(createdAtMillis), docId);
+        } catch (e) {
+          return fail(res, 400, "INVALID_ARGUMENT", "잘못된 cursor 포맷입니다.");
+        }
+      }
+
+      query = query.limit(limitNum);
+
+      const snap = await query.get();
+      const items = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: fmtTs(data.createdAt)
+        };
+      });
+
+      let nextCursor = null;
+      if (snap.docs.length === limitNum) {
+        const lastDoc = snap.docs[snap.docs.length - 1];
+        const lastData = lastDoc.data();
+        if (lastData.createdAt) {
+          nextCursor = JSON.stringify([lastData.createdAt.toMillis(), lastDoc.id]);
+        }
+      }
+
+      return res.status(200).json({ ok: true, data: { items, nextCursor } });
+    } catch (err: any) {
+      logError({ endpoint: "audit-events", code: "INTERNAL", messageKo: "감사 이벤트 목록 조회 실패", err });
+      return fail(res, 500, "INTERNAL", "감사 이벤트 목록 조회 실패: " + err.message);
+    }
+  });
+
+  // 감사 이벤트 단건 상세 조회
+  app.get("/v1/ops/audit-events/:id", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const eventId = String(req.params.id);
+      const doc = await adminApp.firestore().collection("ops_audit_events").doc(eventId).get();
+
+      if (!doc.exists) {
+        return fail(res, 404, "NOT_FOUND", "해당 이벤트를 찾을 수 없습니다.");
+      }
+
+      const data = doc.data();
+      const item = {
+        id: doc.id,
+        ...data,
+        createdAt: fmtTs(data?.createdAt)
+      };
+
+      return res.status(200).json({ ok: true, data: { item } });
+    } catch (err: any) {
+      logError({ endpoint: "audit-events/detail", code: "INTERNAL", messageKo: "감사 이벤트 상세 조회 실패", err });
+      return fail(res, 500, "INTERNAL", "감사 이벤트 상세 조회 실패: " + err.message);
+    }
+  });
+
+  // 최근 감사 이벤트 조회 (하위 호환)
   app.get("/v1/ops/reports/:gateKey/audit/recent", async (req: express.Request, res: express.Response) => {
     try {
       const gateKey = String(String(req.params.gateKey));
