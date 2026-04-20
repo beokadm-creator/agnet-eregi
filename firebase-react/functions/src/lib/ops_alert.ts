@@ -19,7 +19,7 @@ export async function notifyOpsAlert(params: OpsAlertParams) {
   
   const webhookUrl = webhookUrlSpecific || webhookUrlCommon;
   const envKeyUsed = webhookUrlSpecific ? envKeySpecific : (webhookUrlCommon ? "OPS_ALERT_WEBHOOK_URL" : null);
-  const resolvedFrom = webhookUrlSpecific ? "specific" : (webhookUrlCommon ? "fallback" : "none");
+  const resolvedFrom = webhookUrlSpecific ? "per_gate" : (webhookUrlCommon ? "default" : "none");
 
   if (!webhookUrl) {
     return { success: false, envKeyUsed, resolvedFrom, reason: "No webhook URL configured" };

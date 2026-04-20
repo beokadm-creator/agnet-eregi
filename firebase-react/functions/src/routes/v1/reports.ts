@@ -1328,7 +1328,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       
       await logOpsEvent(adminApp, {
         gateKey,
-        action: "circuit_breaker.reset",
+        action: "ops_circuit_breaker.reset",
         status: "success",
         actorUid: auth.uid,
         requestId: req.headers["x-request-id"] as string || "N/A",
@@ -1353,7 +1353,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
 
       const alertResult = await notifyOpsAlert({
         gateKey,
-        action: "alert.test",
+        action: "ops_alert.test",
         summary: `[Test] ${message}`,
         severity: "info",
         requestId: req.headers["x-request-id"] as string || "test-req-id"
@@ -1365,7 +1365,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       
       await logOpsEvent(adminApp, {
         gateKey,
-        action: "alert.test",
+        action: "ops_alert.test",
         status: alertResult?.success ? "success" : "fail",
         actorUid: auth.uid,
         requestId: req.headers["x-request-id"] as string || "N/A",
