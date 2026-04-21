@@ -1,10 +1,13 @@
 import * as express from "express";
 import * as admin from "firebase-admin";
+import Stripe from "stripe";
 
 import { requireAuth } from "../../lib/auth";
 import { fail, ok, logError } from "../../lib/http";
 import { Refund } from "../../lib/payment_models";
 import { requireOpsRole } from "../../lib/ops_rbac";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2023-10-16" as any });
 
 export function registerRefundRoutes(app: express.Application, adminApp: typeof admin) {
 
@@ -136,8 +139,37 @@ export function registerRefundRoutes(app: express.Application, adminApp: typeof 
         return fail(res, 404, "NOT_FOUND", "환불 요청을 찾을 수 없습니다.");
       }
 
-      if (snap.data()?.status !== "approved") {
+      const refundData = snap.data() as Refund;
+
+      if (refundData.status !== "approved") {
         return fail(res, 400, "FAILED_PRECONDITION", "approved 상태의 환불만 실행할 수 있습니다.");
+      }
+
+      const paymentSnap = await db.collection("payments").doc(refundData.paymentId).get();
+      const paymentData = paymentSnap.data();
+
+      if (paymentData?.provider === "stripe" && paymentData?.providerRef) {
+        try {
+          await stripe.refunds.create({
+            payment_intent: paymentData.providerRef,
+            amount: refundData.amount,
+            reason: "requested_by_customer"
+          });
+        } catch (stripeErr: any) {
+          logError({ endpoint: "ops/refunds/execute", code: "INTERNAL", messageKo: "Stripe 환불 API 호출 실패", err: stripeErr });
+          
+          // Update refund status to error or something, but we just return error here
+          const auditRef = db.collection("audit_events").doc();
+          await auditRef.set({
+            action: "refund.executed",
+            status: "fail",
+            actorId: opsId,
+            targetId: refundId,
+            changes: { error: stripeErr.message },
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          return fail(res, 500, "INTERNAL", `Stripe 환불 실패: ${stripeErr.message}`);
+        }
       }
 
       const batch = db.batch();
@@ -146,6 +178,13 @@ export function registerRefundRoutes(app: express.Application, adminApp: typeof 
         executedBy: opsId,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
+
+      if (paymentSnap.exists) {
+        batch.update(paymentSnap.ref, {
+          status: "refunded",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
 
       // Audit log
       const auditRef = db.collection("audit_events").doc();

@@ -1,9 +1,12 @@
 import * as express from "express";
 import * as admin from "firebase-admin";
+import Stripe from "stripe";
 
 import { requireAuth } from "../../lib/auth";
 import { fail, ok, logError } from "../../lib/http";
 import { Payment } from "../../lib/payment_models";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2023-10-16" as any });
 
 export function registerPaymentRoutes(app: express.Application, adminApp: typeof admin) {
 
@@ -14,7 +17,7 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
       if (!auth) return;
 
       const userId = auth.uid;
-      const { amount, currency, caseId, submissionId } = req.body;
+      const { amount, currency, caseId, submissionId, provider = "stripe", successUrl, cancelUrl } = req.body;
 
       if (!amount || !currency) {
         return fail(res, 400, "INVALID_ARGUMENT", "amount와 currency가 필요합니다.");
@@ -30,11 +33,36 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
         amount,
         currency,
         status: "initiated",
+        provider,
         createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
         updatedAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
       };
 
       const batch = db.batch();
+
+      if (provider === "stripe") {
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: [{
+            price_data: {
+              currency: currency,
+              product_data: {
+                name: `Payment for Case ${caseId || submissionId || 'Unknown'}`,
+              },
+              unit_amount: amount, // Assuming amount is in smallest currency unit
+            },
+            quantity: 1,
+          }],
+          mode: 'payment',
+          success_url: successUrl || 'http://localhost:5173',
+          cancel_url: cancelUrl || 'http://localhost:5173',
+          client_reference_id: docRef.id,
+        });
+
+        payment.checkoutUrl = session.url || undefined;
+        payment.providerRef = session.id;
+      }
+
       batch.set(docRef, payment);
 
       // Audit log

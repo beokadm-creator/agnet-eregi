@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 
-export type PaymentStatus = "initiated" | "confirm" | "captured" | "failed";
+export type PaymentStatus = "initiated" | "confirm" | "captured" | "failed" | "refunded";
 
 export interface Payment {
   id?: string;
@@ -10,6 +10,9 @@ export interface Payment {
   amount: number;
   currency: string;
   status: PaymentStatus;
+  provider?: "stripe" | "mock";
+  providerRef?: string; // Stripe PaymentIntent ID or Session ID
+  checkoutUrl?: string; // Stripe Checkout Session URL
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }

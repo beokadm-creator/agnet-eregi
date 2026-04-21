@@ -32,6 +32,7 @@ import { registerOpsQueryHealthRoutes } from "./routes/v1/ops_query_health";
 import { registerPartnerCaseRoutes } from "./routes/v1/partner_cases";
 import { registerUserSubmissionRoutes } from "./routes/v1/user_submissions";
 import { registerNotificationSettingsRoutes } from "./routes/v1/notify_settings";
+import { registerStripeWebhookRoutes } from "./routes/v1/stripe_webhooks";
 import { processRetryJobs } from "./lib/ops_retry_worker";
 import { processOpsAlertJobs } from "./lib/ops_alert_worker";
 import { processOpsIncidents, generateWeeklyIncidentSummary } from "./lib/ops_incident_worker";
@@ -91,6 +92,7 @@ registerOpsQueryHealthRoutes(app, admin);
 registerPartnerCaseRoutes(app, admin);
 registerUserSubmissionRoutes(app, admin);
 registerNotificationSettingsRoutes(app, admin);
+registerStripeWebhookRoutes(app, admin);
 
 app.get("/health", async (_req, res) => ok(res, { status: "ok" }));
 app.use((_req, res) => fail(res, 404, "NOT_FOUND", "존재하지 않는 엔드포인트입니다."));

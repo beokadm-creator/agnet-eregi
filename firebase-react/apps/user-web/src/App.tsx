@@ -485,6 +485,9 @@ function App() {
                     <div>
                       <div style={{ fontSize: "1.2em", fontWeight: "bold", marginBottom: 4 }}>{payment.amount.toLocaleString()} {payment.currency}</div>
                       <div style={{ fontSize: "0.85em", color: "#666" }}>결제 ID: {payment.id}</div>
+                      {payment.provider === "stripe" && (
+                        <div style={{ fontSize: "0.8em", color: "#1565c0", marginTop: 4 }}>[Stripe 결제]</div>
+                      )}
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <span style={{
@@ -497,7 +500,18 @@ function App() {
                       }}>
                         {payment.status.toUpperCase()}
                       </span>
-                      {payment.status === "initiated" && (
+                      {payment.status === "initiated" && payment.provider === "stripe" && payment.checkoutUrl && (
+                        <button
+                          onClick={() => {
+                            window.location.href = payment.checkoutUrl;
+                          }}
+                          disabled={busy}
+                          style={{ display: "block", marginTop: 8, background: "#6772e5", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em", fontWeight: "bold" }}
+                        >
+                          결제 진행하기 (Stripe)
+                        </button>
+                      )}
+                      {payment.status === "initiated" && payment.provider !== "stripe" && (
                         <button
                           onClick={async () => {
                             setBusy(true);
@@ -513,7 +527,7 @@ function App() {
                           disabled={busy}
                           style={{ display: "block", marginTop: 8, background: "#4caf50", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em", fontWeight: "bold" }}
                         >
-                          결제 승인 (Confirm)
+                          결제 승인 (Confirm Mock)
                         </button>
                       )}
                     </div>
