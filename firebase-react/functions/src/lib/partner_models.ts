@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 
-export type CaseStatus = "draft" | "collecting" | "packaging" | "ready" | "failed";
+export type CaseStatus = "draft" | "collecting" | "packaging" | "ready" | "failed" | "completed";
 
 export interface PartnerCase {
   id?: string;
@@ -8,6 +8,13 @@ export interface PartnerCase {
   status: CaseStatus;
   title: string;
   submissionId?: string; // User Web과 연동을 위한 필드
+  closingReport?: {
+    status: "not_generated" | "ready" | "failed";
+    artifactPath?: string;
+    checksumSha256?: string;
+    error?: { message: string };
+    updatedAt?: admin.firestore.Timestamp;
+  };
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }
@@ -40,6 +47,11 @@ export interface CasePackage {
   artifactPath?: string;
   artifactUrl?: string;
   checksumSha256?: string;
+  validation?: {
+    status: "not_run" | "pass" | "fail";
+    missing: Array<{ code: string; messageKo: string }>;
+    validatedAt?: admin.firestore.Timestamp;
+  };
   error?: {
     category: string;
     message: string;

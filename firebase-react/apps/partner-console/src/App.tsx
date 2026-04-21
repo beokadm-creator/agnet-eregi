@@ -14,6 +14,10 @@ function App() {
   
   const [evidences, setEvidences] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
+  
+  const [notificationSettings, setNotificationSettings] = useState<any>(null);
+  const [newWebhookUrl, setNewWebhookUrl] = useState("");
+  const [newWebhookSecret, setNewWebhookSecret] = useState("");
 
   useEffect(() => {
     const t = localStorage.getItem("partner_token");
@@ -50,16 +54,48 @@ function App() {
 
   async function loadCases() {
     setBusy(true);
-    setLog("케이스 목록 불러오는 중...");
+    setLog("케이스 및 알림 설정 불러오는 중...");
     try {
       const res = await apiGet("/v1/partner/cases");
       setCases(res.items || []);
-      setLog("케이스 목록 갱신됨.");
+      
+      const notifyRes = await apiGet("/v1/partner/notification-settings");
+      setNotificationSettings(notifyRes.settings);
+
+      setLog("데이터 갱신됨.");
     } catch (e: any) {
       setLog(`[Error] ${e.message}`);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function updateNotificationSettings(newSettings: any) {
+    setBusy(true);
+    setLog("알림 설정 업데이트 중...");
+    try {
+      const res = await apiPost("/v1/partner/notification-settings", newSettings);
+      setNotificationSettings(res.settings);
+      setLog("알림 설정 저장 완료");
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addWebhook() {
+    if (!newWebhookUrl) return;
+    const newSettings = {
+      ...notificationSettings,
+      webhooks: [
+        ...(notificationSettings.webhooks || []),
+        { url: newWebhookUrl, secret: newWebhookSecret, enabled: true }
+      ]
+    };
+    await updateNotificationSettings(newSettings);
+    setNewWebhookUrl("");
+    setNewWebhookSecret("");
   }
 
   async function createCase() {
@@ -200,6 +236,70 @@ function App() {
     }
   }
 
+  async function validatePackage(pkgId: string) {
+    if (!selectedCase) return;
+    setBusy(true);
+    setLog("패키지 검증 중...");
+    try {
+      const res = await apiPost(`/v1/partner/cases/${selectedCase.id}/packages/${pkgId}/validate`, {});
+      setLog(`검증 결과: ${res.validation.status.toUpperCase()}`);
+      await loadCaseDetail(selectedCase.id);
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function generateClosingReport() {
+    if (!selectedCase) return;
+    setBusy(true);
+    setLog("Closing Report 생성 중...");
+    try {
+      const res = await apiPost(`/v1/partner/cases/${selectedCase.id}/reports/closing/generate`, {});
+      setLog(`리포트 생성 완료 (SHA256: ${res.closingReport.checksumSha256})`);
+      await loadCaseDetail(selectedCase.id);
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function downloadClosingReport() {
+    if (!selectedCase) return;
+    setBusy(true);
+    setLog("Closing Report 다운로드 중...");
+    try {
+      const res = await apiPost(`/v1/partner/cases/${selectedCase.id}/reports/closing/download-url`, {});
+      window.open(res.downloadUrl, "_blank");
+      setLog(`다운로드 창 열림 (SHA256: ${res.checksumSha256})`);
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function markCaseCompleted() {
+    if (!selectedCase) return;
+    const ok = window.confirm("케이스를 마감하시겠습니까? 이후 상태 변경이 제한될 수 있습니다.");
+    if (!ok) return;
+    
+    setBusy(true);
+    setLog("케이스 마감 처리 중...");
+    try {
+      await apiPost(`/v1/partner/cases/${selectedCase.id}/complete`, {});
+      setLog("케이스 마감 완료");
+      await loadCaseDetail(selectedCase.id);
+      await loadCases();
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const hasValidatedEvidence = evidences.some((e: any) => e.status === "validated");
 
   return (
@@ -246,7 +346,7 @@ function App() {
             {cases.length === 0 ? (
               <div style={{ color: "#999", textAlign: "center", padding: 20 }}>케이스가 없습니다.</div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
                 {cases.map(c => (
                   <div 
                     key={c.id} 
@@ -278,6 +378,72 @@ function App() {
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Notification Settings */}
+            {notificationSettings && (
+              <div style={{ borderTop: "2px solid #eee", paddingTop: 16 }}>
+                <h3 style={{ margin: "0 0 12px 0", color: "#00695c", fontSize: "1.1em" }}>알림 설정 (Webhooks)</h3>
+                <div style={{ marginBottom: 12, fontSize: "0.9em" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={notificationSettings.events?.packageReady}
+                      onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, packageReady: e.target.checked } })}
+                    />
+                    Package Ready
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={notificationSettings.events?.closingReportReady}
+                      onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, closingReportReady: e.target.checked } })}
+                    />
+                    Closing Report Ready
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={notificationSettings.events?.caseCompleted}
+                      onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, caseCompleted: e.target.checked } })}
+                    />
+                    Case Completed
+                  </label>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em" }}>웹훅 목록</h4>
+                  {notificationSettings.webhooks?.map((w: any, idx: number) => (
+                    <div key={idx} style={{ background: "#f5f5f5", padding: 8, borderRadius: 4, marginBottom: 8, fontSize: "0.85em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div><strong>URL:</strong> {w.url}</div>
+                        {w.secret && <div><strong>Secret:</strong> ***</div>}
+                      </div>
+                      <button onClick={() => {
+                        const newWebhooks = [...notificationSettings.webhooks];
+                        newWebhooks.splice(idx, 1);
+                        updateNotificationSettings({ ...notificationSettings, webhooks: newWebhooks });
+                      }} style={{ background: "#d32f2f", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>삭제</button>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <input 
+                    placeholder="https://my-server.com/webhook" 
+                    value={newWebhookUrl} 
+                    onChange={e => setNewWebhookUrl(e.target.value)} 
+                    style={{ padding: 6, fontSize: "0.85em" }} 
+                  />
+                  <input 
+                    placeholder="Secret (optional)" 
+                    value={newWebhookSecret} 
+                    onChange={e => setNewWebhookSecret(e.target.value)} 
+                    style={{ padding: 6, fontSize: "0.85em" }} 
+                  />
+                  <button onClick={addWebhook} disabled={busy || !newWebhookUrl} style={{ padding: "6px 12px", background: "#0277bd", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.9em" }}>
+                    웹훅 추가
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -410,21 +576,61 @@ function App() {
                         </div>
 
                         {p.status === "ready" && (
-                          <div style={{ marginTop: 8, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                            <button onClick={() => downloadPackage(p.id)} disabled={busy} style={{ display: "inline-block", padding: "6px 12px", background: "#4caf50", color: "white", textDecoration: "none", borderRadius: 4, fontSize: "0.9em", fontWeight: "bold", border: "none", cursor: busy ? "not-allowed" : "pointer" }}>
-                              Download ZIP
-                            </button>
-                            {p.checksumSha256 && (
-                              <div style={{ fontSize: "0.85em", color: "#333", display: "flex", gap: 8, alignItems: "center" }}>
-                                <span style={{ fontFamily: "monospace" }}>{p.checksumSha256}</span>
-                                <button
-                                  onClick={() => navigator.clipboard?.writeText?.(p.checksumSha256)}
-                                  style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}
-                                >
-                                  복사
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+                              <button onClick={() => downloadPackage(p.id)} disabled={busy} style={{ display: "inline-block", padding: "6px 12px", background: "#4caf50", color: "white", textDecoration: "none", borderRadius: 4, fontSize: "0.9em", fontWeight: "bold", border: "none", cursor: busy ? "not-allowed" : "pointer" }}>
+                                Download ZIP
+                              </button>
+                              {p.checksumSha256 && (
+                                <div style={{ fontSize: "0.85em", color: "#333", display: "flex", gap: 8, alignItems: "center" }}>
+                                  <span style={{ fontFamily: "monospace" }}>{p.checksumSha256}</span>
+                                  <button
+                                    onClick={() => navigator.clipboard?.writeText?.(p.checksumSha256)}
+                                    style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}
+                                  >
+                                    복사
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Validation Card */}
+                            <div style={{ padding: 12, background: "#fff", border: "1px solid #e0e0e0", borderRadius: 6 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                <h4 style={{ margin: 0, fontSize: "1em", color: "#37474f" }}>✔️ Validation</h4>
+                                <button onClick={() => validatePackage(p.id)} disabled={busy} style={{ background: "#0288d1", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}>
+                                  Validate
                                 </button>
                               </div>
-                            )}
+                              {p.validation ? (
+                                <div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                    <span style={{ 
+                                      padding: "2px 6px", 
+                                      borderRadius: 4, 
+                                      fontSize: "0.85em", 
+                                      fontWeight: "bold",
+                                      background: p.validation.status === "pass" ? "#e8f5e9" : p.validation.status === "fail" ? "#ffebee" : "#eee",
+                                      color: p.validation.status === "pass" ? "#2e7d32" : p.validation.status === "fail" ? "#c62828" : "#666"
+                                    }}>
+                                      {p.validation.status.toUpperCase()}
+                                    </span>
+                                    {p.validation.validatedAt && (
+                                      <span style={{ fontSize: "0.8em", color: "#999" }}>{new Date(p.validation.validatedAt).toLocaleString()}</span>
+                                    )}
+                                  </div>
+                                  {p.validation.missing && p.validation.missing.length > 0 && (
+                                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: "0.85em", color: "#c62828" }}>
+                                      {p.validation.missing.map((m: any, i: number) => (
+                                        <li key={i}>{m.messageKo} ({m.code})</li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: "0.85em", color: "#999" }}>검증되지 않음</div>
+                              )}
+                            </div>
                           </div>
                         )}
 
@@ -448,6 +654,56 @@ function App() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Closing Report & Case Complete */}
+              <div style={{ marginTop: 24, paddingTop: 16, borderTop: "2px solid #eee" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: "1.1em", color: "#37474f" }}>📄 Closing Report</h3>
+                  <button onClick={markCaseCompleted} disabled={busy || selectedCase.status === "completed" || selectedCase.closingReport?.status !== "ready"} style={{ background: selectedCase.status === "completed" ? "#9e9e9e" : "#00695c", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: selectedCase.status === "completed" || selectedCase.closingReport?.status !== "ready" ? "not-allowed" : "pointer", fontWeight: "bold" }}>
+                    Mark Case Completed
+                  </button>
+                </div>
+
+                <div style={{ padding: 16, background: "#e8f5e9", borderRadius: 8, border: "1px solid #c8e6c9" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <div>
+                      <span style={{ fontWeight: "bold", marginRight: 8 }}>상태:</span>
+                      <span style={{ 
+                        padding: "2px 6px", 
+                        borderRadius: 4, 
+                        fontSize: "0.85em", 
+                        fontWeight: "bold",
+                        background: selectedCase.closingReport?.status === "ready" ? "#c8e6c9" : "#eee",
+                        color: selectedCase.closingReport?.status === "ready" ? "#2e7d32" : "#666"
+                      }}>
+                        {selectedCase.closingReport?.status ? selectedCase.closingReport.status.toUpperCase() : "NOT_GENERATED"}
+                      </span>
+                    </div>
+                    <button onClick={generateClosingReport} disabled={busy || selectedCase.status === "completed"} style={{ background: "#2e7d32", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: busy || selectedCase.status === "completed" ? "not-allowed" : "pointer", fontSize: "0.9em" }}>
+                      Generate Report
+                    </button>
+                  </div>
+                  
+                  {selectedCase.closingReport?.status === "ready" && (
+                    <div style={{ marginTop: 12, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", background: "#fff", padding: 12, borderRadius: 6 }}>
+                      <button onClick={downloadClosingReport} disabled={busy} style={{ display: "inline-block", padding: "6px 12px", background: "#0288d1", color: "white", textDecoration: "none", borderRadius: 4, fontSize: "0.9em", fontWeight: "bold", border: "none", cursor: busy ? "not-allowed" : "pointer" }}>
+                        Download DOCX
+                      </button>
+                      {selectedCase.closingReport.checksumSha256 && (
+                        <div style={{ fontSize: "0.85em", color: "#333", display: "flex", gap: 8, alignItems: "center" }}>
+                          <span style={{ fontFamily: "monospace", wordBreak: "break-all" }}>{selectedCase.closingReport.checksumSha256}</span>
+                          <button
+                            onClick={() => navigator.clipboard?.writeText?.(selectedCase.closingReport.checksumSha256)}
+                            style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}
+                          >
+                            복사
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
             </div>
