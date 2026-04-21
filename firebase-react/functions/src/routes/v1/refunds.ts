@@ -153,7 +153,14 @@ export function registerRefundRoutes(app: express.Application, adminApp: typeof 
           await stripe.refunds.create({
             payment_intent: paymentData.providerRef,
             amount: refundData.amount,
-            reason: "requested_by_customer"
+            reason: "requested_by_customer",
+            metadata: {
+              refundId: refundData.id || refundId,
+              caseId: refundData.caseId,
+              paymentId: refundData.paymentId
+            }
+          }, {
+            idempotencyKey: refundId // Prevent duplicate refunds
           });
         } catch (stripeErr: any) {
           logError({ endpoint: "ops/refunds/execute", code: "INTERNAL", messageKo: "Stripe 환불 API 호출 실패", err: stripeErr });

@@ -48,7 +48,17 @@
    이때 `client_reference_id`를 실제 시스템의 Payment ID와 맞춰야 정상 동작합니다.
    실제 UI에서 Checkout 링크를 통해 테스트 카드 번호(`4242 4242 4242 4242`)로 결제를 진행하면 Webhook이 정상 수신되는지 확인할 수 있습니다.
 
-## 보안 고려사항
-- `POST /v1/webhooks/stripe` 라우트는 Firebase Auth를 타지 않는 Public 엔드포인트입니다.
-- 대신 **반드시** `stripe-signature` 헤더를 `STRIPE_WEBHOOK_SECRET`으로 검증하여 Stripe에서 보낸 정상적인 요청인지 확인해야 합니다.
-- Express `req.rawBody`를 사용하여 서명 검증을 수행합니다 (`index.ts`의 `express.json` 설정에서 `limit` 및 `verify` 참조).
+## 보안 및 운영 고려사항
+- **Webhook 엔드포인트 접근제어**: 
+  - `POST /v1/webhooks/stripe` 라우트는 Firebase Auth를 타지 않는 Public 엔드포인트입니다.
+  - 대신 **반드시** `stripe-signature` 헤더를 `STRIPE_WEBHOOK_SECRET`으로 검증하여 Stripe에서 보낸 정상적인 요청인지 확인해야 합니다.
+  - 서명 검증을 위해 Express 라우터에서 `express.raw({ type: "application/json" })` 미들웨어를 먼저 통과시켜 정확한 바이트 스트림(rawBody)을 확보해야 합니다.
+- **멱등성(Idempotency) 보장**:
+  - Webhook에서 `stripe_events` 컬렉션을 활용해 `event.id` 중복 처리를 방지합니다.
+  - `stripe.checkout.sessions.create` 호출 시 Payment Document ID를 `idempotencyKey`로 전달하여 재시도 시 세션 중복 생성을 막습니다.
+  - `stripe.refunds.create` 호출 시 Refund Document ID를 `idempotencyKey`로 전달하여 중복 환불을 막습니다.
+- **관측성 및 추적성**:
+  - `metadata` 속성을 통해 `paymentId`, `userId`, `caseId` 등을 Stripe 대시보드에 남깁니다.
+  - `audit_events`에 `stripe_event_id`나 `stripe_session_id`를 함께 기록하여 장애 대응 및 추적을 용이하게 합니다.
+- **환경변수 관리**: 
+  - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` 값이 누락된 경우 결제 및 Webhook 기능이 오동작하거나 서명 검증이 실패하므로 반드시 운영 환경에 설정되어야 합니다.

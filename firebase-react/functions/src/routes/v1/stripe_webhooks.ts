@@ -25,7 +25,21 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
     }
 
     const db = adminApp.firestore();
+    
+    // Idempotency check: if event is already processed, return 200
+    const eventRef = db.collection("stripe_events").doc(event.id);
+    const eventSnap = await eventRef.get();
+    if (eventSnap.exists) {
+      return res.json({ received: true, message: "already_processed" });
+    }
+
     const batch = db.batch();
+    
+    // mark event as processed
+    batch.set(eventRef, {
+      type: event.type,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
 
     try {
       if (event.type === "checkout.session.completed") {
@@ -34,20 +48,30 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
         
         if (paymentId) {
           const paymentRef = db.collection("payments").doc(paymentId);
-          batch.update(paymentRef, {
-            status: "captured",
-            providerRef: session.payment_intent as string,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-          });
+          const paymentSnap = await paymentRef.get();
+          
+          if (paymentSnap.exists) {
+            const currentStatus = paymentSnap.data()?.status;
+            
+            // Only update if current status is initiated (or failed, depending on business logic. Usually just initiated)
+            if (currentStatus === "initiated") {
+              batch.update(paymentRef, {
+                status: "captured",
+                providerRef: session.payment_intent as string,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+              });
 
-          const auditRef = db.collection("audit_events").doc();
-          batch.set(auditRef, {
-            action: "payment.captured",
-            actorId: "stripe_webhook",
-            targetId: paymentId,
-            changes: { status: "captured", providerRef: session.payment_intent },
-            createdAt: admin.firestore.FieldValue.serverTimestamp()
-          });
+              const auditRef = db.collection("audit_events").doc();
+              batch.set(auditRef, {
+                action: "payment.captured",
+                actorId: "stripe_webhook",
+                targetId: paymentId,
+                changes: { status: "captured", providerRef: session.payment_intent },
+                meta: { stripe_event_id: event.id, stripe_session_id: session.id },
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+              });
+            }
+          }
         }
       } else if (event.type === "checkout.session.async_payment_failed" || event.type === "payment_intent.payment_failed") {
         let paymentId: string | undefined;
@@ -65,19 +89,29 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
 
         if (paymentId) {
           const paymentRef = db.collection("payments").doc(paymentId);
-          batch.update(paymentRef, {
-            status: "failed",
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-          });
+          const paymentSnap = await paymentRef.get();
+          
+          if (paymentSnap.exists) {
+            const currentStatus = paymentSnap.data()?.status;
+            
+            // Should not transition from captured/refunded back to failed
+            if (currentStatus !== "captured" && currentStatus !== "refunded") {
+              batch.update(paymentRef, {
+                status: "failed",
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+              });
 
-          const auditRef = db.collection("audit_events").doc();
-          batch.set(auditRef, {
-            action: "payment.failed",
-            actorId: "stripe_webhook",
-            targetId: paymentId,
-            changes: { status: "failed" },
-            createdAt: admin.firestore.FieldValue.serverTimestamp()
-          });
+              const auditRef = db.collection("audit_events").doc();
+              batch.set(auditRef, {
+                action: "payment.failed",
+                actorId: "stripe_webhook",
+                targetId: paymentId,
+                changes: { status: "failed" },
+                meta: { stripe_event_id: event.id },
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+              });
+            }
+          }
         }
       }
 

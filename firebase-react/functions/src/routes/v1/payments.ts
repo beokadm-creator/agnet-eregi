@@ -57,6 +57,14 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
           success_url: successUrl || 'http://localhost:5173',
           cancel_url: cancelUrl || 'http://localhost:5173',
           client_reference_id: docRef.id,
+          metadata: {
+            paymentId: docRef.id,
+            userId,
+            caseId: caseId || "",
+            submissionId: submissionId || ""
+          }
+        }, {
+          idempotencyKey: docRef.id // Ensure we don't create multiple checkout sessions for the same payment document
         });
 
         payment.checkoutUrl = session.url || undefined;

@@ -53,13 +53,19 @@ admin.initializeApp();
 const app = express();
 app.use(cors({ origin: true }));
 app.use(requestIdMiddleware);
-// 웹훅 서명 검증을 위해 rawBody를 보관한다.
+// stripe webhook uses raw body, so we register it before express.json()
+app.post(
+  "/v1/webhooks/stripe",
+  express.raw({ type: "application/json" }),
+  (req, res, next) => {
+    (req as any).rawBody = req.body;
+    next();
+  }
+);
+
 app.use(
   express.json({
     limit: "2mb",
-    verify: (req, _res, buf) => {
-      (req as any).rawBody = buf;
-    }
   })
 );
 
