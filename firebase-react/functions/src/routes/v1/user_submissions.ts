@@ -477,7 +477,7 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
 
       const userId = auth.uid;
       const subId = String(req.params.id);
-      const { filename, contentType, sizeBytes, type, requestId } = req.body;
+      const { filename, contentType, sizeBytes, type, requestId, itemCode } = req.body;
 
       if (!filename || !contentType || !sizeBytes || !type) {
         return fail(res, 400, "INVALID_ARGUMENT", "filename, contentType, sizeBytes, type이 필요합니다.");
@@ -507,9 +507,22 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
       }
 
       if (requestId) {
+        if (!itemCode) {
+          return fail(res, 400, "INVALID_ARGUMENT", "requestId가 제공된 경우 itemCode도 필수입니다.");
+        }
         const reqSnap = await db.collection("evidence_requests").doc(requestId).get();
         if (!reqSnap.exists || reqSnap.data()?.caseId !== caseId || reqSnap.data()?.status !== "open") {
           return fail(res, 400, "FAILED_PRECONDITION", "유효하지 않거나 이미 처리된 요청입니다.");
+        }
+        
+        const items = reqSnap.data()?.items || [];
+        const item = items.find((i: any) => i.code === itemCode);
+        if (!item) {
+          return fail(res, 400, "INVALID_ARGUMENT", "해당 요청에 존재하지 않는 항목 코드입니다.");
+        }
+        
+        if (item.status === "fulfilled") {
+          return fail(res, 409, "CONFLICT", "이미 제출 완료된 항목입니다.");
         }
       }
 
@@ -528,6 +541,7 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
         sizeBytes,
         source: "user",
         requestId: requestId || null,
+        itemCode: itemCode || null,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       };
 

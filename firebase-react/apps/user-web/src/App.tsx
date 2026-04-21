@@ -527,9 +527,10 @@ function App() {
                             {r.items.map((item: any, idx: number) => (
                               <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderTop: idx > 0 ? "1px solid #ffe0b2" : "none" }}>
                                 <div>
-                                  <span style={{ fontWeight: "bold", marginRight: 8 }}>{item.titleKo}</span>
+                                  <span style={{ fontWeight: "bold", marginRight: 8, color: item.status === "fulfilled" ? "#9e9e9e" : "inherit", textDecoration: item.status === "fulfilled" ? "line-through" : "none" }}>{item.titleKo}</span>
                                   <span style={{ fontSize: "0.8em", color: "#666" }}>({item.code})</span>
-                                  {item.required && <span style={{ marginLeft: 8, color: "#d32f2f", fontSize: "0.8em", fontWeight: "bold" }}>*필수</span>}
+                                  {item.required && <span style={{ marginLeft: 8, color: item.status === "fulfilled" ? "#9e9e9e" : "#d32f2f", fontSize: "0.8em", fontWeight: "bold" }}>*필수</span>}
+                                  {item.status === "fulfilled" && <span style={{ marginLeft: 8, color: "#2e7d32", fontSize: "0.8em", fontWeight: "bold" }}>✅ 완료됨</span>}
                                 </div>
                                 <div>
                                   <input 
@@ -541,10 +542,10 @@ function App() {
                                   />
                                   <button 
                                     onClick={() => document.getElementById(`file-${r.id}-${item.code}`)?.click()}
-                                    disabled={busy || r.status !== "open"}
-                                    style={{ padding: "6px 12px", background: "#f57c00", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.9em", fontWeight: "bold" }}
+                                    disabled={busy || r.status !== "open" || item.status === "fulfilled"}
+                                    style={{ padding: "6px 12px", background: item.status === "fulfilled" ? "#ccc" : "#f57c00", color: "white", border: "none", borderRadius: 4, cursor: item.status === "fulfilled" ? "not-allowed" : "pointer", fontSize: "0.9em", fontWeight: "bold" }}
                                   >
-                                    {uploadingRequestId === r.id ? "업로드 중..." : "파일 업로드"}
+                                    {uploadingRequestId === r.id ? "업로드 중..." : item.status === "fulfilled" ? "제출 완료" : "파일 업로드"}
                                   </button>
                                 </div>
                               </div>

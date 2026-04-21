@@ -35,8 +35,18 @@ export interface CaseEvidence {
   scanStatus?: "clean" | "infected" | "unknown";
   source?: "partner" | "user"; // 업로드 출처
   requestId?: string;          // 증거 요청 ID
+  itemCode?: string;           // 증거 요청 항목 코드
   createdAt: admin.firestore.Timestamp;
   updatedAt?: admin.firestore.Timestamp;
+}
+
+export interface EvidenceRequestItem {
+  code: string;
+  titleKo: string;
+  required: boolean;
+  status: "open" | "fulfilled";
+  evidenceId?: string;
+  fulfilledAt?: admin.firestore.Timestamp;
 }
 
 export interface EvidenceRequest {
@@ -45,7 +55,7 @@ export interface EvidenceRequest {
   caseId: string;
   submissionId?: string;
   status: "open" | "fulfilled" | "cancelled";
-  items: Array<{ code: string; titleKo: string; required: boolean }>;
+  items: EvidenceRequestItem[];
   messageToUserKo: string;
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;

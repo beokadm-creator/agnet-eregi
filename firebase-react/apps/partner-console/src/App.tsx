@@ -620,7 +620,10 @@ function App() {
                         </div>
                         <ul style={{ margin: "4px 0 0 0", paddingLeft: 20, fontSize: "0.85em", color: "#555" }}>
                           {r.items.map((item: any, idx: number) => (
-                            <li key={idx}>{item.titleKo} ({item.code}) - {item.required ? "필수" : "선택"}</li>
+                            <li key={idx} style={{ color: item.status === "fulfilled" ? "#2e7d32" : "inherit" }}>
+                              {item.titleKo} ({item.code}) - {item.required ? "필수" : "선택"}
+                              {item.status === "fulfilled" && <span style={{ marginLeft: 8, fontWeight: "bold" }}>✅</span>}
+                            </li>
                           ))}
                         </ul>
                       </div>

@@ -770,7 +770,10 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
         caseId: cId,
         submissionId: submissionId || caseSnap.data()?.submissionId || undefined,
         status: "open",
-        items,
+        items: items.map((item: any) => ({
+          ...item,
+          status: "open"
+        })),
         messageToUserKo,
         createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
         updatedAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp

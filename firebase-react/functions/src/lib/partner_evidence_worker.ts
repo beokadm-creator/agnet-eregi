@@ -65,23 +65,78 @@ export async function processEvidenceValidation(adminApp: typeof admin) {
       console.log(`[EvidenceValidation] Evidence ${evidenceId} validated successfully.`);
 
       // Evidence Request 충족 처리
-      if (ev.requestId) {
+      if (ev.requestId && ev.itemCode) {
         const reqRef = db.collection("evidence_requests").doc(ev.requestId);
-        const reqSnap = await reqRef.get();
         
-        if (reqSnap.exists && reqSnap.data()?.status === "open") {
-          await reqRef.update({
-            status: "fulfilled",
-            fulfilledAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-          });
+        await db.runTransaction(async (transaction) => {
+          const reqSnap = await transaction.get(reqRef);
+          if (!reqSnap.exists) return;
 
-          await enqueueNotification(adminApp, { partnerId: ev.partnerId }, "evidence.fulfilled", {
-            caseId: ev.caseId,
-            requestId: ev.requestId,
-            evidenceId
-          });
-        }
+          const reqData = reqSnap.data() as any;
+          if (reqData.status !== "open") return;
+
+          const items = reqData.items || [];
+          const itemIndex = items.findIndex((i: any) => i.code === ev.itemCode);
+          
+          if (itemIndex === -1) return;
+
+          // 해당 아이템 fulfilled 처리
+          items[itemIndex].status = "fulfilled";
+          items[itemIndex].evidenceId = evidenceId;
+          items[itemIndex].fulfilledAt = admin.firestore.FieldValue.serverTimestamp();
+
+          // 모든 required 아이템이 fulfilled인지 확인
+          const allRequiredFulfilled = items
+            .filter((i: any) => i.required)
+            .every((i: any) => i.status === "fulfilled");
+
+          const updateData: any = {
+            items,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          };
+
+          let isFullyFulfilled = false;
+          if (allRequiredFulfilled) {
+            updateData.status = "fulfilled";
+            updateData.fulfilledAt = admin.firestore.FieldValue.serverTimestamp();
+            isFullyFulfilled = true;
+          }
+
+          transaction.update(reqRef, updateData);
+
+          if (isFullyFulfilled) {
+            // 패키지 자동 재생성 트리거를 위해 packages 조회
+            const packagesSnap = await transaction.get(
+              db.collection("packages")
+                .where("caseId", "==", ev.caseId)
+                .orderBy("createdAt", "desc")
+                .limit(1)
+            );
+
+            if (!packagesSnap.empty) {
+              const latestPkgRef = packagesSnap.docs[0].ref;
+              transaction.update(latestPkgRef, {
+                status: "queued",
+                error: admin.firestore.FieldValue.delete(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+              });
+            }
+
+            // 알림 발송은 트랜잭션 성공 후 (임시로 enqueue를 트랜잭션 밖에서 처리)
+            // Firebase Functions의 runTransaction은 Promise 반환하므로 체이닝 가능
+          }
+        }).then(async () => {
+          const updatedReqSnap = await reqRef.get();
+          if (updatedReqSnap.exists && updatedReqSnap.data()?.status === "fulfilled") {
+            await enqueueNotification(adminApp, { partnerId: ev.partnerId }, "evidence.fulfilled", {
+              caseId: ev.caseId,
+              requestId: ev.requestId,
+              evidenceId
+            });
+          }
+        }).catch(err => {
+          console.error(`[EvidenceValidation] Transaction failed for request ${ev.requestId}:`, err);
+        });
       }
 
     } catch (error: any) {

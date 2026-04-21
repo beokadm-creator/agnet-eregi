@@ -124,8 +124,26 @@ export async function processPackageBuilds(adminApp: typeof admin) {
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
+      // 자동 Validate
+      const missing: Array<{ code: string; messageKo: string }> = [];
+      const hasPassport = evidenceList.some(e => e.type === "passport");
+      if (!hasPassport) {
+        missing.push({ code: "MISSING_PASSPORT", messageKo: "여권 사본이 누락되었습니다." });
+      }
+      
+      const validation = {
+        status: missing.length === 0 ? "pass" : "fail",
+        missing,
+        validatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      
+      batch.update(doc.ref, {
+        validation,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
       await batch.commit();
-      console.log(`[PackageBuilder] Package ${packageId} built successfully.`);
+      console.log(`[PackageBuilder] Package ${packageId} built and validated automatically.`);
       
       await enqueueNotification(adminApp, { partnerId }, "package.ready", {
         caseId,
