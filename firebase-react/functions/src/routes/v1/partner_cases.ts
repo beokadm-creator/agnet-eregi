@@ -866,4 +866,60 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
     }
   });
 
+  // 17) GET /v1/partner/cases/:caseId/poll
+  app.get("/v1/partner/cases/:caseId/poll", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const partnerId = partnerIdOf(auth);
+      if (!partnerId) return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.");
+
+      const cId = String(req.params.caseId);
+      const db = adminApp.firestore();
+
+      const caseRef = db.collection("cases").doc(cId);
+      const caseSnap = await caseRef.get();
+      if (!caseSnap.exists || caseSnap.data()?.partnerId !== partnerId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 케이스입니다.");
+      }
+
+      const caseData = { id: caseSnap.id, ...caseSnap.data() } as any;
+
+      const evSnap = await db.collection("evidences")
+        .where("caseId", "==", cId)
+        .where("partnerId", "==", partnerId)
+        .orderBy("createdAt", "desc")
+        .get();
+      const evidences = evSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      const pkgSnap = await db.collection("packages")
+        .where("caseId", "==", cId)
+        .where("partnerId", "==", partnerId)
+        .orderBy("createdAt", "desc")
+        .limit(5)
+        .get();
+      const packages = pkgSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      const reqSnap = await db.collection("evidence_requests")
+        .where("caseId", "==", cId)
+        .where("partnerId", "==", partnerId)
+        .where("status", "==", "open")
+        .orderBy("createdAt", "desc")
+        .get();
+      const openEvidenceRequests = reqSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      return ok(res, {
+        case: caseData,
+        evidences,
+        packages,
+        openEvidenceRequests,
+        closingReportSummary: caseData.closingReport || null
+      });
+    } catch (err: any) {
+      logError({ endpoint: "partner/cases/poll", code: "INTERNAL", messageKo: "폴링 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
 }

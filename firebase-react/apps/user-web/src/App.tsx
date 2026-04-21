@@ -21,6 +21,16 @@ function App() {
   const [newWebhookUrl, setNewWebhookUrl] = useState("");
   const [newWebhookSecret, setNewWebhookSecret] = useState("");
 
+  const statusText: Record<string, string> = {
+    draft: "작성중",
+    submitted: "제출됨",
+    processing: "처리중",
+    completed: "완료",
+    failed: "실패",
+    cancelled: "취소됨",
+    cancel_requested: "취소요청됨"
+  };
+
   useEffect(() => {
     const t = localStorage.getItem("user_token");
     if (t) setToken(t);
@@ -322,7 +332,7 @@ function App() {
                       background: ["completed"].includes(s.status) ? "#e8f5e9" : ["failed", "cancelled", "cancel_requested"].includes(s.status) ? "#ffebee" : "#e3f2fd",
                       color: ["completed"].includes(s.status) ? "#2e7d32" : ["failed", "cancelled", "cancel_requested"].includes(s.status) ? "#c62828" : "#1565c0"
                     }}>
-                      {s.status.toUpperCase()}
+                      {statusText[s.status] || s.status.toUpperCase()}
                     </span>
                   </div>
                 ))}
@@ -407,8 +417,17 @@ function App() {
                   )}
                 </div>
                 <div style={{ textAlign: "right", display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-                  <div style={{ fontWeight: "bold", padding: "4px 8px", borderRadius: 4, background: "#eee" }}>
-                    상태: {selectedSub.status.toUpperCase()}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ 
+                      padding: "4px 8px", 
+                      borderRadius: 12, 
+                      fontSize: "0.8em", 
+                      fontWeight: "bold",
+                      background: ["completed"].includes(selectedSub.status) ? "#e8f5e9" : ["failed", "cancelled", "cancel_requested"].includes(selectedSub.status) ? "#ffebee" : "#e3f2fd",
+                      color: ["completed"].includes(selectedSub.status) ? "#2e7d32" : ["failed", "cancelled", "cancel_requested"].includes(selectedSub.status) ? "#c62828" : "#1565c0"
+                    }}>
+                      {statusText[selectedSub.status] || selectedSub.status.toUpperCase()}
+                    </span>
                   </div>
                   
                   {selectedSub.status === "draft" && (
@@ -423,13 +442,25 @@ function App() {
                     </button>
                   )}
                   
-                  <button 
-                    onClick={() => loadSubDetail(selectedSub.id)} 
-                    disabled={busy} 
-                    style={{ background: "transparent", color: "#1976d2", border: "none", cursor: "pointer", fontSize: "0.85em", textDecoration: "underline" }}
-                  >
-                    새로고침
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {lastPolledAt && (
+                      <span style={{ fontSize: "0.8em", color: "#666" }}>
+                        마지막 갱신: {lastPolledAt.toLocaleTimeString()}
+                      </span>
+                    )}
+                    {pollError && (
+                      <span style={{ fontSize: "0.8em", color: "#c62828", background: "#ffebee", padding: "2px 6px", borderRadius: 4 }}>
+                        ⚠️ 연결 오류
+                      </span>
+                    )}
+                    <button 
+                      onClick={() => loadSubDetail(selectedSub.id)} 
+                      disabled={busy} 
+                      style={{ background: "transparent", color: "#1976d2", border: "none", cursor: "pointer", fontSize: "0.85em", textDecoration: "underline", padding: 0 }}
+                    >
+                      새로고침
+                    </button>
+                  </div>
                 </div>
               </div>
 

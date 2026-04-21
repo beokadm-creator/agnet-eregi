@@ -19,6 +19,18 @@ function App() {
   const [newReqMessage, setNewReqMessage] = useState("");
   const [newReqItemCode, setNewReqItemCode] = useState("");
   const [newReqItemTitle, setNewReqItemTitle] = useState("");
+
+  const [lastPolledAt, setLastPolledAt] = useState<Date | null>(null);
+  const [pollError, setPollError] = useState<string | null>(null);
+
+  const statusText: Record<string, string> = {
+    draft: "작성중",
+    collecting: "수집중",
+    packaging: "패키징중",
+    ready: "준비됨",
+    failed: "실패",
+    completed: "완료됨"
+  };
   
   const [notificationSettings, setNotificationSettings] = useState<any>(null);
   const [newWebhookUrl, setNewWebhookUrl] = useState("");
@@ -120,7 +132,9 @@ function App() {
   }
 
   async function loadCaseDetail(caseId: string) {
+    if (!caseId) return;
     setBusy(true);
+    setPollError(null);
     setLog(`케이스 상세 정보 불러오는 중...`);
     try {
       const caseRes = await apiGet(`/v1/partner/cases/${caseId}`);
@@ -135,6 +149,7 @@ function App() {
       const reqRes = await apiGet(`/v1/partner/cases/${caseId}/evidence-requests`);
       setEvidenceRequests(reqRes.items || []);
 
+      setLastPolledAt(new Date());
       setLog(`케이스 상세 정보 로드 완료`);
     } catch (e: any) {
       setLog(`[Error] ${e.message}`);
@@ -142,6 +157,47 @@ function App() {
       setBusy(false);
     }
   }
+
+  async function pollCaseDetail(caseId: string) {
+    try {
+      const res = await apiGet(`/v1/partner/cases/${caseId}/poll`);
+      setSelectedCase(res.case);
+      setEvidences(res.evidences || []);
+      setPackages(res.packages || []);
+      setEvidenceRequests(res.openEvidenceRequests || []);
+      
+      setLastPolledAt(new Date());
+      setPollError(null);
+    } catch (e: any) {
+      setPollError(e.message);
+    }
+  }
+
+  useEffect(() => {
+    let intervalId: any;
+    if (selectedCase) {
+      const isTerminal = ["completed", "failed"].includes(selectedCase.status);
+      
+      if (!isTerminal && document.visibilityState === "visible") {
+        intervalId = setInterval(() => {
+          pollCaseDetail(selectedCase.id);
+        }, 3000);
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible" && intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [selectedCase]);
 
   async function addEvidence() {
     if (!selectedCase || !newEvidenceType || !newEvidenceFile) return;
@@ -403,7 +459,7 @@ function App() {
                       background: c.status === "draft" ? "#eee" : c.status === "ready" ? "#e8f5e9" : c.status === "failed" ? "#ffebee" : "#fff3e0",
                       color: c.status === "draft" ? "#666" : c.status === "ready" ? "#2e7d32" : c.status === "failed" ? "#c62828" : "#ef6c00"
                     }}>
-                      {c.status.toUpperCase()}
+                      {statusText[c.status] || c.status.toUpperCase()}
                     </span>
                   </div>
                 ))}
@@ -489,15 +545,33 @@ function App() {
                       🔗 원본 User Submission 연동됨: {selectedCase.submissionId}
                     </div>
                   )}
+                  <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
+                    {lastPolledAt && (
+                      <span style={{ fontSize: "0.8em", color: "#666" }}>
+                        마지막 갱신: {lastPolledAt.toLocaleTimeString()}
+                      </span>
+                    )}
+                    {pollError && (
+                      <span style={{ fontSize: "0.8em", color: "#c62828", background: "#ffebee", padding: "2px 6px", borderRadius: 4 }}>
+                        ⚠️ 연결 오류
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontWeight: "bold", marginBottom: 4 }}>상태: {selectedCase.status.toUpperCase()}</div>
+                  <div style={{ fontWeight: "bold", marginBottom: 4 }}>상태: {statusText[selectedCase.status] || selectedCase.status.toUpperCase()}</div>
                   <button 
                     onClick={() => loadCaseDetail(selectedCase.id)} 
                     disabled={busy} 
-                    style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em" }}
+                    style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em", marginRight: 8 }}
                   >
                     상세 새로고침
+                  </button>
+                  <button 
+                    onClick={() => setSelectedCase(null)} 
+                    style={{ background: "none", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em" }}
+                  >
+                    뒤로가기
                   </button>
                 </div>
               </div>
