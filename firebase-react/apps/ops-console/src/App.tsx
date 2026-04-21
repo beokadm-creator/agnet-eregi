@@ -24,6 +24,7 @@ function App() {
   const [timeline, setTimeline] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [gateEvidences, setGateEvidences] = useState<any[]>([]);
+  const [refunds, setRefunds] = useState<any[]>([]);
   const [settlements, setSettlements] = useState<any[]>([]);
   const [settlementPartnerId, setSettlementPartnerId] = useState<string>("p_demo_01");
   const [periodFrom, setPeriodFrom] = useState<string>("2026-01-01");
@@ -1380,11 +1381,70 @@ ${acLines}
         console.warn("gate evidence 로드 실패:", ge);
       }
 
+      let r: any[] = [];
+      try {
+        const refRes = await apiGet(`/v1/ops/cases/${cid}/refunds`);
+        r = refRes.items || [];
+      } catch (re) {
+        console.warn("refunds 로드 실패:", re);
+      }
+
       setCaseDetail(c.case);
       setTimeline(t.items || []);
       setDocuments(d.items || []);
       setGateEvidences(g.evidences || []);
+      setRefunds(r);
       setLog("case detail loaded");
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function approveRefund(refundId: string) {
+    if (!hasRole("ops_operator")) {
+      setLog(roleReason("ops_operator"));
+      return;
+    }
+    const ok = await openConfirm({
+      title: "환불 승인 (Approve)",
+      message: `환불 ID: ${refundId}\n해당 환불 요청을 승인하시겠습니까?`,
+      confirmLabel: "승인",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
+
+    setBusy(true);
+    try {
+      await apiPost(`/v1/ops/cases/${caseId}/refunds/${refundId}/approve`, {});
+      setLog("환불 승인 완료");
+      await loadCaseDetailWithId(caseId);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function executeRefund(refundId: string) {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
+    const ok = await openConfirm({
+      title: "환불 실행 (Execute)",
+      message: `환불 ID: ${refundId}\n실제 환불이 실행됩니다. 진행하시겠습니까?`,
+      confirmLabel: "실행",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
+
+    setBusy(true);
+    try {
+      await apiPost(`/v1/ops/cases/${caseId}/refunds/${refundId}/execute`, {});
+      setLog("환불 실행 완료");
+      await loadCaseDetailWithId(caseId);
     } catch (e: any) {
       handleError(e);
     } finally {
@@ -3228,7 +3288,62 @@ next=재검증 재시도/파트너 문의/수동 확인`;
               )}
             </div>
 
-            {/* E. Sev1 핫픽스 대응 (접수증 누락 등) */}
+            {/* E. Refunds */}
+            <div style={{ padding: 12, background: "#fff8e1", borderRadius: 6 }}>
+              <h3 style={{ margin: "0 0 8px 0" }}>E. 환불 요청 (Refunds)</h3>
+              {refunds.length === 0 ? (
+                <div style={{ color: "#666" }}>없음</div>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 4 }}>ID / PaymentID</th>
+                      <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: 4 }}>금액</th>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 4 }}>사유</th>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 4 }}>상태</th>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 4 }}>액션</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {refunds.map((r) => (
+                      <tr key={r.id}>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
+                          <div style={{ fontWeight: "bold" }}>{r.id}</div>
+                          <div style={{ fontSize: "0.85em", color: "#666" }}>{r.paymentId}</div>
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 4, textAlign: "right", fontWeight: "bold" }}>
+                          {r.amount.toLocaleString()}
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{r.reason}</td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
+                          <span style={{ 
+                            padding: "2px 6px", borderRadius: 4, fontWeight: "bold", fontSize: "0.85em",
+                            background: r.status === "executed" ? "#e8f5e9" : r.status === "approved" ? "#e3f2fd" : r.status === "rejected" ? "#ffebee" : "#fff3e0",
+                            color: r.status === "executed" ? "#2e7d32" : r.status === "approved" ? "#1565c0" : r.status === "rejected" ? "#c62828" : "#ef6c00"
+                          }}>
+                            {r.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
+                          {r.status === "requested" && (
+                            <button onClick={() => approveRefund(r.id)} disabled={busy} style={{ background: "#1976d2", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em", marginRight: 4 }}>
+                              Approve
+                            </button>
+                          )}
+                          {r.status === "approved" && (
+                            <button onClick={() => executeRefund(r.id)} disabled={busy} style={{ background: "#388e3c", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}>
+                              Execute
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* F. Sev1 핫픽스 대응 (접수증 누락 등) */}
             {gateEvidences?.[0]?.missing?.includes("slot_filing_receipt") && (
               <div style={{ padding: 12, background: "#ffebee", borderRadius: 6, border: "1px solid #ffcdd2" }}>
                 <h3 style={{ margin: "0 0 8px 0", color: "#d32f2f" }}>E. Sev1 핫픽스 (접수증 누락 대응)</h3>

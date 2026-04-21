@@ -13,6 +13,7 @@ function App() {
   const [submitNow, setSubmitNow] = useState(false);
   
   const [events, setEvents] = useState<any[]>([]);
+  const [payment, setPayment] = useState<any | null>(null);
   const [packageChecksum, setPackageChecksum] = useState<string | null>(null);
   const [evidenceRequests, setEvidenceRequests] = useState<any[]>([]);
   const [uploadingRequestId, setUploadingRequestId] = useState<string | null>(null);
@@ -151,6 +152,18 @@ function App() {
 
       const reqRes = await apiGet(`/v1/user/submissions/${id}/evidence-requests`);
       setEvidenceRequests(reqRes.items || []);
+
+      // Fetch payment
+      try {
+        const payRes = await apiGet(`/v1/user/payments?submissionId=${id}`);
+        if (payRes.items && payRes.items.length > 0) {
+          setPayment(payRes.items[0]);
+        } else {
+          setPayment(null);
+        }
+      } catch (err) {
+        setPayment(null);
+      }
       
       setLog(`상세 정보 로드 완료`);
     } catch (e: any) {
@@ -463,6 +476,50 @@ function App() {
                   </div>
                 </div>
               </div>
+
+              {/* 결제 카드 */}
+              {payment && (
+                <div style={{ marginBottom: 24, padding: 16, background: "#fff8e1", borderRadius: 6, border: "1px solid #ffe0b2" }}>
+                  <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", color: "#e65100" }}>💳 결제 정보</h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: "1.2em", fontWeight: "bold", marginBottom: 4 }}>{payment.amount.toLocaleString()} {payment.currency}</div>
+                      <div style={{ fontSize: "0.85em", color: "#666" }}>결제 ID: {payment.id}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{
+                        padding: "6px 12px",
+                        borderRadius: 16,
+                        fontSize: "0.85em",
+                        fontWeight: "bold",
+                        background: payment.status === "captured" ? "#e8f5e9" : payment.status === "confirm" ? "#e3f2fd" : payment.status === "initiated" ? "#fff3e0" : "#ffebee",
+                        color: payment.status === "captured" ? "#2e7d32" : payment.status === "confirm" ? "#1565c0" : payment.status === "initiated" ? "#ef6c00" : "#c62828"
+                      }}>
+                        {payment.status.toUpperCase()}
+                      </span>
+                      {payment.status === "initiated" && (
+                        <button
+                          onClick={async () => {
+                            setBusy(true);
+                            try {
+                              await apiPost(`/v1/user/payments/${payment.id}/confirm`, {});
+                              await loadSubDetail(selectedSub.id);
+                            } catch (e: any) {
+                              setLog(`[Error] 결제 확인 실패: ${e.message}`);
+                            } finally {
+                              setBusy(false);
+                            }
+                          }}
+                          disabled={busy}
+                          style={{ display: "block", marginTop: 8, background: "#4caf50", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em", fontWeight: "bold" }}
+                        >
+                          결제 승인 (Confirm)
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* 입력 데이터 */}
               <div style={{ marginBottom: 24, padding: 12, background: "#f5f5f5", borderRadius: 6 }}>
