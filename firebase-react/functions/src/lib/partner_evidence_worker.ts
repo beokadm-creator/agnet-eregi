@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { CaseEvidence } from "./partner_models";
+import { enqueueNotification } from "./notify_trigger";
 
 export async function processEvidenceValidation(adminApp: typeof admin) {
   const db = adminApp.firestore();
@@ -62,6 +63,26 @@ export async function processEvidenceValidation(adminApp: typeof admin) {
       });
 
       console.log(`[EvidenceValidation] Evidence ${evidenceId} validated successfully.`);
+
+      // Evidence Request 충족 처리
+      if (ev.requestId) {
+        const reqRef = db.collection("evidence_requests").doc(ev.requestId);
+        const reqSnap = await reqRef.get();
+        
+        if (reqSnap.exists && reqSnap.data()?.status === "open") {
+          await reqRef.update({
+            status: "fulfilled",
+            fulfilledAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+
+          await enqueueNotification(adminApp, { partnerId: ev.partnerId }, "evidence.fulfilled", {
+            caseId: ev.caseId,
+            requestId: ev.requestId,
+            evidenceId
+          });
+        }
+      }
 
     } catch (error: any) {
       console.error(`[EvidenceValidation] Evidence ${evidenceId} validation failed:`, error);

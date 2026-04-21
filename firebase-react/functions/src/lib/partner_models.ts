@@ -33,8 +33,23 @@ export interface CaseEvidence {
   contentType?: string;
   sizeBytes?: number;
   scanStatus?: "clean" | "infected" | "unknown";
+  source?: "partner" | "user"; // 업로드 출처
+  requestId?: string;          // 증거 요청 ID
   createdAt: admin.firestore.Timestamp;
   updatedAt?: admin.firestore.Timestamp;
+}
+
+export interface EvidenceRequest {
+  id?: string;
+  partnerId: string;
+  caseId: string;
+  submissionId?: string;
+  status: "open" | "fulfilled" | "cancelled";
+  items: Array<{ code: string; titleKo: string; required: boolean }>;
+  messageToUserKo: string;
+  createdAt: admin.firestore.Timestamp;
+  updatedAt: admin.firestore.Timestamp;
+  fulfilledAt?: admin.firestore.Timestamp;
 }
 
 export type PackageStatus = "queued" | "building" | "ready" | "failed";

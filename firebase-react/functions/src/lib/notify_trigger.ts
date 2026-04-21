@@ -20,6 +20,8 @@ export async function enqueueNotification(
       if (event === "package.ready" && events.packageReady) shouldSend = true;
       if (event === "closing_report.ready" && events.closingReportReady) shouldSend = true;
       if (event === "case.completed" && events.caseCompleted) shouldSend = true;
+      // 추가 이벤트 (옵션이 없으면 기본 전송 또는 추가 설정 필요)
+      if (event === "evidence.fulfilled") shouldSend = true; 
 
       if (shouldSend && settings?.webhooks && Array.isArray(settings.webhooks)) {
         for (const webhook of settings.webhooks) {
@@ -50,6 +52,7 @@ export async function enqueueNotification(
       let shouldSend = false;
       if (event === "submission.completed" && events.submissionCompleted) shouldSend = true;
       if (event === "submission.failed" && events.submissionFailed) shouldSend = true;
+      if (event === "evidence.requested") shouldSend = true;
 
       if (shouldSend && settings?.webhooks && Array.isArray(settings.webhooks)) {
         for (const webhook of settings.webhooks) {

@@ -14,6 +14,8 @@ function App() {
   
   const [events, setEvents] = useState<any[]>([]);
   const [packageChecksum, setPackageChecksum] = useState<string | null>(null);
+  const [evidenceRequests, setEvidenceRequests] = useState<any[]>([]);
+  const [uploadingRequestId, setUploadingRequestId] = useState<string | null>(null);
 
   const [notificationSettings, setNotificationSettings] = useState<any>(null);
   const [newWebhookUrl, setNewWebhookUrl] = useState("");
@@ -136,6 +138,9 @@ function App() {
       
       const evRes = await apiGet(`/v1/user/submissions/${id}/events`);
       setEvents(evRes.items || []);
+
+      const reqRes = await apiGet(`/v1/user/submissions/${id}/evidence-requests`);
+      setEvidenceRequests(reqRes.items || []);
       
       setLog(`상세 정보 로드 완료`);
     } catch (e: any) {
@@ -187,6 +192,49 @@ function App() {
       setLog(`[Error] ${e.message}`);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleUploadMissingEvidence(e: React.ChangeEvent<HTMLInputElement>, reqId: string, typeCode: string) {
+    if (!selectedSub) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBusy(true);
+    setUploadingRequestId(reqId);
+    setLog(`[${typeCode}] 업로드 준비 중...`);
+
+    try {
+      // 1. Upload URL 발급
+      const { uploadUrl, evidenceId } = await apiPost(`/v1/user/submissions/${selectedSub.id}/evidences/upload-url`, {
+        type: typeCode,
+        filename: file.name,
+        contentType: file.type,
+        sizeBytes: file.size,
+        requestId: reqId
+      });
+      setLog("업로드 URL 발급됨. 파일 전송 시작...");
+
+      // 2. 실제 파일 PUT
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file
+      });
+      if (!putRes.ok) throw new Error("Storage 업로드에 실패했습니다.");
+
+      // 3. Complete 확정
+      setLog("파일 전송 완료. 확정 처리 중...");
+      await apiPost(`/v1/user/submissions/${selectedSub.id}/evidences/${evidenceId}/complete`, {});
+      
+      setLog("추가 서류 업로드 및 확정 완료");
+      await loadSubDetail(selectedSub.id);
+    } catch (err: any) {
+      setLog(`[Error] ${err.message}`);
+    } finally {
+      setBusy(false);
+      setUploadingRequestId(null);
+      e.target.value = "";
     }
   }
 
@@ -448,6 +496,68 @@ function App() {
                   {/* 향후 증거 목록 조회/다운로드 API 연동 필요 시 여기에 구현 */}
                   <div style={{ fontSize: "0.85em", color: "#666" }}>
                     파트너 시스템에 연동된 증거 파일 목록은 별도 API를 통해 제공될 수 있습니다.
+                  </div>
+                </div>
+              )}
+
+              {/* 추가 서류 요청 (Evidence Requests) */}
+              {evidenceRequests.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", borderBottom: "1px solid #eee", paddingBottom: 8, color: "#e65100" }}>📨 요청된 추가 서류</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {evidenceRequests.map(r => (
+                      <div key={r.id} style={{ padding: 16, border: `1px solid ${r.status === "fulfilled" ? "#a5d6a7" : "#ffcc80"}`, borderRadius: 8, background: r.status === "fulfilled" ? "#e8f5e9" : "#fff3e0" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                          <div style={{ fontWeight: "bold", color: r.status === "fulfilled" ? "#2e7d32" : "#e65100" }}>
+                            {r.messageToUserKo}
+                          </div>
+                          <span style={{ 
+                            padding: "4px 8px", 
+                            borderRadius: 12, 
+                            fontSize: "0.8em", 
+                            fontWeight: "bold",
+                            background: r.status === "fulfilled" ? "#c8e6c9" : r.status === "cancelled" ? "#eee" : "#ffe0b2",
+                            color: r.status === "fulfilled" ? "#2e7d32" : r.status === "cancelled" ? "#666" : "#ef6c00"
+                          }}>
+                            {r.status.toUpperCase()}
+                          </span>
+                        </div>
+                        {r.status === "open" && (
+                          <div style={{ marginTop: 12 }}>
+                            {r.items.map((item: any, idx: number) => (
+                              <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderTop: idx > 0 ? "1px solid #ffe0b2" : "none" }}>
+                                <div>
+                                  <span style={{ fontWeight: "bold", marginRight: 8 }}>{item.titleKo}</span>
+                                  <span style={{ fontSize: "0.8em", color: "#666" }}>({item.code})</span>
+                                  {item.required && <span style={{ marginLeft: 8, color: "#d32f2f", fontSize: "0.8em", fontWeight: "bold" }}>*필수</span>}
+                                </div>
+                                <div>
+                                  <input 
+                                    type="file" 
+                                    id={`file-${r.id}-${item.code}`}
+                                    style={{ display: "none" }}
+                                    accept=".pdf,image/png,image/jpeg,image/jpg"
+                                    onChange={(e) => handleUploadMissingEvidence(e, r.id, item.code)}
+                                  />
+                                  <button 
+                                    onClick={() => document.getElementById(`file-${r.id}-${item.code}`)?.click()}
+                                    disabled={busy || r.status !== "open"}
+                                    style={{ padding: "6px 12px", background: "#f57c00", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.9em", fontWeight: "bold" }}
+                                  >
+                                    {uploadingRequestId === r.id ? "업로드 중..." : "파일 업로드"}
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {r.status === "fulfilled" && (
+                          <div style={{ marginTop: 8, fontSize: "0.9em", color: "#2e7d32" }}>
+                            ✅ 추가 서류 제출이 완료되었습니다. 파트너 확인을 대기 중입니다.
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

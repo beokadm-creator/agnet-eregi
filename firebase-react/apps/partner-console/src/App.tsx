@@ -14,6 +14,11 @@ function App() {
   
   const [evidences, setEvidences] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
+  const [evidenceRequests, setEvidenceRequests] = useState<any[]>([]);
+  
+  const [newReqMessage, setNewReqMessage] = useState("");
+  const [newReqItemCode, setNewReqItemCode] = useState("");
+  const [newReqItemTitle, setNewReqItemTitle] = useState("");
   
   const [notificationSettings, setNotificationSettings] = useState<any>(null);
   const [newWebhookUrl, setNewWebhookUrl] = useState("");
@@ -127,6 +132,9 @@ function App() {
       const pkgRes = await apiGet(`/v1/partner/cases/${caseId}/packages`);
       setPackages(pkgRes.items || []);
       
+      const reqRes = await apiGet(`/v1/partner/cases/${caseId}/evidence-requests`);
+      setEvidenceRequests(reqRes.items || []);
+
       setLog(`케이스 상세 정보 로드 완료`);
     } catch (e: any) {
       setLog(`[Error] ${e.message}`);
@@ -293,6 +301,27 @@ function App() {
       setLog("케이스 마감 완료");
       await loadCaseDetail(selectedCase.id);
       await loadCases();
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createEvidenceRequest() {
+    if (!selectedCase || !newReqMessage || !newReqItemCode || !newReqItemTitle) return;
+    setBusy(true);
+    setLog("추가 서류 요청 생성 중...");
+    try {
+      await apiPost(`/v1/partner/cases/${selectedCase.id}/evidence-requests`, {
+        messageToUserKo: newReqMessage,
+        items: [{ code: newReqItemCode, titleKo: newReqItemTitle, required: true }]
+      });
+      setLog("추가 서류 요청 생성 완료");
+      setNewReqMessage("");
+      setNewReqItemCode("");
+      setNewReqItemTitle("");
+      await loadCaseDetail(selectedCase.id);
     } catch (e: any) {
       setLog(`[Error] ${e.message}`);
     } finally {
@@ -527,12 +556,76 @@ function App() {
                               {e.status.toUpperCase()}
                             </span>
                             {e.scanStatus && <span style={{ marginLeft: 4, fontSize: "0.8em", color: "#666" }}>({e.scanStatus})</span>}
+                            {e.source === "user" && <span style={{ marginLeft: 4, fontSize: "0.8em", color: "#1976d2" }}>[User Upload]</span>}
                           </td>
                           <td style={{ padding: 8, borderBottom: "1px solid #eee", color: "#666" }}>{new Date(e.createdAt).toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                )}
+              </div>
+
+              {/* Evidence Request */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", borderBottom: "1px solid #eee", paddingBottom: 8 }}>📨 추가 서류 요청 (Evidence Requests)</h3>
+                
+                <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                  <input 
+                    placeholder="요청 메시지 (예: 여권 사본이 흐릿합니다)" 
+                    value={newReqMessage} 
+                    onChange={e => setNewReqMessage(e.target.value)} 
+                    style={{ flex: 2, padding: 6, minWidth: 200 }} 
+                  />
+                  <input 
+                    placeholder="항목 코드 (예: passport)" 
+                    value={newReqItemCode} 
+                    onChange={e => setNewReqItemCode(e.target.value)} 
+                    style={{ flex: 1, padding: 6, minWidth: 100 }} 
+                  />
+                  <input 
+                    placeholder="항목 제목 (예: 여권 사본)" 
+                    value={newReqItemTitle} 
+                    onChange={e => setNewReqItemTitle(e.target.value)} 
+                    style={{ flex: 1, padding: 6, minWidth: 100 }} 
+                  />
+                  <button onClick={createEvidenceRequest} disabled={busy || !newReqMessage || !newReqItemCode || !newReqItemTitle} style={{ padding: "6px 12px", background: "#f57c00", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+                    요청 생성
+                  </button>
+                </div>
+
+                {evidenceRequests.length === 0 ? (
+                  <div style={{ color: "#999", fontSize: "0.9em" }}>추가 서류 요청 내역이 없습니다.</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {evidenceRequests.map(r => (
+                      <div key={r.id} style={{ padding: 12, border: "1px solid #eee", borderRadius: 6, background: "#fafafa" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                          <div>
+                            <span style={{ fontWeight: "bold", marginRight: 8 }}>{r.messageToUserKo}</span>
+                            <span style={{ 
+                              padding: "2px 6px", 
+                              borderRadius: 4, 
+                              fontSize: "0.8em", 
+                              fontWeight: "bold",
+                              background: r.status === "fulfilled" ? "#e8f5e9" : r.status === "cancelled" ? "#eee" : "#fff3e0",
+                              color: r.status === "fulfilled" ? "#2e7d32" : r.status === "cancelled" ? "#666" : "#ef6c00"
+                            }}>
+                              {r.status.toUpperCase()}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "0.8em", color: "#666" }}>
+                            ID: {r.id}
+                          </div>
+                        </div>
+                        <ul style={{ margin: "4px 0 0 0", paddingLeft: 20, fontSize: "0.85em", color: "#555" }}>
+                          {r.items.map((item: any, idx: number) => (
+                            <li key={idx}>{item.titleKo} ({item.code}) - {item.required ? "필수" : "선택"}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 

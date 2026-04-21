@@ -403,4 +403,199 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
     }
   });
 
+  // 10) GET /v1/user/submissions/:id/evidence-requests
+  app.get("/v1/user/submissions/:id/evidence-requests", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const userId = auth.uid;
+      const subId = String(req.params.id);
+      const db = adminApp.firestore();
+
+      const subSnap = await db.collection("user_submissions").doc(subId).get();
+      if (!subSnap.exists || subSnap.data()?.userId !== userId) {
+        return fail(res, 404, "NOT_FOUND", "제출 내역을 찾을 수 없습니다.");
+      }
+
+      const caseId = subSnap.data()?.caseId;
+      if (!caseId) {
+        return ok(res, { items: [] });
+      }
+
+      const snap = await db.collection("evidence_requests")
+        .where("caseId", "==", caseId)
+        .orderBy("createdAt", "desc")
+        .get();
+
+      const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      return ok(res, { items });
+    } catch (err: any) {
+      logError({ endpoint: "user/evidence-requests/list", code: "INTERNAL", messageKo: "추가 서류 요청 목록 조회 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 11) GET /v1/user/submissions/:id/evidence-requests/:requestId
+  app.get("/v1/user/submissions/:id/evidence-requests/:requestId", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const userId = auth.uid;
+      const subId = String(req.params.id);
+      const rId = String(req.params.requestId);
+      const db = adminApp.firestore();
+
+      const subSnap = await db.collection("user_submissions").doc(subId).get();
+      if (!subSnap.exists || subSnap.data()?.userId !== userId) {
+        return fail(res, 404, "NOT_FOUND", "제출 내역을 찾을 수 없습니다.");
+      }
+
+      const caseId = subSnap.data()?.caseId;
+      if (!caseId) {
+        return fail(res, 404, "NOT_FOUND", "요청을 찾을 수 없습니다.");
+      }
+
+      const reqSnap = await db.collection("evidence_requests").doc(rId).get();
+      if (!reqSnap.exists || reqSnap.data()?.caseId !== caseId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 요청입니다.");
+      }
+
+      return ok(res, { evidenceRequest: { id: reqSnap.id, ...reqSnap.data() } });
+    } catch (err: any) {
+      logError({ endpoint: "user/evidence-requests/get", code: "INTERNAL", messageKo: "추가 서류 요청 상세 조회 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 12) POST /v1/user/submissions/:id/evidences/upload-url
+  app.post("/v1/user/submissions/:id/evidences/upload-url", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const userId = auth.uid;
+      const subId = String(req.params.id);
+      const { filename, contentType, sizeBytes, type, requestId } = req.body;
+
+      if (!filename || !contentType || !sizeBytes || !type) {
+        return fail(res, 400, "INVALID_ARGUMENT", "filename, contentType, sizeBytes, type이 필요합니다.");
+      }
+
+      if (sizeBytes > 25 * 1024 * 1024) {
+        return fail(res, 400, "INVALID_ARGUMENT", "파일 크기는 25MB 이하여야 합니다.");
+      }
+
+      const allowedMimeTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
+      if (!allowedMimeTypes.includes(contentType)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "허용되지 않는 파일 형식입니다.");
+      }
+
+      const safeFilename = filename.replace(/[^a-zA-Z0-9_.-]/g, "_");
+      const db = adminApp.firestore();
+      
+      const subSnap = await db.collection("user_submissions").doc(subId).get();
+      if (!subSnap.exists || subSnap.data()?.userId !== userId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 제출 내역입니다.");
+      }
+
+      const caseId = subSnap.data()?.caseId;
+      const partnerId = subSnap.data()?.partnerId;
+      if (!caseId || !partnerId) {
+        return fail(res, 400, "FAILED_PRECONDITION", "케이스가 생성되지 않았습니다.");
+      }
+
+      if (requestId) {
+        const reqSnap = await db.collection("evidence_requests").doc(requestId).get();
+        if (!reqSnap.exists || reqSnap.data()?.caseId !== caseId || reqSnap.data()?.status !== "open") {
+          return fail(res, 400, "FAILED_PRECONDITION", "유효하지 않거나 이미 처리된 요청입니다.");
+        }
+      }
+
+      const evidenceRef = db.collection("evidences").doc();
+      const storagePath = `evidence/${partnerId}/${caseId}/${evidenceRef.id}/${safeFilename}`;
+
+      const newEvidence = {
+        caseId,
+        partnerId,
+        type,
+        fileUrl: safeFilename,
+        storagePath,
+        status: "pending",
+        filename: safeFilename,
+        contentType,
+        sizeBytes,
+        source: "user",
+        requestId: requestId || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      await evidenceRef.set(newEvidence);
+
+      const bucket = adminApp.storage().bucket();
+      const file = bucket.file(storagePath);
+      const [uploadUrl] = await file.getSignedUrl({
+        version: "v4",
+        action: "write",
+        expires: Date.now() + 15 * 60 * 1000,
+        contentType
+      });
+
+      return ok(res, { uploadUrl, evidenceId: evidenceRef.id, storagePath });
+    } catch (err: any) {
+      logError({ endpoint: "user/evidences/upload-url", code: "INTERNAL", messageKo: "업로드 URL 발급 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 13) POST /v1/user/submissions/:id/evidences/:evidenceId/complete
+  app.post("/v1/user/submissions/:id/evidences/:evidenceId/complete", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const userId = auth.uid;
+      const subId = String(req.params.id);
+      const eId = String(req.params.evidenceId);
+      const db = adminApp.firestore();
+
+      const subSnap = await db.collection("user_submissions").doc(subId).get();
+      if (!subSnap.exists || subSnap.data()?.userId !== userId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 제출 내역입니다.");
+      }
+
+      const caseId = subSnap.data()?.caseId;
+      if (!caseId) {
+        return fail(res, 404, "NOT_FOUND", "케이스를 찾을 수 없습니다.");
+      }
+
+      const evidenceRef = db.collection("evidences").doc(eId);
+      const evSnap = await evidenceRef.get();
+      if (!evSnap.exists || evSnap.data()?.caseId !== caseId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 증거물입니다.");
+      }
+
+      const evData = evSnap.data();
+      const bucket = adminApp.storage().bucket();
+      const file = bucket.file(evData?.storagePath);
+      const [exists] = await file.exists();
+
+      if (!exists) {
+        await evidenceRef.update({ status: "failed", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+        return fail(res, 404, "NOT_FOUND", "스토리지에 파일이 업로드되지 않았습니다.");
+      }
+
+      await evidenceRef.update({
+        status: "uploaded",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return ok(res, { message: "업로드 완료 확정됨", status: "uploaded" });
+    } catch (err: any) {
+      logError({ endpoint: "user/evidences/complete", code: "INTERNAL", messageKo: "업로드 완료 처리 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
 }

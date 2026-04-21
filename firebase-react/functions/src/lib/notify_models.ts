@@ -32,7 +32,9 @@ export type NotificationEvent =
   | "submission.failed" 
   | "package.ready" 
   | "closing_report.ready" 
-  | "case.completed";
+  | "case.completed"
+  | "evidence.requested"
+  | "evidence.fulfilled";
 
 export type NotificationStatus = "queued" | "sending" | "sent" | "failed";
 

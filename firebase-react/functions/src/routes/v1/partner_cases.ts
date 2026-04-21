@@ -5,7 +5,7 @@ import { Document, Packer, Paragraph, TextRun } from "docx";
 
 import { requireAuth, partnerIdOf } from "../../lib/auth";
 import { fail, ok, logError } from "../../lib/http";
-import { PartnerCase, CaseEvidence, CasePackage } from "../../lib/partner_models";
+import { PartnerCase, CaseEvidence, CasePackage, EvidenceRequest } from "../../lib/partner_models";
 import { enqueueNotification } from "../../lib/notify_trigger";
 
 export function registerPartnerCaseRoutes(app: express.Application, adminApp: typeof admin) {
@@ -736,6 +736,129 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
       return ok(res, { message: "케이스가 마감되었습니다." });
     } catch (err: any) {
       logError({ endpoint: "partner/cases/complete", code: "INTERNAL", messageKo: "케이스 마감 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 14) POST /v1/partner/cases/:caseId/evidence-requests
+  app.post("/v1/partner/cases/:caseId/evidence-requests", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      
+      const partnerId = partnerIdOf(auth);
+      if (!partnerId) return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.");
+
+      const cId = String(req.params.caseId);
+      const { submissionId, messageToUserKo, items } = req.body;
+
+      if (!messageToUserKo || !items || !Array.isArray(items) || items.length === 0) {
+        return fail(res, 400, "INVALID_ARGUMENT", "messageToUserKo와 최소 1개 이상의 items가 필요합니다.");
+      }
+
+      const db = adminApp.firestore();
+      const caseRef = db.collection("cases").doc(cId);
+      const caseSnap = await caseRef.get();
+
+      if (!caseSnap.exists || caseSnap.data()?.partnerId !== partnerId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 케이스입니다.");
+      }
+
+      const reqRef = db.collection("evidence_requests").doc();
+      const newReq: EvidenceRequest = {
+        partnerId,
+        caseId: cId,
+        submissionId: submissionId || caseSnap.data()?.submissionId || undefined,
+        status: "open",
+        items,
+        messageToUserKo,
+        createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
+      };
+
+      await reqRef.set(newReq);
+
+      // User에게 알림 전송
+      if (newReq.submissionId) {
+        const subSnap = await db.collection("user_submissions").doc(newReq.submissionId).get();
+        if (subSnap.exists) {
+          const userId = subSnap.data()?.userId;
+          if (userId) {
+            await enqueueNotification(adminApp, { userId }, "evidence.requested", {
+              caseId: cId,
+              submissionId: newReq.submissionId,
+              requestId: reqRef.id,
+              message: messageToUserKo
+            });
+          }
+        }
+      }
+
+      return ok(res, { evidenceRequest: { id: reqRef.id, ...newReq } });
+    } catch (err: any) {
+      logError({ endpoint: "partner/evidence-requests/create", code: "INTERNAL", messageKo: "추가 서류 요청 생성 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 15) GET /v1/partner/cases/:caseId/evidence-requests
+  app.get("/v1/partner/cases/:caseId/evidence-requests", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      
+      const partnerId = partnerIdOf(auth);
+      if (!partnerId) return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.");
+
+      const cId = String(req.params.caseId);
+      const db = adminApp.firestore();
+
+      const snap = await db.collection("evidence_requests")
+        .where("caseId", "==", cId)
+        .where("partnerId", "==", partnerId)
+        .orderBy("createdAt", "desc")
+        .get();
+
+      const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      return ok(res, { items });
+    } catch (err: any) {
+      logError({ endpoint: "partner/evidence-requests/list", code: "INTERNAL", messageKo: "추가 서류 요청 목록 조회 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 16) POST /v1/partner/cases/:caseId/evidence-requests/:requestId/cancel
+  app.post("/v1/partner/cases/:caseId/evidence-requests/:requestId/cancel", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      
+      const partnerId = partnerIdOf(auth);
+      if (!partnerId) return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.");
+
+      const cId = String(req.params.caseId);
+      const rId = String(req.params.requestId);
+      const db = adminApp.firestore();
+
+      const reqRef = db.collection("evidence_requests").doc(rId);
+      const reqSnap = await reqRef.get();
+
+      if (!reqSnap.exists || reqSnap.data()?.partnerId !== partnerId || reqSnap.data()?.caseId !== cId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 요청입니다.");
+      }
+
+      if (reqSnap.data()?.status !== "open") {
+        return fail(res, 400, "FAILED_PRECONDITION", "진행 중인(open) 요청만 취소할 수 있습니다.");
+      }
+
+      await reqRef.update({
+        status: "cancelled",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return ok(res, { message: "요청이 취소되었습니다." });
+    } catch (err: any) {
+      logError({ endpoint: "partner/evidence-requests/cancel", code: "INTERNAL", messageKo: "추가 서류 요청 취소 실패", err });
       return fail(res, 500, "INTERNAL", err.message);
     }
   });
