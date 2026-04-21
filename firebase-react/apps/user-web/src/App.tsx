@@ -13,6 +13,7 @@ function App() {
   const [submitNow, setSubmitNow] = useState(false);
   
   const [events, setEvents] = useState<any[]>([]);
+  const [packageChecksum, setPackageChecksum] = useState<string | null>(null);
 
   useEffect(() => {
     const t = localStorage.getItem("user_token");
@@ -93,6 +94,7 @@ function App() {
     setBusy(true);
     setLog(`상세 정보 불러오는 중...`);
     try {
+      setPackageChecksum(null);
       const subRes = await apiGet(`/v1/user/submissions/${id}`);
       setSelectedSub(subRes.submission);
       
@@ -100,6 +102,21 @@ function App() {
       setEvents(evRes.items || []);
       
       setLog(`상세 정보 로드 완료`);
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function downloadResultZip(id: string) {
+    setBusy(true);
+    setLog("다운로드 URL 발급 중...");
+    try {
+      const res = await apiPost(`/v1/user/submissions/${id}/package/download-url`, {});
+      setPackageChecksum(res.checksumSha256);
+      window.open(res.downloadUrl, "_blank");
+      setLog("다운로드 창 열림");
     } catch (e: any) {
       setLog(`[Error] ${e.message}`);
     } finally {
@@ -293,10 +310,29 @@ function App() {
                     <div style={{ marginBottom: 8, fontSize: "0.95em" }}>{selectedSub.result.summary}</div>
                   )}
 
+                  {selectedSub.status === "completed" && selectedSub.packageId && (
+                    <div style={{ marginTop: 8, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                      <button onClick={() => downloadResultZip(selectedSub.id)} disabled={busy} style={{ display: "inline-block", padding: "6px 12px", background: "#388e3c", color: "white", textDecoration: "none", borderRadius: 4, fontSize: "0.9em", fontWeight: "bold", border: "none", cursor: busy ? "not-allowed" : "pointer" }}>
+                        Download result ZIP
+                      </button>
+                      {packageChecksum && (
+                        <div style={{ fontSize: "0.85em", color: "#333", display: "flex", gap: 8, alignItems: "center" }}>
+                          <span style={{ fontFamily: "monospace" }}>{packageChecksum}</span>
+                          <button
+                            onClick={() => navigator.clipboard?.writeText?.(packageChecksum)}
+                            style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}
+                          >
+                            복사
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   {selectedSub.result.artifactUrl && (
                     <div style={{ marginTop: 8 }}>
-                      <a href={selectedSub.result.artifactUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", padding: "6px 12px", background: "#388e3c", color: "white", textDecoration: "none", borderRadius: 4, fontSize: "0.9em", fontWeight: "bold" }}>
-                        ⬇️ 결과 문서 다운로드
+                      <a href={selectedSub.result.artifactUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", padding: "6px 12px", background: "#90a4ae", color: "white", textDecoration: "none", borderRadius: 4, fontSize: "0.9em", fontWeight: "bold" }}>
+                        Legacy artifactUrl 다운로드
                       </a>
                     </div>
                   )}

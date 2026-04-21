@@ -348,4 +348,59 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
     }
   });
 
+  // 9) POST /v1/user/submissions/:id/package/download-url
+  app.post("/v1/user/submissions/:id/package/download-url", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const userId = auth.uid;
+      const subId = String(req.params.id);
+      const db = adminApp.firestore();
+
+      const subSnap = await db.collection("user_submissions").doc(subId).get();
+      if (!subSnap.exists || subSnap.data()?.userId !== userId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 제출 내역입니다.");
+      }
+
+      const subData = subSnap.data() as UserSubmission;
+      if (!subData.caseId || !subData.packageId) {
+        return fail(res, 404, "NOT_FOUND", "패키지가 생성되지 않았습니다.");
+      }
+
+      const pkgSnap = await db.collection("packages").doc(subData.packageId).get();
+      if (!pkgSnap.exists || pkgSnap.data()?.caseId !== subData.caseId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 패키지입니다.");
+      }
+
+      const pkg = pkgSnap.data() as any;
+      if (pkg.status !== "ready") {
+        return fail(res, 400, "FAILED_PRECONDITION", "ready 상태의 패키지만 다운로드할 수 있습니다.");
+      }
+
+      if (!pkg.artifactPath || !pkg.checksumSha256) {
+        return fail(res, 500, "INTERNAL", "artifactPath 또는 checksumSha256 누락");
+      }
+
+      const bucket = adminApp.storage().bucket();
+      const file = bucket.file(pkg.artifactPath);
+      const [exists] = await file.exists();
+
+      if (!exists) {
+        return fail(res, 404, "NOT_FOUND", "아티팩트 파일이 존재하지 않습니다.");
+      }
+
+      const [downloadUrl] = await file.getSignedUrl({
+        version: "v4",
+        action: "read",
+        expires: Date.now() + 15 * 60 * 1000
+      });
+
+      return ok(res, { downloadUrl, checksumSha256: pkg.checksumSha256 });
+    } catch (err: any) {
+      logError({ endpoint: "user/submissions/package-download-url", code: "INTERNAL", messageKo: "패키지 다운로드 URL 발급 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
 }

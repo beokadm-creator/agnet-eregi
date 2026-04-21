@@ -391,6 +391,56 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
     }
   });
 
+  // 8) POST /v1/partner/cases/:caseId/packages/:packageId/download-url
+  app.post("/v1/partner/cases/:caseId/packages/:packageId/download-url", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      
+      const partnerId = partnerIdOf(auth);
+      if (!partnerId) return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.");
+
+      const { caseId, packageId } = req.params;
+      const cId = String(caseId);
+      const pId = String(packageId);
+
+      const db = adminApp.firestore();
+      const pkgSnap = await db.collection("packages").doc(pId).get();
+
+      if (!pkgSnap.exists || pkgSnap.data()?.partnerId !== partnerId || pkgSnap.data()?.caseId !== cId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 패키지입니다.");
+      }
+
+      const pkg = pkgSnap.data() as any;
+      if (pkg.status !== "ready") {
+        return fail(res, 400, "FAILED_PRECONDITION", "ready 상태의 패키지만 다운로드할 수 있습니다.");
+      }
+
+      if (!pkg.artifactPath || !pkg.checksumSha256) {
+        return fail(res, 500, "INTERNAL", "artifactPath 또는 checksumSha256 누락");
+      }
+
+      const bucket = adminApp.storage().bucket();
+      const file = bucket.file(pkg.artifactPath);
+      const [exists] = await file.exists();
+
+      if (!exists) {
+        return fail(res, 404, "NOT_FOUND", "아티팩트 파일이 존재하지 않습니다.");
+      }
+
+      const [downloadUrl] = await file.getSignedUrl({
+        version: "v4",
+        action: "read",
+        expires: Date.now() + 15 * 60 * 1000
+      });
+
+      return ok(res, { downloadUrl, checksumSha256: pkg.checksumSha256 });
+    } catch (err: any) {
+      logError({ endpoint: "partner/packages/download-url", code: "INTERNAL", messageKo: "패키지 다운로드 URL 발급 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
   // 8) GET /v1/partner/cases/:caseId/packages
   app.get("/v1/partner/cases/:caseId/packages", async (req: express.Request, res: express.Response) => {
     try {

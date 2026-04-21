@@ -37,7 +37,9 @@ export interface CasePackage {
   caseId: string;
   partnerId: string; // for security scope
   status: PackageStatus;
+  artifactPath?: string;
   artifactUrl?: string;
+  checksumSha256?: string;
   error?: {
     category: string;
     message: string;

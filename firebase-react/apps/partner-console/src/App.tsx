@@ -185,6 +185,23 @@ function App() {
     }
   }
 
+  async function downloadPackage(pkgId: string) {
+    if (!selectedCase) return;
+    setBusy(true);
+    setLog("패키지 다운로드 URL 발급 중...");
+    try {
+      const res = await apiPost(`/v1/partner/cases/${selectedCase.id}/packages/${pkgId}/download-url`, {});
+      window.open(res.downloadUrl, "_blank");
+      setLog(`다운로드 창 열림 (SHA256: ${res.checksumSha256})`);
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const hasValidatedEvidence = evidences.some((e: any) => e.status === "validated");
+
   return (
     <div style={{ fontFamily: "sans-serif", padding: 20, maxWidth: 1000, margin: "0 auto", background: "#fafafa" }}>
       <h1 style={{ color: "#00695c" }}>AgentRegi Partner Console</h1>
@@ -359,9 +376,9 @@ function App() {
                   <h3 style={{ margin: 0, fontSize: "1.1em" }}>📦 패키지 (Packages)</h3>
                   <button 
                     onClick={createPackage} 
-                    disabled={busy || evidences.length === 0} 
-                    style={{ padding: "6px 12px", background: evidences.length === 0 ? "#ccc" : "#e65100", color: "white", border: "none", borderRadius: 4, cursor: evidences.length === 0 ? "not-allowed" : "pointer", fontWeight: "bold" }}
-                    title={evidences.length === 0 ? "증거물을 먼저 추가하세요" : "현재 증거물들로 새 패키지 생성"}
+                    disabled={busy || !hasValidatedEvidence} 
+                    style={{ padding: "6px 12px", background: !hasValidatedEvidence ? "#ccc" : "#e65100", color: "white", border: "none", borderRadius: 4, cursor: !hasValidatedEvidence ? "not-allowed" : "pointer", fontWeight: "bold" }}
+                    title={!hasValidatedEvidence ? "검증된(validated) 증거물이 필요합니다" : "검증된 증거물로 새 패키지 생성"}
                   >
                     패키지 생성 요청
                   </button>
@@ -392,11 +409,22 @@ function App() {
                           </div>
                         </div>
 
-                        {p.status === "ready" && p.artifactUrl && (
-                          <div style={{ marginTop: 8 }}>
-                            <a href={p.artifactUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", padding: "6px 12px", background: "#4caf50", color: "white", textDecoration: "none", borderRadius: 4, fontSize: "0.9em", fontWeight: "bold" }}>
-                              ⬇️ 패키지 다운로드
-                            </a>
+                        {p.status === "ready" && (
+                          <div style={{ marginTop: 8, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                            <button onClick={() => downloadPackage(p.id)} disabled={busy} style={{ display: "inline-block", padding: "6px 12px", background: "#4caf50", color: "white", textDecoration: "none", borderRadius: 4, fontSize: "0.9em", fontWeight: "bold", border: "none", cursor: busy ? "not-allowed" : "pointer" }}>
+                              Download ZIP
+                            </button>
+                            {p.checksumSha256 && (
+                              <div style={{ fontSize: "0.85em", color: "#333", display: "flex", gap: 8, alignItems: "center" }}>
+                                <span style={{ fontFamily: "monospace" }}>{p.checksumSha256}</span>
+                                <button
+                                  onClick={() => navigator.clipboard?.writeText?.(p.checksumSha256)}
+                                  style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}
+                                >
+                                  복사
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
 

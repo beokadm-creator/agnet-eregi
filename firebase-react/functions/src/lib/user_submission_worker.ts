@@ -132,8 +132,7 @@ export async function processUserSubmissions(adminApp: typeof admin) {
         batch.update(doc.ref, {
           status: "completed",
           result: {
-            summary: "정상적으로 파트너 심사/패키징이 완료되었습니다.",
-            artifactUrl: pkgSnap.data()?.artifactUrl
+            summary: "정상적으로 파트너 심사/패키징이 완료되었습니다."
           },
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
