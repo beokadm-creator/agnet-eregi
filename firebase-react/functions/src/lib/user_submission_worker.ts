@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import { enqueueNotification } from "./notify_trigger";
 
 export async function processUserSubmissions(adminApp: typeof admin) {
   const db = adminApp.firestore();
@@ -105,6 +106,8 @@ export async function processUserSubmissions(adminApp: typeof admin) {
       });
 
       await failBatch.commit();
+      
+      await enqueueNotification(adminApp, { userId }, "submission.failed", { submissionId: subId, error: error.message });
     }
   }
 
@@ -148,6 +151,8 @@ export async function processUserSubmissions(adminApp: typeof admin) {
 
         await batch.commit();
         console.log(`[UserSubmissionWorker] Submission ${subId} completed (linked to package ${sub.packageId}).`);
+        
+        await enqueueNotification(adminApp, { userId }, "submission.completed", { submissionId: subId, packageId: sub.packageId });
 
       } else if (pkgStatus === "failed") {
         const batch = db.batch();
@@ -170,6 +175,8 @@ export async function processUserSubmissions(adminApp: typeof admin) {
 
         await batch.commit();
         console.log(`[UserSubmissionWorker] Submission ${subId} failed (linked to package ${sub.packageId}).`);
+        
+        await enqueueNotification(adminApp, { userId }, "submission.failed", { submissionId: subId, packageId: sub.packageId, error: pkgSnap.data()?.error });
       }
     } catch (error: any) {
       console.error(`[UserSubmissionWorker] Failed to poll package for submission ${subId}:`, error);

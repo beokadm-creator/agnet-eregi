@@ -31,6 +31,7 @@ import { registerOpsBackupRoutes } from "./routes/v1/ops_backup";
 import { registerOpsQueryHealthRoutes } from "./routes/v1/ops_query_health";
 import { registerPartnerCaseRoutes } from "./routes/v1/partner_cases";
 import { registerUserSubmissionRoutes } from "./routes/v1/user_submissions";
+import { registerNotificationSettingsRoutes } from "./routes/v1/notify_settings";
 import { processRetryJobs } from "./lib/ops_retry_worker";
 import { processOpsAlertJobs } from "./lib/ops_alert_worker";
 import { processOpsIncidents, generateWeeklyIncidentSummary } from "./lib/ops_incident_worker";
@@ -44,6 +45,7 @@ import { processFirestoreBackup } from "./lib/ops_backup_worker";
 import { processPackageBuilds } from "./lib/partner_package_worker";
 import { processUserSubmissions } from "./lib/user_submission_worker";
 import { processEvidenceValidation } from "./lib/partner_evidence_worker";
+import { processNotificationJobs } from "./lib/notify_worker";
 
 admin.initializeApp();
 
@@ -88,6 +90,7 @@ registerOpsBackupRoutes(app, admin);
 registerOpsQueryHealthRoutes(app, admin);
 registerPartnerCaseRoutes(app, admin);
 registerUserSubmissionRoutes(app, admin);
+registerNotificationSettingsRoutes(app, admin);
 
 app.get("/health", async (_req, res) => ok(res, { status: "ok" }));
 app.use((_req, res) => fail(res, 404, "NOT_FOUND", "존재하지 않는 엔드포인트입니다."));
@@ -243,5 +246,16 @@ export const opsRetentionWorker = functions
       await executeDataRetention(admin, "system_worker", dryRun);
     } catch (e) {
       console.error("[OpsRetentionWorker] Fatal error:", e);
+    }
+  });
+
+export const notifyWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 1 minutes")
+  .onRun(async () => {
+    try {
+      await processNotificationJobs(admin);
+    } catch (e) {
+      console.error("[NotifyWorker] Fatal error:", e);
     }
   });

@@ -15,6 +15,10 @@ function App() {
   const [events, setEvents] = useState<any[]>([]);
   const [packageChecksum, setPackageChecksum] = useState<string | null>(null);
 
+  const [notificationSettings, setNotificationSettings] = useState<any>(null);
+  const [newWebhookUrl, setNewWebhookUrl] = useState("");
+  const [newWebhookSecret, setNewWebhookSecret] = useState("");
+
   useEffect(() => {
     const t = localStorage.getItem("user_token");
     if (t) setToken(t);
@@ -50,16 +54,48 @@ function App() {
 
   async function loadSubmissions() {
     setBusy(true);
-    setLog("제출 목록 불러오는 중...");
+    setLog("제출 목록 및 알림 설정 불러오는 중...");
     try {
       const res = await apiGet("/v1/user/submissions");
       setSubmissions(res.items || []);
-      setLog("제출 목록 갱신됨.");
+
+      const notifyRes = await apiGet("/v1/user/notification-settings");
+      setNotificationSettings(notifyRes.settings);
+
+      setLog("데이터 갱신됨.");
     } catch (e: any) {
       setLog(`[Error] ${e.message}`);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function updateNotificationSettings(newSettings: any) {
+    setBusy(true);
+    setLog("알림 설정 업데이트 중...");
+    try {
+      const res = await apiPost("/v1/user/notification-settings", newSettings);
+      setNotificationSettings(res.settings);
+      setLog("알림 설정 저장 완료");
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addWebhook() {
+    if (!newWebhookUrl) return;
+    const newSettings = {
+      ...notificationSettings,
+      webhooks: [
+        ...(notificationSettings.webhooks || []),
+        { url: newWebhookUrl, secret: newWebhookSecret, enabled: true }
+      ]
+    };
+    await updateNotificationSettings(newSettings);
+    setNewWebhookUrl("");
+    setNewWebhookSecret("");
   }
 
   async function createSubmission() {
@@ -210,7 +246,7 @@ function App() {
             {submissions.length === 0 ? (
               <div style={{ color: "#999", textAlign: "center", padding: 20 }}>제출 내역이 없습니다.</div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
                 {submissions.map(s => (
                   <div 
                     key={s.id} 
@@ -242,6 +278,64 @@ function App() {
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Notification Settings */}
+            {notificationSettings && (
+              <div style={{ borderTop: "2px solid #eee", paddingTop: 16 }}>
+                <h3 style={{ margin: "0 0 12px 0", color: "#3f51b5", fontSize: "1.1em" }}>알림 설정 (Webhooks)</h3>
+                <div style={{ marginBottom: 12, fontSize: "0.9em" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={notificationSettings.events?.submissionCompleted}
+                      onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, submissionCompleted: e.target.checked } })}
+                    />
+                    Submission Completed
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={notificationSettings.events?.submissionFailed}
+                      onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, submissionFailed: e.target.checked } })}
+                    />
+                    Submission Failed
+                  </label>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em" }}>웹훅 목록</h4>
+                  {notificationSettings.webhooks?.map((w: any, idx: number) => (
+                    <div key={idx} style={{ background: "#f5f5f5", padding: 8, borderRadius: 4, marginBottom: 8, fontSize: "0.85em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div><strong>URL:</strong> {w.url}</div>
+                        {w.secret && <div><strong>Secret:</strong> ***</div>}
+                      </div>
+                      <button onClick={() => {
+                        const newWebhooks = [...notificationSettings.webhooks];
+                        newWebhooks.splice(idx, 1);
+                        updateNotificationSettings({ ...notificationSettings, webhooks: newWebhooks });
+                      }} style={{ background: "#d32f2f", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>삭제</button>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <input 
+                    placeholder="https://my-server.com/webhook" 
+                    value={newWebhookUrl} 
+                    onChange={e => setNewWebhookUrl(e.target.value)} 
+                    style={{ padding: 6, fontSize: "0.85em" }} 
+                  />
+                  <input 
+                    placeholder="Secret (optional)" 
+                    value={newWebhookSecret} 
+                    onChange={e => setNewWebhookSecret(e.target.value)} 
+                    style={{ padding: 6, fontSize: "0.85em" }} 
+                  />
+                  <button onClick={addWebhook} disabled={busy || !newWebhookUrl} style={{ padding: "6px 12px", background: "#3949ab", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.9em" }}>
+                    웹훅 추가
+                  </button>
+                </div>
               </div>
             )}
           </div>

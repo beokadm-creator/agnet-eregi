@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import JSZip from "jszip";
 import { createHash } from "crypto";
+import { enqueueNotification } from "./notify_trigger";
 
 export async function processPackageBuilds(adminApp: typeof admin) {
   const db = adminApp.firestore();
@@ -125,6 +126,12 @@ export async function processPackageBuilds(adminApp: typeof admin) {
 
       await batch.commit();
       console.log(`[PackageBuilder] Package ${packageId} built successfully.`);
+      
+      await enqueueNotification(adminApp, { partnerId }, "package.ready", {
+        caseId,
+        packageId,
+        checksumSha256
+      });
 
     } catch (error: any) {
       console.error(`[PackageBuilder] Failed to build package ${packageId}:`, error);
