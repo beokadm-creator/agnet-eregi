@@ -1,6 +1,5 @@
 import * as express from "express";
 import * as admin from "firebase-admin";
-import fetch from "node-fetch";
 
 import { logError } from "../../lib/http";
 import { getOpsSettingsCollection, TelegramSettings } from "../../lib/ops_settings";
@@ -25,8 +24,14 @@ export function registerMonitoringWebhookRoutes(app: express.Application, adminA
 
       const settings = docSnap.data() as TelegramSettings;
 
-      if (!settings.enabled || !settings.botToken || !settings.chatId || !settings.webhookToken) {
-        return res.status(400).send("Telegram integration is disabled or missing config");
+      if (!settings.enabled) {
+        // 의도적 비활성화는 200 no-op로 응답하여 재시도 노이즈 방지
+        return res.status(200).send("Telegram integration is disabled");
+      }
+
+      if (!settings.botToken || !settings.chatId || !settings.webhookToken) {
+        logError({ endpoint: "webhooks/monitoring", code: "FAILED_PRECONDITION", messageKo: "Telegram 설정이 켜져 있으나 필수 값이 누락되었습니다." });
+        return res.status(500).send("Missing Telegram config");
       }
 
       if (token !== settings.webhookToken) {
@@ -38,7 +43,7 @@ export function registerMonitoringWebhookRoutes(app: express.Application, adminA
       const payload = req.body;
       const incident = payload?.incident;
       
-      let message = "🚨 GCP Monitoring Alert\n\n";
+      let message = "🚨 <b>GCP Monitoring Alert</b>\n\n";
       
       if (incident) {
         const state = incident.state === "open" ? "🔴 OPEN" : "🟢 CLOSED";
@@ -46,12 +51,12 @@ export function registerMonitoringWebhookRoutes(app: express.Application, adminA
         const summary = incident.summary || "No summary provided";
         const url = incident.url || "";
 
-        message += `**상태**: ${state}\n`;
-        message += `**정책**: ${policyName}\n`;
-        message += `**내용**: ${summary}\n`;
-        if (url) message += `\n[대시보드 보기](${url})`;
+        message += `<b>상태</b>: ${state}\n`;
+        message += `<b>정책</b>: ${policyName}\n`;
+        message += `<b>내용</b>: ${summary}\n`;
+        if (url) message += `\n<a href="${url}">[대시보드 보기]</a>`;
       } else {
-         message += `알 수 없는 페이로드 수신: \n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``;
+         message += `알 수 없는 페이로드 수신: \n<pre><code class="language-json">\n${JSON.stringify(payload, null, 2)}\n</code></pre>`;
       }
 
       // Send to Telegram
@@ -62,7 +67,7 @@ export function registerMonitoringWebhookRoutes(app: express.Application, adminA
         body: JSON.stringify({
           chat_id: settings.chatId,
           text: message,
-          parse_mode: "Markdown"
+          parse_mode: "HTML"
         })
       });
 
