@@ -21,6 +21,7 @@
     "docx": "^9.6.1",
     "firebase-functions": "^7.2.5",
     "jszip": "^3.10.1",
+    "node-fetch": "^2.7.0",
     "stripe": "^22.0.2"
   }
 }

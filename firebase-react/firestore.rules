@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ops_settings 컬렉션: 클라이언트(프론트엔드)에서 직접 읽기/쓰기 절대 불가
+    // 오직 백엔드 Admin SDK(Functions)를 통해서만 접근 가능
+    match /ops_settings/{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
