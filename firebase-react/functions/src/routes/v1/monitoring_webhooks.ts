@@ -43,12 +43,15 @@ export function registerMonitoringWebhookRoutes(app: express.Application, adminA
       const payload = req.body;
       const incident = payload?.incident;
       
+      const escapeHtml = (s: string) =>
+        s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      
       let message = "🚨 <b>GCP Monitoring Alert</b>\n\n";
       
       if (incident) {
         const state = incident.state === "open" ? "🔴 OPEN" : "🟢 CLOSED";
-        const policyName = incident.policy_name || "Unknown Policy";
-        const summary = incident.summary || "No summary provided";
+        const policyName = escapeHtml(incident.policy_name || "Unknown Policy");
+        const summary = escapeHtml(incident.summary || "No summary provided");
         const url = incident.url || "";
 
         message += `<b>상태</b>: ${state}\n`;
@@ -56,7 +59,7 @@ export function registerMonitoringWebhookRoutes(app: express.Application, adminA
         message += `<b>내용</b>: ${summary}\n`;
         if (url) message += `\n<a href="${url}">[대시보드 보기]</a>`;
       } else {
-         message += `알 수 없는 페이로드 수신: \n<pre><code class="language-json">\n${JSON.stringify(payload, null, 2)}\n</code></pre>`;
+         message += `알 수 없는 페이로드 수신: \n<pre><code class="language-json">\n${escapeHtml(JSON.stringify(payload, null, 2))}\n</code></pre>`;
       }
 
       // Send to Telegram
