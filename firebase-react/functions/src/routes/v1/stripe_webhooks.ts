@@ -26,20 +26,54 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
 
     const db = adminApp.firestore();
     
-    // Idempotency check: if event is already processed, return 200
+    // Idempotency check: 원자적 생성(create) 시도로 레이스 컨디션 방지
     const eventRef = db.collection("stripe_events").doc(event.id);
-    const eventSnap = await eventRef.get();
-    if (eventSnap.exists) {
-      return res.json({ received: true, message: "already_processed" });
+    try {
+      await eventRef.create({
+        type: event.type,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (err: any) {
+      if (err.code === 6) { // ALREADY_EXISTS (grpc status 6)
+        return res.json({ received: true, message: "already_processed" });
+      }
+      logError({ endpoint: "webhooks/stripe", code: "INTERNAL", messageKo: "Stripe Webhook Idempotency Check 실패", err });
+      return res.status(500).send(`Internal Error: ${err.message}`);
+    }
+
+    // Live/Test 환경 혼선 방지 (가드)
+    const isLiveMode = event.livemode;
+    const envIsProd = process.env.NODE_ENV === "production";
+    
+    if (isLiveMode !== envIsProd) {
+      logError({ 
+        endpoint: "webhooks/stripe", 
+        code: "FAILED_PRECONDITION", 
+        messageKo: `Stripe Webhook 환경 불일치 (Event Livemode: ${isLiveMode}, Server Prod: ${envIsProd})`, 
+        err: new Error("Environment mismatch") 
+      });
+      const auditRef = db.collection("audit_events").doc();
+      await auditRef.set({
+        action: "stripe_webhook.env_mismatch",
+        status: "fail",
+        actorId: "stripe_webhook",
+        targetId: event.id,
+        changes: { event_livemode: isLiveMode, server_prod: envIsProd },
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      // no-op 처리하여 스트라이프 측에서 재시도하지 않게 함
+      return res.json({ received: true, message: "env_mismatch_ignored" });
     }
 
     const batch = db.batch();
-    
-    // mark event as processed
-    batch.set(eventRef, {
-      type: event.type,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
+
+    // Payment 상태 우선순위 맵 정의
+    const STATUS_PRIORITY: Record<string, number> = {
+      "initiated": 1,
+      "failed": 2,
+      "captured": 3,
+      "refunded": 4
+    };
 
     try {
       if (event.type === "checkout.session.completed") {
@@ -51,10 +85,9 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
           const paymentSnap = await paymentRef.get();
           
           if (paymentSnap.exists) {
-            const currentStatus = paymentSnap.data()?.status;
+            const currentStatus = paymentSnap.data()?.status || "initiated";
             
-            // Only update if current status is initiated (or failed, depending on business logic. Usually just initiated)
-            if (currentStatus === "initiated") {
+            if (STATUS_PRIORITY["captured"] > STATUS_PRIORITY[currentStatus]) {
               batch.update(paymentRef, {
                 status: "captured",
                 providerRef: session.payment_intent as string,
@@ -92,10 +125,9 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
           const paymentSnap = await paymentRef.get();
           
           if (paymentSnap.exists) {
-            const currentStatus = paymentSnap.data()?.status;
+            const currentStatus = paymentSnap.data()?.status || "initiated";
             
-            // Should not transition from captured/refunded back to failed
-            if (currentStatus !== "captured" && currentStatus !== "refunded") {
+            if (STATUS_PRIORITY["failed"] > STATUS_PRIORITY[currentStatus]) {
               batch.update(paymentRef, {
                 status: "failed",
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()

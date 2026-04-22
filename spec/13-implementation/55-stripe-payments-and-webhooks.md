@@ -54,9 +54,14 @@
   - 대신 **반드시** `stripe-signature` 헤더를 `STRIPE_WEBHOOK_SECRET`으로 검증하여 Stripe에서 보낸 정상적인 요청인지 확인해야 합니다.
   - 서명 검증을 위해 Express 라우터에서 `express.raw({ type: "application/json" })` 미들웨어를 먼저 통과시켜 정확한 바이트 스트림(rawBody)을 확보해야 합니다.
 - **멱등성(Idempotency) 보장**:
-  - Webhook에서 `stripe_events` 컬렉션을 활용해 `event.id` 중복 처리를 방지합니다.
+  - Webhook에서 `stripe_events` 컬렉션을 활용해 `event.id` 중복 처리를 방지합니다. **레이스 컨디션을 막기 위해 `doc(event.id).create(...)`로 원자적 생성을 시도하고, `ALREADY_EXISTS (6)` 에러 발생 시 즉시 200 OK를 반환합니다.**
   - `stripe.checkout.sessions.create` 호출 시 Payment Document ID를 `idempotencyKey`로 전달하여 재시도 시 세션 중복 생성을 막습니다.
   - `stripe.refunds.create` 호출 시 Refund Document ID를 `idempotencyKey`로 전달하여 중복 환불을 막습니다.
+- **상태 전이 보호 (Priority 기반)**:
+  - `initiated(1) < failed(2) < captured(3) < refunded(4)` 와 같은 우선순위 맵을 정의하여, 비동기 웹훅이 순서가 섞여 들어오더라도 **현재 상태보다 우선순위가 높을 때만 업데이트**하도록 일반화했습니다.
+- **Live/Test 환경 혼선 방지**:
+  - Webhook Payload의 `event.livemode`와 서버의 `NODE_ENV === "production"` 값을 비교합니다.
+  - 불일치 시 Audit Event에 `stripe_webhook.env_mismatch`로 경고를 남기고, Stripe 측 재시도를 막기 위해 `200 OK` (no-op)를 반환합니다.
 - **관측성 및 추적성**:
   - `metadata` 속성을 통해 `paymentId`, `userId`, `caseId` 등을 Stripe 대시보드에 남깁니다.
   - `audit_events`에 `stripe_event_id`나 `stripe_session_id`를 함께 기록하여 장애 대응 및 추적을 용이하게 합니다.
