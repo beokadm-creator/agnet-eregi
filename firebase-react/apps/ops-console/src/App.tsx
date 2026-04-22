@@ -71,6 +71,11 @@ function App() {
   const [historyFilterTo, setHistoryFilterTo] = useState<string>("");
   const [historyFilterActorUid, setHistoryFilterActorUid] = useState<string>("");
 
+  const [telegramSettings, setTelegramSettings] = useState<any>({ enabled: false, botToken: "", chatId: "", webhookToken: "" });
+  const [tossSettings, setTossSettings] = useState<any>({ enabled: false, clientKey: "", secretKey: "" });
+  const [showTelegramBotToken, setShowTelegramBotToken] = useState(false);
+  const [showTelegramWebhookToken, setShowTelegramWebhookToken] = useState(false);
+  const [showTossSecretKey, setShowTossSecretKey] = useState(false);
 
   const [healthSummary, setHealthSummary] = useState<any[]>([]);
   const [healthSummaryWindow, setHealthSummaryWindow] = useState<any>(null);
@@ -871,6 +876,82 @@ function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function loadOpsSettings() {
+    setBusy(true);
+    clearError();
+    try {
+      const tgRes = await apiGet(`/v1/ops/settings/telegram`);
+      setTelegramSettings(tgRes.settings);
+      
+      const tossRes = await apiGet(`/v1/ops/settings/tosspayments`);
+      setTossSettings(tossRes.settings);
+      
+      setLog(`[전역 Ops 설정 조회 완료]`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveTelegramSettings() {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
+    const ok = await openConfirm({
+      title: `Telegram Settings Save`,
+      message: `텔레그램 알림 설정을 저장하시겠습니까?`,
+      confirmLabel: "Save",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
+    setBusy(true);
+    clearError();
+    try {
+      const res = await apiPut(`/v1/ops/settings/telegram`, telegramSettings);
+      setTelegramSettings(res.settings);
+      setLog(`[Telegram 설정 저장 성공]`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveTossSettings() {
+    if (!hasRole("ops_admin")) {
+      setLog(roleReason("ops_admin"));
+      return;
+    }
+    const ok = await openConfirm({
+      title: `TossPayments Settings Save`,
+      message: `토스페이먼츠 연동 설정을 저장하시겠습니까?`,
+      confirmLabel: "Save",
+      cancelLabel: "취소"
+    });
+    if (!ok) return;
+    setBusy(true);
+    clearError();
+    try {
+      const res = await apiPut(`/v1/ops/settings/tosspayments`, tossSettings);
+      setTossSettings(res.settings);
+      setLog(`[TossPayments 설정 저장 성공]`);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function generateRandomWebhookToken() {
+    const arr = new Uint8Array(24);
+    crypto.getRandomValues(arr);
+    const token = Array.from(arr, byte => byte.toString(16).padStart(2, '0')).join('');
+    setTelegramSettings({ ...telegramSettings, webhookToken: token });
+    setShowTelegramWebhookToken(true);
   }
 
   async function retryDeadLetterIssue(jobId: string) {
@@ -2790,6 +2871,156 @@ next=재검증 재시도/파트너 문의/수동 확인`;
           </div>
         </div>
       </div>
+
+        {/* 전역 Ops 설정 영역 (Global Settings) */}
+        <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f3e5f5" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h2 style={{ margin: 0, color: "#4a148c" }}>⚙️ Global Ops Settings</h2>
+            <button onClick={loadOpsSettings} disabled={busy} style={{ background: "#4a148c", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
+              [전체 설정 로드]
+            </button>
+          </div>
+
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            {/* Telegram 설정 */}
+            <div style={{ flex: 1, padding: 16, background: "#fff", border: "1px solid #ce93d8", borderRadius: 6, minWidth: 300 }}>
+              <h3 style={{ margin: "0 0 12px 0", color: "#6a1b9a", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: "1.2em" }}>📱</span> Telegram Monitoring Webhook
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: "0.9em" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px", background: telegramSettings.enabled ? "#e8f5e9" : "#f5f5f5", borderRadius: 4 }}>
+                  <input 
+                    type="checkbox" 
+                    checked={telegramSettings.enabled} 
+                    onChange={(e) => setTelegramSettings({...telegramSettings, enabled: e.target.checked})} 
+                    disabled={busy} 
+                  />
+                  <strong style={{ color: telegramSettings.enabled ? "#2e7d32" : "#757575" }}>
+                    Enabled (GCP 알림 수신 허용)
+                  </strong>
+                </label>
+                
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <strong>Bot Token (Secret)</strong>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input 
+                      type={showTelegramBotToken ? "text" : "password"}
+                      value={telegramSettings.botToken} 
+                      onChange={(e) => setTelegramSettings({...telegramSettings, botToken: e.target.value})} 
+                      placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" 
+                      style={{ padding: 8, flex: 1, border: "1px solid #ccc", borderRadius: 4 }} 
+                      disabled={busy}
+                    />
+                    <button onClick={() => setShowTelegramBotToken(!showTelegramBotToken)} style={{ background: "#eee", border: "1px solid #ccc", borderRadius: 4, padding: "0 8px", cursor: "pointer" }}>
+                      {showTelegramBotToken ? "숨기기" : "보기"}
+                    </button>
+                  </div>
+                </label>
+
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <strong>Chat ID</strong>
+                  <input 
+                    type="text"
+                    value={telegramSettings.chatId} 
+                    onChange={(e) => setTelegramSettings({...telegramSettings, chatId: e.target.value})} 
+                    placeholder="-100123456789" 
+                    style={{ padding: 8, border: "1px solid #ccc", borderRadius: 4 }} 
+                    disabled={busy}
+                  />
+                </label>
+
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <strong>Webhook Token (GCP URL 연동용)</strong>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input 
+                      type={showTelegramWebhookToken ? "text" : "password"}
+                      value={telegramSettings.webhookToken} 
+                      onChange={(e) => setTelegramSettings({...telegramSettings, webhookToken: e.target.value})} 
+                      placeholder="GCP Alerting URL에 들어갈 토큰" 
+                      style={{ padding: 8, flex: 1, border: "1px solid #ccc", borderRadius: 4 }} 
+                      disabled={busy}
+                    />
+                    <button onClick={() => setShowTelegramWebhookToken(!showTelegramWebhookToken)} style={{ background: "#eee", border: "1px solid #ccc", borderRadius: 4, padding: "0 8px", cursor: "pointer" }}>
+                      {showTelegramWebhookToken ? "숨기기" : "보기"}
+                    </button>
+                    <button onClick={generateRandomWebhookToken} disabled={busy} style={{ background: "#e0f7fa", color: "#00695c", border: "1px solid #b2dfdb", borderRadius: 4, padding: "0 8px", cursor: "pointer", fontWeight: "bold" }}>
+                      랜덤 생성
+                    </button>
+                  </div>
+                  {telegramSettings.webhookToken && (
+                    <div style={{ marginTop: 4, fontSize: "0.85em", color: "#666", padding: 6, background: "#f5f5f5", borderRadius: 4, wordBreak: "break-all" }}>
+                      <strong>GCP 연동 URL:</strong><br/>
+                      <span style={{ fontFamily: "monospace", color: "#1976d2" }}>
+                        {apiBase}/v1/webhooks/monitoring?token={showTelegramWebhookToken ? telegramSettings.webhookToken : "********"}
+                      </span>
+                    </div>
+                  )}
+                </label>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                  <button disabled={busy || !hasRole("ops_admin")} onClick={saveTelegramSettings} style={{ background: "#6a1b9a", color: "white", border: "none", padding: "8px 16px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", fontWeight: "bold", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
+                    텔레그램 설정 저장
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* TossPayments 설정 */}
+            <div style={{ flex: 1, padding: 16, background: "#fff", border: "1px solid #9fa8da", borderRadius: 6, minWidth: 300 }}>
+              <h3 style={{ margin: "0 0 12px 0", color: "#283593", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: "1.2em" }}>💳</span> TossPayments 결제위젯
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: "0.9em" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px", background: tossSettings.enabled ? "#e8f5e9" : "#f5f5f5", borderRadius: 4 }}>
+                  <input 
+                    type="checkbox" 
+                    checked={tossSettings.enabled} 
+                    onChange={(e) => setTossSettings({...tossSettings, enabled: e.target.checked})} 
+                    disabled={busy} 
+                  />
+                  <strong style={{ color: tossSettings.enabled ? "#2e7d32" : "#757575" }}>
+                    Enabled (토스페이먼츠 활성화)
+                  </strong>
+                </label>
+                
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <strong>Client Key (Public)</strong>
+                  <input 
+                    type="text"
+                    value={tossSettings.clientKey} 
+                    onChange={(e) => setTossSettings({...tossSettings, clientKey: e.target.value})} 
+                    placeholder="test_ck_..." 
+                    style={{ padding: 8, border: "1px solid #ccc", borderRadius: 4 }} 
+                    disabled={busy}
+                  />
+                </label>
+
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <strong>Secret Key (Secret)</strong>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input 
+                      type={showTossSecretKey ? "text" : "password"}
+                      value={tossSettings.secretKey} 
+                      onChange={(e) => setTossSettings({...tossSettings, secretKey: e.target.value})} 
+                      placeholder="test_sk_..." 
+                      style={{ padding: 8, flex: 1, border: "1px solid #ccc", borderRadius: 4 }} 
+                      disabled={busy}
+                    />
+                    <button onClick={() => setShowTossSecretKey(!showTossSecretKey)} style={{ background: "#eee", border: "1px solid #ccc", borderRadius: 4, padding: "0 8px", cursor: "pointer" }}>
+                      {showTossSecretKey ? "숨기기" : "보기"}
+                    </button>
+                  </div>
+                </label>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "auto", paddingTop: 16 }}>
+                  <button disabled={busy || !hasRole("ops_admin")} onClick={saveTossSettings} style={{ background: "#283593", color: "white", border: "none", padding: "8px 16px", borderRadius: 4, cursor: busy || !hasRole("ops_admin") ? "not-allowed" : "pointer", fontWeight: "bold", opacity: busy || !hasRole("ops_admin") ? 0.6 : 1 }}>
+                    토스페이먼츠 설정 저장
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
       {/* 4. Governance (관리) 그룹 */}
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#f5f5f5" }}>
