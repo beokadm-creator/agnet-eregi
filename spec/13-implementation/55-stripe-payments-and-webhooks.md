@@ -60,8 +60,36 @@
 - **상태 전이 보호 (Priority 기반)**:
   - `initiated(1) < failed(2) < captured(3) < refunded(4)` 와 같은 우선순위 맵을 정의하여, 비동기 웹훅이 순서가 섞여 들어오더라도 **현재 상태보다 우선순위가 높을 때만 업데이트**하도록 일반화했습니다.
 - **Live/Test 환경 혼선 방지**:
-  - Webhook Payload의 `event.livemode`와 서버의 `NODE_ENV === "production"` 값을 비교합니다.
+  - Webhook Payload의 `event.livemode`와 서버의 `NODE_ENV === "production"` 및 `STRIPE_SECRET_KEY` 접두어(`sk_live_`) 값을 비교합니다.
   - 불일치 시 Audit Event에 `stripe_webhook.env_mismatch`로 경고를 남기고, Stripe 측 재시도를 막기 위해 `200 OK` (no-op)를 반환합니다.
+
+## 운영 Runbook (장애 대응 체크리스트)
+
+### 1. Webhook 서명 검증 실패 (`400 Bad Request`)
+- **원인**: Stripe 대시보드와 서버의 `STRIPE_WEBHOOK_SECRET` 불일치 또는 `rawBody` 파싱 실패.
+- **조치**: 
+  - 서버 환경 변수 확인 (특히 `whsec_` 접두어).
+  - `express.raw` 미들웨어가 `express.json`보다 먼저 실행되는지 라우터 순서 확인.
+
+### 2. Live/Test 환경 불일치 (Audit: `stripe_webhook.env_mismatch`)
+- **원인**: 개발/스테이징 서버에 Live 이벤트가 유입되거나, 프로덕션 서버에 Test 이벤트가 유입됨.
+- **조치**:
+  - Stripe 대시보드에서 Webhook Endpoint URL이 올바른 환경을 바라보는지 확인.
+  - `STRIPE_SECRET_KEY`가 해당 환경에 맞는 키(`sk_test_` vs `sk_live_`)인지 확인.
+
+### 3. Webhook 중복 수신 (Idempotency 차단 성공)
+- **증상**: 서버 로그에 `ALREADY_EXISTS (6)` 에러 발생 후 `200 OK` 응답.
+- **조치**: 정상적인 동작. Stripe의 재시도 정책에 의해 중복 수신되었으나, Firestore의 `docRef.create()`로 원자적 차단됨. (추가 조치 불필요)
+
+### 4. `stripe_events` 컬렉션 비용/성능 관리
+- **원인**: 중복 방지를 위해 쌓이는 `stripe_events` 문서가 지속적으로 증가.
+- **조치**: Firestore TTL (Time-To-Live) 정책을 설정하여 `createdAt` 기준 30~90일이 지난 문서를 자동 삭제하도록 구성 (권장: 30일).
+
+### 5. 환불 API 호출 실패 (`500 Internal Error` & Audit: `refund.executed` fail)
+- **원인**: 잔액 부족, Stripe API 일시 장애, 유효하지 않은 `payment_intent`.
+- **조치**: 
+  - Audit 로그의 `changes.error` 확인.
+  - Stripe 대시보드에서 해당 `payment_intent` 상태 및 계정 잔고 확인 후, 필요시 Ops 콘솔에서 재시도.
 - **관측성 및 추적성**:
   - `metadata` 속성을 통해 `paymentId`, `userId`, `caseId` 등을 Stripe 대시보드에 남깁니다.
   - `audit_events`에 `stripe_event_id`나 `stripe_session_id`를 함께 기록하여 장애 대응 및 추적을 용이하게 합니다.

@@ -43,7 +43,8 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
 
     // Live/Test 환경 혼선 방지 (가드)
     const isLiveMode = event.livemode;
-    const envIsProd = process.env.NODE_ENV === "production";
+    const stripeSecret = process.env.STRIPE_SECRET_KEY || "";
+    const envIsProd = process.env.NODE_ENV === "production" || stripeSecret.startsWith("sk_live_");
     
     if (isLiveMode !== envIsProd) {
       logError({ 
