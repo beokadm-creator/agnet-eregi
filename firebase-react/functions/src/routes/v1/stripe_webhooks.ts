@@ -12,16 +12,18 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     if (!sig || !webhookSecret) {
-      return res.status(400).send("Webhook Error: Missing signature or secret");
+      res.status(400).send("Webhook Error: Missing signature or secret");
+      return;
     }
 
-    let event: Stripe.Event;
+    let event: any;
 
     try {
       event = stripe.webhooks.constructEvent((req as any).rawBody, sig, webhookSecret);
     } catch (err: any) {
       logError({ endpoint: "webhooks/stripe", code: "INVALID_ARGUMENT", messageKo: "Stripe 서명 검증 실패", err });
-      return res.status(400).send(`Webhook Error: ${err.message}`);
+      res.status(400).send(`Webhook Error: ${err.message}`);
+      return;
     }
 
     const db = adminApp.firestore();
@@ -35,10 +37,12 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
       });
     } catch (err: any) {
       if (err.code === 6) { // ALREADY_EXISTS (grpc status 6)
-        return res.json({ received: true, message: "already_processed" });
+        res.json({ received: true, message: "already_processed" });
+        return;
       }
       logError({ endpoint: "webhooks/stripe", code: "INTERNAL", messageKo: "Stripe Webhook Idempotency Check 실패", err });
-      return res.status(500).send(`Internal Error: ${err.message}`);
+      res.status(500).send(`Internal Error: ${err.message}`);
+      return;
     }
 
     // Live/Test 환경 혼선 방지 (가드)
@@ -63,7 +67,8 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
       // no-op 처리하여 스트라이프 측에서 재시도하지 않게 함
-      return res.json({ received: true, message: "env_mismatch_ignored" });
+      res.json({ received: true, message: "env_mismatch_ignored" });
+      return;
     }
 
     const batch = db.batch();
@@ -73,12 +78,13 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
       "initiated": 1,
       "failed": 2,
       "captured": 3,
-      "refunded": 4
+      "partially_refunded": 4,
+      "refunded": 5
     };
 
     try {
       if (event.type === "checkout.session.completed") {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object as any;
         const paymentId = session.client_reference_id;
         
         if (paymentId) {
@@ -111,10 +117,10 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
         let paymentId: string | undefined;
         
         if (event.type === "checkout.session.async_payment_failed") {
-          const session = event.data.object as Stripe.Checkout.Session;
+          const session = event.data.object as any;
           paymentId = session.client_reference_id || undefined;
         } else if (event.type === "payment_intent.payment_failed") {
-          const pi = event.data.object as Stripe.PaymentIntent;
+          const pi = event.data.object as any;
           const snap = await db.collection("payments").where("providerRef", "==", pi.id).limit(1).get();
           if (!snap.empty) {
             paymentId = snap.docs[0].id;

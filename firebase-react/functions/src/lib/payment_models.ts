@@ -1,6 +1,12 @@
 import * as admin from "firebase-admin";
 
-export type PaymentStatus = "initiated" | "confirm" | "captured" | "failed" | "refunded";
+export type PaymentStatus =
+  | "initiated"
+  | "confirm"
+  | "captured"
+  | "failed"
+  | "partially_refunded"
+  | "refunded";
 
 export interface Payment {
   id?: string;
@@ -10,9 +16,17 @@ export interface Payment {
   amount: number;
   currency: string;
   status: PaymentStatus;
-  provider?: "stripe" | "mock";
-  providerRef?: string; // Stripe PaymentIntent ID or Session ID
-  checkoutUrl?: string; // Stripe Checkout Session URL
+  provider?: "stripe" | "tosspayments" | "mock";
+  /**
+   * 결제 프로바이더의 참조 키
+   * - stripe: PaymentIntent ID (또는 Checkout Session ID)
+   * - tosspayments: paymentKey
+   */
+  providerRef?: string;
+  /** Stripe 전용 */
+  checkoutUrl?: string;
+  /** 부분 환불/취소 누적 금액 (없으면 0으로 간주) */
+  refundedAmount?: number;
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }

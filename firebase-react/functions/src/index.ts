@@ -35,6 +35,7 @@ import { registerNotificationSettingsRoutes } from "./routes/v1/notify_settings"
 import { registerStripeWebhookRoutes } from "./routes/v1/stripe_webhooks";
 import { registerOpsSettingsRoutes } from "./routes/v1/ops_settings";
 import { registerMonitoringWebhookRoutes } from "./routes/v1/monitoring_webhooks";
+import { registerTossPaymentsWebhookRoutes } from "./routes/v1/tosspayments_webhooks";
 import { processRetryJobs } from "./lib/ops_retry_worker";
 import { processOpsAlertJobs } from "./lib/ops_alert_worker";
 import { processOpsIncidents, generateWeeklyIncidentSummary } from "./lib/ops_incident_worker";
@@ -101,6 +102,7 @@ registerPartnerCaseRoutes(app, admin);
 registerUserSubmissionRoutes(app, admin);
 registerNotificationSettingsRoutes(app, admin);
 registerStripeWebhookRoutes(app, admin);
+registerTossPaymentsWebhookRoutes(app, admin);
 registerOpsSettingsRoutes(app, admin);
 registerMonitoringWebhookRoutes(app, admin);
 

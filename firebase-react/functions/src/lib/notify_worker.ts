@@ -1,6 +1,5 @@
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
-import fetch from "node-fetch";
 
 import { logOpsEvent } from "./ops_audit";
 

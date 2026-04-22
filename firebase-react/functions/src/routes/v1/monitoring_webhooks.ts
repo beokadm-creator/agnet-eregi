@@ -35,7 +35,7 @@ export function registerMonitoringWebhookRoutes(app: express.Application, adminA
       }
 
       if (token !== settings.webhookToken) {
-        logError({ endpoint: "webhooks/monitoring", code: "PERMISSION_DENIED", messageKo: "Webhook 토큰 불일치" });
+        logError({ endpoint: "webhooks/monitoring", code: "FORBIDDEN", messageKo: "Webhook 토큰 불일치" });
         return res.status(403).send("Forbidden");
       }
 

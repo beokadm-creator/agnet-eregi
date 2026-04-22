@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react";
 
+declare global {
+  interface Window {
+    TossPayments: (clientKey: string) => any;
+  }
+}
+
 function App() {
   const [token, setToken] = useState("");
   const [log, setLog] = useState("");
@@ -33,8 +39,55 @@ function App() {
   };
 
   useEffect(() => {
+    // TossPayments SDK 로드
+    if (!document.getElementById("toss-payments-sdk")) {
+      const script = document.createElement("script");
+      script.id = "toss-payments-sdk";
+      script.src = "https://js.tosspayments.com/v1/payment-widget";
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  useEffect(() => {
     const t = localStorage.getItem("user_token");
     if (t) setToken(t);
+  }, []);
+
+  useEffect(() => {
+    // 쿼리 파라미터 확인하여 토스 결제 완료/실패 처리
+    const searchParams = new URLSearchParams(window.location.search);
+    const tossSuccess = searchParams.get('tossSuccess');
+    const tossFail = searchParams.get('tossFail');
+    const paymentId = searchParams.get('paymentId');
+    const paymentKey = searchParams.get('paymentKey');
+    const orderId = searchParams.get('orderId');
+    const amountStr = searchParams.get('amount');
+
+    if (tossSuccess && paymentId && paymentKey && orderId && amountStr) {
+      setLog(`토스페이먼츠 결제 승인 진행 중...`);
+      setBusy(true);
+      
+      apiPost(`/v1/user/payments/${paymentId}/confirm`, {
+        paymentKey,
+        orderId,
+        amount: Number(amountStr)
+      }).then(() => {
+        setLog(`[Success] 토스 결제 승인 완료!`);
+        // 쿼리 파라미터 정리
+        window.history.replaceState({}, document.title, window.location.pathname);
+        if (selectedSub) loadSubDetail(selectedSub.id);
+      }).catch((err: any) => {
+        setLog(`[Error] 토스 결제 승인 실패: ${err.message}`);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }).finally(() => {
+        setBusy(false);
+      });
+    } else if (tossFail) {
+      const message = searchParams.get('message') || "결제가 취소되었거나 실패했습니다.";
+      setLog(`[Error] 토스 결제 실패: ${message}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
 
   function handleSaveToken(t: string) {
@@ -488,6 +541,9 @@ function App() {
                       {payment.provider === "stripe" && (
                         <div style={{ fontSize: "0.8em", color: "#1565c0", marginTop: 4 }}>[Stripe 결제]</div>
                       )}
+                      {payment.provider === "tosspayments" && (
+                        <div style={{ fontSize: "0.8em", color: "#1565c0", marginTop: 4 }}>[Toss 결제]</div>
+                      )}
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <span style={{
@@ -511,7 +567,119 @@ function App() {
                           결제 진행하기 (Stripe)
                         </button>
                       )}
-                      {payment.status === "initiated" && payment.provider !== "stripe" && (
+                      {payment.status === "initiated" && payment.provider === "tosspayments" && payment.clientKey && (
+                        <button
+                          onClick={() => {
+                            const successUrl = `${window.location.origin}?tossSuccess=true&paymentId=${payment.id}`;
+                            const failUrl = `${window.location.origin}?tossFail=true&paymentId=${payment.id}`;
+                            
+                            // 동적으로 토스 결제창 띄우기
+                            const loadTossPayments = async () => {
+                              try {
+                                setBusy(true);
+                                setLog("토스페이먼츠 SDK 로드 중...");
+                                const tossPayments = await window.TossPayments(payment.clientKey);
+                                const widgets = tossPayments.widgets({ customerKey: user?.uid || "anonymous" });
+                                
+                                // 모달 형태로 렌더링하기 위한 컨테이너 생성
+                                const modalId = "toss-payment-modal";
+                                let modal = document.getElementById(modalId);
+                                if (!modal) {
+                                  modal = document.createElement("div");
+                                  modal.id = modalId;
+                                  modal.style.position = "fixed";
+                                  modal.style.top = "0";
+                                  modal.style.left = "0";
+                                  modal.style.width = "100%";
+                                  modal.style.height = "100%";
+                                  modal.style.backgroundColor = "rgba(0,0,0,0.5)";
+                                  modal.style.display = "flex";
+                                  modal.style.justifyContent = "center";
+                                  modal.style.alignItems = "center";
+                                  modal.style.zIndex = "9999";
+                                  
+                                  const content = document.createElement("div");
+                                  content.style.backgroundColor = "white";
+                                  content.style.padding = "20px";
+                                  content.style.borderRadius = "8px";
+                                  content.style.width = "100%";
+                                  content.style.maxWidth = "600px";
+                                  content.style.maxHeight = "90vh";
+                                  content.style.overflowY = "auto";
+                                  content.style.position = "relative";
+                                  
+                                  const closeBtn = document.createElement("button");
+                                  closeBtn.innerText = "닫기";
+                                  closeBtn.style.position = "absolute";
+                                  closeBtn.style.top = "10px";
+                                  closeBtn.style.right = "10px";
+                                  closeBtn.style.padding = "5px 10px";
+                                  closeBtn.onclick = () => {
+                                    document.body.removeChild(modal!);
+                                    setBusy(false);
+                                  };
+                                  
+                                  const widgetContainer = document.createElement("div");
+                                  widgetContainer.id = "payment-method";
+                                  
+                                  const agreementContainer = document.createElement("div");
+                                  agreementContainer.id = "agreement";
+                                  
+                                  const requestBtn = document.createElement("button");
+                                  requestBtn.innerText = "결제하기";
+                                  requestBtn.style.width = "100%";
+                                  requestBtn.style.padding = "15px";
+                                  requestBtn.style.marginTop = "20px";
+                                  requestBtn.style.backgroundColor = "#3182f6";
+                                  requestBtn.style.color = "white";
+                                  requestBtn.style.border = "none";
+                                  requestBtn.style.borderRadius = "4px";
+                                  requestBtn.style.fontSize = "16px";
+                                  requestBtn.style.cursor = "pointer";
+                                  
+                                  content.appendChild(closeBtn);
+                                  content.appendChild(widgetContainer);
+                                  content.appendChild(agreementContainer);
+                                  content.appendChild(requestBtn);
+                                  modal.appendChild(content);
+                                  document.body.appendChild(modal);
+                                  
+                                  await widgets.setAmount({ currency: payment.currency, value: payment.amount });
+                                  await widgets.renderPaymentMethods({ selector: '#payment-method', variantKey: 'DEFAULT' });
+                                  await widgets.renderAgreement({ selector: '#agreement', variantKey: 'AGREEMENT' });
+                                  
+                                  requestBtn.onclick = async () => {
+                                    try {
+                                      await widgets.requestPayment({
+                                        orderId: payment.id,
+                                        orderName: `결제 ${payment.id}`,
+                                        successUrl: successUrl,
+                                        failUrl: failUrl,
+                                        customerEmail: user?.email || undefined,
+                                        customerName: user?.displayName || undefined
+                                      });
+                                    } catch (err: any) {
+                                      setLog(`[Error] 토스페이먼츠 결제 요청 실패: ${err.message}`);
+                                      document.body.removeChild(modal!);
+                                      setBusy(false);
+                                    }
+                                  };
+                                }
+                              } catch (err: any) {
+                                setLog(`[Error] 토스페이먼츠 로드 실패: ${err.message}`);
+                                setBusy(false);
+                              }
+                            };
+                            
+                            loadTossPayments();
+                          }}
+                          disabled={busy}
+                          style={{ display: "block", marginTop: 8, background: "#3182f6", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em", fontWeight: "bold" }}
+                        >
+                          결제 진행하기 (Toss)
+                        </button>
+                      )}
+                      {payment.status === "initiated" && payment.provider !== "stripe" && payment.provider !== "tosspayments" && (
                         <button
                           onClick={async () => {
                             setBusy(true);

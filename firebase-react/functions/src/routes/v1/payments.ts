@@ -5,6 +5,7 @@ import Stripe from "stripe";
 import { requireAuth } from "../../lib/auth";
 import { fail, ok, logError } from "../../lib/http";
 import { Payment } from "../../lib/payment_models";
+import { tossConfirmPayment, getTossPaymentsSettings } from "../../lib/tosspayments";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2023-10-16" as any });
 
@@ -18,6 +19,9 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
 
       const userId = auth.uid;
       const { amount, currency, caseId, submissionId, provider = "stripe", successUrl, cancelUrl } = req.body;
+
+      const providerNormalized: "stripe" | "tosspayments" | "mock" =
+        provider === "stripe" || provider === "tosspayments" || provider === "mock" ? provider : "stripe";
 
       if (!amount || !currency) {
         return fail(res, 400, "INVALID_ARGUMENT", "amount와 currency가 필요합니다.");
@@ -33,14 +37,16 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
         amount,
         currency,
         status: "initiated",
-        provider,
+        provider: providerNormalized,
+        refundedAmount: 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
         updatedAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
       };
 
       const batch = db.batch();
+      let tossClientKeyForResponse: string | undefined;
 
-      if (provider === "stripe") {
+      if (providerNormalized === "stripe") {
         const session = await stripe.checkout.sessions.create({
           payment_method_types: ['card'],
           line_items: [{
@@ -69,6 +75,15 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
 
         payment.checkoutUrl = session.url || undefined;
         payment.providerRef = session.id;
+      } else if (providerNormalized === "tosspayments") {
+        // 토스 결제위젯은 클라이언트에서 결제 요청을 수행하므로,
+        // 서버는 clientKey를 내려주고 orderId(=paymentId), amount를 내려줍니다.
+        const settings = await getTossPaymentsSettings();
+        if (!settings || !settings.enabled || !settings.clientKey || !settings.secretKey) {
+          return fail(res, 500, "FAILED_PRECONDITION", "토스페이먼츠 설정이 활성화되어 있지 않습니다.");
+        }
+        // 보안: clientKey만 응답( secretKey는 절대 내려주지 않음 )
+        tossClientKeyForResponse = settings.clientKey;
       }
 
       batch.set(docRef, payment);
@@ -85,7 +100,14 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
 
       await batch.commit();
 
-      return ok(res, { payment: { id: docRef.id, ...payment } });
+      // provider별로 클라이언트에 필요한 추가 필드를 포함
+      const responsePayment: any = { id: docRef.id, ...payment };
+      if (providerNormalized === "tosspayments") {
+        responsePayment.orderId = docRef.id;
+        responsePayment.clientKey = tossClientKeyForResponse;
+      }
+
+      return ok(res, { payment: responsePayment });
     } catch (err: any) {
       logError({ endpoint: "user/payments/create", code: "INTERNAL", messageKo: "결제 생성 실패", err });
       return fail(res, 500, "INTERNAL", err.message);
@@ -100,6 +122,7 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
 
       const userId = auth.uid;
       const paymentId = String(req.params.paymentId);
+      const { paymentKey, orderId, amount } = req.body;
 
       const db = adminApp.firestore();
       const docRef = db.collection("payments").doc(paymentId);
@@ -113,25 +136,77 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
         return fail(res, 400, "FAILED_PRECONDITION", "initiated 상태의 결제만 confirm 할 수 있습니다.");
       }
 
+      const paymentData = snap.data() as Payment;
+
+      if (paymentData.provider === "stripe") {
+        // 기존 방식 유지: (Stripe는 webhook이 최종 캡처를 반영)
+        const batch = db.batch();
+        batch.update(docRef, {
+          status: "captured",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        const auditRef = db.collection("audit_events").doc();
+        batch.set(auditRef, {
+          action: "payment.captured",
+          actorId: userId,
+          targetId: paymentId,
+          changes: { status: "captured" },
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        await batch.commit();
+        return ok(res, { message: "결제가 확인 및 승인되었습니다.", status: "captured" });
+      }
+
+      if (paymentData.provider !== "tosspayments") {
+        return fail(res, 400, "FAILED_PRECONDITION", "지원하지 않는 결제 프로바이더입니다.");
+      }
+
+      if (!paymentKey || !orderId || typeof amount !== "number") {
+        return fail(res, 400, "INVALID_ARGUMENT", "paymentKey, orderId, amount가 필요합니다.");
+      }
+      if (orderId !== paymentId) {
+        return fail(res, 400, "INVALID_ARGUMENT", "orderId가 올바르지 않습니다.");
+      }
+      if (amount !== paymentData.amount) {
+        return fail(res, 400, "INVALID_ARGUMENT", "결제 금액이 일치하지 않습니다.");
+      }
+
+      const settings = await getTossPaymentsSettings();
+      if (!settings || !settings.enabled || !settings.secretKey) {
+        return fail(res, 500, "FAILED_PRECONDITION", "토스페이먼츠 설정이 활성화되어 있지 않습니다.");
+      }
+
+      // 멱등키: paymentId (재시도 시 중복 승인 방지)
+      const tossPayment = await tossConfirmPayment({
+        secretKey: settings.secretKey,
+        paymentKey,
+        orderId,
+        amount,
+        idempotencyKey: paymentId
+      });
+
       const batch = db.batch();
       batch.update(docRef, {
         status: "captured",
+        providerRef: paymentKey,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      // Audit log
       const auditRef = db.collection("audit_events").doc();
       batch.set(auditRef, {
         action: "payment.captured",
         actorId: userId,
         targetId: paymentId,
-        changes: { status: "captured" },
+        changes: { status: "captured", providerRef: paymentKey },
+        meta: { toss_paymentKey: paymentKey, toss_orderId: orderId, toss_status: tossPayment?.status || null },
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
       await batch.commit();
 
-      return ok(res, { message: "결제가 확인 및 승인되었습니다.", status: "captured" });
+      return ok(res, { message: "결제가 승인되었습니다.", status: "captured" });
     } catch (err: any) {
       logError({ endpoint: "user/payments/confirm", code: "INTERNAL", messageKo: "결제 확인 실패", err });
       return fail(res, 500, "INTERNAL", err.message);
