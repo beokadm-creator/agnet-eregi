@@ -73,18 +73,25 @@
 - [상세 스펙: phase-9-roadmap.md](./phase-9-roadmap.md)
 
 ### Phase 10 — 플랫폼 제품화 및 운영 표준화 (Platformization & Governance)
-- **EP-21 Partner Auth 제품화**: API Key 회수/회전, lastUsedAt, OAuth2(Client Credentials) + scope 도입.
-- **EP-22 Webhook Delivery 서비스화**: 재시도/백오프/DLQ, 서명, 이벤트 카탈로그/스키마 버전 정책.
-- **EP-23 Metering & Quota**: 파트너별 사용량 계측, 플랜별 레이트리밋/쿼터, 운영자 강제 조정.
-- **EP-24 Observability 표준화**: 구조적 로그/트레이스, SLO/에러버짓, Ops 대시보드 고도화.
-- [상세 스펙: phase-10-roadmap.md](./phase-10-roadmap.md)
+- [x] **EP-21 Partner Auth 제품화**: API Key 회수/회전, lastUsedAt, OAuth2(Client Credentials) + scope 도입.
+- [x] **EP-22 Webhook Delivery 서비스화**: 재시도/백오프/DLQ, 서명, 이벤트 카탈로그/스키마 버전 정책.
+- [x] **EP-23 Metering & Quota**: 파트너별 사용량 계측, 플랜별 레이트리밋/쿼터, 운영자 강제 조정.
+- [x] **EP-24 Observability 표준화**: 구조적 로그/트레이스, SLO/에러버짓, Ops 대시보드 고도화.
+- [x] [상세 스펙: phase-10-roadmap.md](./phase-10-roadmap.md)
 
 ### Phase 11 — 엔터프라이즈 SaaS 확장 및 팀 협업 고도화 (Enterprise SaaS & Team Collaboration)
-- **EP-25 엔터프라이즈 조직 및 팀 워크스페이스**: `partnerId` 기반에서 Organization -> Workspace -> Member 계층화.
-- **EP-26 세분화된 역할 기반 접근 제어 (Advanced RBAC)**: Owner, Admin, Member 커스텀 역할 및 케이스 담당자 할당.
-- **EP-27 엔터프라이즈 커스텀 템플릿 및 자동화 룰**: 파트너가 자체적인 서류 요청 양식, 견적 템플릿 생성 및 조건부 배정.
-- **EP-28 엔터프라이즈 SLA 및 리포팅 대시보드**: 팀원별 퍼포먼스, CSAT, 매출 분석 통계 차트 및 데이터 내보내기.
-- [상세 스펙: phase-11-roadmap.md](./phase-11-roadmap.md)
+- [x] **EP-25 엔터프라이즈 조직 및 팀 워크스페이스**: `partnerId` 기반에서 Organization -> Workspace -> Member 계층화.
+- [x] **EP-26 세분화된 역할 기반 접근 제어 (Advanced RBAC)**: Owner, Admin, Member 커스텀 역할 및 케이스 담당자 할당.
+- [x] **EP-27 엔터프라이즈 커스텀 템플릿 및 자동화 룰**: 파트너가 자체적인 서류 요청 양식, 견적 템플릿 생성 및 조건부 배정.
+- [x] **EP-28 엔터프라이즈 SLA 및 리포팅 대시보드**: 팀원별 퍼포먼스, CSAT, 매출 분석 통계 차트 및 데이터 내보내기.
+- [x] [상세 스펙: phase-11-roadmap.md](./phase-11-roadmap.md)
+
+### ✅ Phase 11까지의 성과 요약 (Summary of Achievements up to Phase 11)
+- **Phase 0~4 (MVP & 운영 기반)**: 이벤트 기반 아키텍처, 권한(RBAC/RLS), 결제/정산/환불 시스템 및 수동 검토 안전밸브 구축 완료.
+- **Phase 5~6 (지능화 & B2G 자동화)**: Document AI(OCR), 옴니채널 알림, B2G 자동 전송(E-Filing) 및 공과금 연동 등 핵심 스케일업 기능 완료.
+- **Phase 7~9 (B2B, 글로벌, 고도화)**: B2B Open API, 글로벌 다국어/다중 통화, 파트너 SaaS 구독, AI 기반 1차 판독 등 생태계 확장 완료.
+- **Phase 10~11 (플랫폼 제품화 & 엔터프라이즈)**: Partner Auth/Webhook 서비스화, Metering/Quota, Observability 고도화, 그리고 엔터프라이즈 조직/팀 워크스페이스(Advanced RBAC), 커스텀 템플릿 및 리포팅 대시보드 등 대규모 엔터프라이즈 SaaS 환경 구축 완료.
+- **결과적으로**: B2C(사용자), B2B(파트너/엔터프라이즈), B2G(관공서)를 아우르는 End-to-End 자동화 및 협업 플랫폼 완성을 이루었습니다.
 
 > 참고: “MVP를 안 한다”는 의미는 Phase 1~3을 모두 하겠다는 것으로 해석하되, **릴리즈 순서/의존성 관리**는 여전히 필요합니다.
 
