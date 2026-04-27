@@ -85,3 +85,9 @@ npx playwright test
 기획 및 아키텍처 상세 설계, Phase별 마일스톤 등은 `spec/` 폴더 내에 마크다운 문서로 체계적으로 관리되고 있습니다.
 - [로드맵 및 백로그](./spec/00-index/roadmap-and-backlog.md)
 - [Phase 11 상세 스펙](./spec/00-index/phase-11-roadmap.md)
+
+## 🔐 운영 환경 필수 설정
+- `B2B_JWT_SECRET`: B2B API 토큰 서명용 시크릿(운영에서는 필수)
+- `CORS_ALLOWLIST`: Functions API CORS 허용 도메인(콤마 구분), 예: `https://user-web-eregi.web.app,https://partner-console-eregi.web.app,https://agent-eregi.web.app`
+- `OPS_ALLOW_ALL`: 운영에서는 절대 `1`로 설정하지 않음(에뮬레이터 외에서는 기동 실패)
+- `SENDGRID_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`: 고객 알림 채널 운영 연동 시 설정(운영에서 미설정 시 발송 실패 처리)

@@ -20,6 +20,18 @@
   },
   "hosting": [
     {
+      "target": "user-web",
+      "public": "apps/user-web/dist",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    },
+    {
+      "target": "partner-console",
+      "public": "apps/partner-console/dist",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    },
+    {
       "target": "ops-console",
       "public": "apps/ops-console/dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],

@@ -30,5 +30,4 @@
   - Break-glass 실행 후 브라우저(또는 클라이언트)는 토큰(ID Token)을 즉시 갱신(Refresh)해야 권한이 적용됩니다.
 
 ## 5. UI 및 운영 가이드
-- Ops Console의 **[Access Management]** 섹션을 통해 권한 현황을 한눈에 조회 가능 (TODO).
-- (현재 MVP 단계에서는 API 위주로 구현됨)
+- Ops Console의 **[Access Management]** 섹션을 통해 권한 현황을 한눈에 조회하고 부여/회수/긴급권한 기능을 사용할 수 있습니다.

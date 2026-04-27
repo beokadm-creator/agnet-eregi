@@ -52,8 +52,24 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
-      - name: Run Playwright tests
-        run: npx playwright test
+      - name: E2E User Web
+        run: npm run test:e2e -w user-web
+
+      - name: E2E Partner Console
+        run: npm run test:e2e -w partner-console
+
+      - name: E2E Ops Console
+        run: npm run test:e2e -w ops-console
+
+      - name: Upload Playwright Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-reports
+          path: |
+            firebase-react/apps/*/playwright-report/
+            firebase-react/apps/*/test-results/
+          retention-days: 7
 
       - name: Build All Workspaces
         run: npm run build

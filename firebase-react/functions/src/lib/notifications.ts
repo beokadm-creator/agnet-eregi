@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import { logOpsEvent } from "./ops_audit";
 
 // 실제 연동 시에는 SDK(예: @sendgrid/mail, twilio)를 설치하여 사용합니다.
 // 여기서는 인터페이스와 시뮬레이션 로직만 구현합니다.
@@ -9,36 +10,27 @@ interface NotificationPayload {
   dynamicTemplateData: Record<string, any>;
 }
 
-export async function sendEmail(payload: NotificationPayload): Promise<boolean> {
+export async function sendEmail(_payload: NotificationPayload): Promise<boolean> {
   const sendgridApiKey = process.env.SENDGRID_API_KEY;
+  const emulator = process.env.FUNCTIONS_EMULATOR === "true";
   if (!sendgridApiKey) {
-    console.warn("[Notifications] SENDGRID_API_KEY가 설정되지 않아 이메일 발송을 시뮬레이션합니다.", payload);
-    return true;
+    if (emulator) return true;
+    throw new Error("MISSING_CONFIG: SENDGRID_API_KEY");
   }
 
-  // 실제 SendGrid 연동 로직
-  // const sgMail = require('@sendgrid/mail');
-  // sgMail.setApiKey(sendgridApiKey);
-  // await sgMail.send({ ... });
-  
-  console.log(`[Notifications] 이메일 발송 완료: ${payload.to}`);
   return true;
 }
 
-export async function sendSms(payload: NotificationPayload): Promise<boolean> {
+export async function sendSms(_payload: NotificationPayload): Promise<boolean> {
   const twilioSid = process.env.TWILIO_ACCOUNT_SID;
   const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-  
+
+  const emulator = process.env.FUNCTIONS_EMULATOR === "true";
   if (!twilioSid || !twilioToken) {
-    console.warn("[Notifications] TWILIO 자격증명이 설정되지 않아 SMS 발송을 시뮬레이션합니다.", payload);
-    return true;
+    if (emulator) return true;
+    throw new Error("MISSING_CONFIG: TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN");
   }
 
-  // 실제 Twilio 연동 로직
-  // const client = require('twilio')(twilioSid, twilioToken);
-  // await client.messages.create({ ... });
-
-  console.log(`[Notifications] SMS 발송 완료: ${payload.to}`);
   return true;
 }
 
@@ -64,19 +56,47 @@ export async function dispatchCustomerNotification(adminApp: typeof admin, caseI
 
   // 1. 이메일 발송
   if (email) {
-    await sendEmail({
-      to: email,
-      templateId: `template_${eventType}`,
-      dynamicTemplateData: templateData
-    });
+    try {
+      await sendEmail({
+        to: email,
+        templateId: `template_${eventType}`,
+        dynamicTemplateData: templateData
+      });
+    } catch (e: any) {
+      await logOpsEvent(adminApp, {
+        gateKey: "system",
+        action: "notify.email",
+        status: "fail",
+        actorUid: "system",
+        requestId: `notify_${Date.now()}`,
+        summary: `Email notification failed`,
+        error: { message: e?.message || String(e) },
+        target: { caseId, eventType, to: email }
+      });
+      throw e;
+    }
   }
 
   // 2. SMS/알림톡 발송
   if (phone) {
-    await sendSms({
-      to: phone,
-      templateId: `sms_template_${eventType}`,
-      dynamicTemplateData: templateData
-    });
+    try {
+      await sendSms({
+        to: phone,
+        templateId: `sms_template_${eventType}`,
+        dynamicTemplateData: templateData
+      });
+    } catch (e: any) {
+      await logOpsEvent(adminApp, {
+        gateKey: "system",
+        action: "notify.sms",
+        status: "fail",
+        actorUid: "system",
+        requestId: `notify_${Date.now()}`,
+        summary: `SMS notification failed`,
+        error: { message: e?.message || String(e) },
+        target: { caseId, eventType, to: phone }
+      });
+      throw e;
+    }
   }
 }

@@ -80,7 +80,24 @@ import { processB2bWebhooks } from "./lib/b2b_webhook_worker";
 admin.initializeApp();
 
 const app = express();
-app.use(cors({ origin: true }));
+if (process.env.OPS_ALLOW_ALL === "1" && process.env.FUNCTIONS_EMULATOR !== "true") {
+  throw new Error("OPS_ALLOW_ALL cannot be enabled outside Functions emulator");
+}
+
+const corsAllowAny = process.env.FUNCTIONS_EMULATOR === "true" || process.env.CORS_ALLOW_ANY === "1";
+const corsAllowlist = (process.env.CORS_ALLOWLIST || "")
+  .split(",")
+  .map((v) => v.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (corsAllowAny) return callback(null, true);
+    if (corsAllowlist.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  }
+}));
 app.use(requestIdMiddleware);
 // stripe webhook uses raw body, so we register it before express.json()
 app.post(

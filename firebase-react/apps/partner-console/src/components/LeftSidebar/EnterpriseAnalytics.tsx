@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getApi } from "../../services/api";
 
 export const EnterpriseAnalytics: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
@@ -9,17 +10,8 @@ export const EnterpriseAnalytics: React.FC = () => {
     setLoading(true);
     setError("");
     try {
-      const token = localStorage.getItem("jwt_token") || "";
-      const res = await fetch("http://localhost:5001/agentregi/us-central1/api/v1/partner/analytics", {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to load analytics");
-      }
-      setStats(data.data);
+      const data = await getApi().get("/v1/partner/analytics");
+      setStats(data);
     } catch (err: any) {
       setError(err.message);
     } finally {

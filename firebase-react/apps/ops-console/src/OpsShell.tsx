@@ -205,41 +205,43 @@ function OpsShell() {
           </Button>
         </div>
 
-        <label>
-          대상 UID (Target UID)
-          <Input value={accessTargetUid} onChange={(event) => setAccessTargetUid(event.target.value)} placeholder="ex: uid_xxxx" style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }} />
-        </label>
-        
-        <div style={{ display: "flex", gap: 12 }}>
-          <label style={{ flex: 1 }}>
-            권한 (Role)
-            <select value={accessRole} onChange={(event) => setAccessRole(event.target.value)} style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }}>
-              <option value="ops_viewer">ops_viewer (조회 전용)</option>
-              <option value="ops_operator">ops_operator (수동 액션 가능)</option>
-              <option value="ops_admin">ops_admin (전체 제어)</option>
-            </select>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, background: "#f8fafc", padding: 12, borderRadius: 8 }}>
+          <label>
+            대상 UID (Target UID)
+            <Input value={accessTargetUid} onChange={(event) => setAccessTargetUid(event.target.value)} placeholder="ex: uid_xxxx" style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }} />
           </label>
-          <label style={{ flex: 2 }}>
-            사유 (Reason)
-            <Input value={accessReason} onChange={(event) => setAccessReason(event.target.value)} placeholder="권한 부여/회수 또는 긴급권한 사유 입력" style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }} />
-          </label>
-        </div>
+          
+          <div style={{ display: "flex", gap: 12 }}>
+            <label style={{ flex: 1 }}>
+              권한 (Role)
+              <select value={accessRole} onChange={(event) => setAccessRole(event.target.value)} style={{ display: "block", width: "100%", padding: 8, marginTop: 4, borderRadius: 6, border: "1px solid #ccc" }}>
+                <option value="ops_viewer">ops_viewer (조회 전용)</option>
+                <option value="ops_operator">ops_operator (수동 액션 가능)</option>
+                <option value="ops_admin">ops_admin (전체 제어)</option>
+              </select>
+            </label>
+            <label style={{ flex: 2 }}>
+              사유 (Reason)
+              <Input value={accessReason} onChange={(event) => setAccessReason(event.target.value)} placeholder="권한 부여/회수 또는 긴급권한 사유 입력" style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }} />
+            </label>
+          </div>
 
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <Button 
-            disabled={busy || !accessTargetUid || !accessRole || !accessReason} 
-            onClick={() => callApi(`/v1/ops/access/grant`, { method: "POST", body: JSON.stringify({ targetUid: accessTargetUid, role: accessRole, reason: accessReason }) })}
-            style={{ background: "#43a047", color: "white", padding: "6px 12px" }}
-          >
-            권한 부여 (Grant)
-          </Button>
-          <Button 
-            disabled={busy || !accessTargetUid || !accessReason} 
-            onClick={() => callApi(`/v1/ops/access/revoke`, { method: "POST", body: JSON.stringify({ targetUid: accessTargetUid, reason: accessReason }) })}
-            style={{ background: "#f57c00", color: "white", padding: "6px 12px" }}
-          >
-            권한 회수 (Revoke)
-          </Button>
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <Button 
+              disabled={busy || !accessTargetUid || !accessRole || !accessReason} 
+              onClick={() => callApi(`/v1/ops/access/grant`, { method: "POST", body: JSON.stringify({ targetUid: accessTargetUid, role: accessRole, reason: accessReason }) })}
+              style={{ background: "#43a047", color: "white", padding: "6px 12px" }}
+            >
+              권한 부여 (Grant)
+            </Button>
+            <Button 
+              disabled={busy || !accessTargetUid || !accessReason} 
+              onClick={() => callApi(`/v1/ops/access/revoke`, { method: "POST", body: JSON.stringify({ targetUid: accessTargetUid, reason: accessReason }) })}
+              style={{ background: "#f57c00", color: "white", padding: "6px 12px" }}
+            >
+              권한 회수 (Revoke)
+            </Button>
+          </div>
         </div>
       </section>
 
