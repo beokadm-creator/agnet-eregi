@@ -72,6 +72,13 @@
 - **EP-20 고급 멀티채널 고객 알림**: 케이스 진행 상황을 이메일(Sendgrid) 및 SMS(Twilio)로 자동 발송하는 템플릿 시스템.
 - [상세 스펙: phase-9-roadmap.md](./phase-9-roadmap.md)
 
+### Phase 10 — 플랫폼 제품화 및 운영 표준화 (Platformization & Governance)
+- **EP-21 Partner Auth 제품화**: API Key 회수/회전, lastUsedAt, OAuth2(Client Credentials) + scope 도입.
+- **EP-22 Webhook Delivery 서비스화**: 재시도/백오프/DLQ, 서명, 이벤트 카탈로그/스키마 버전 정책.
+- **EP-23 Metering & Quota**: 파트너별 사용량 계측, 플랜별 레이트리밋/쿼터, 운영자 강제 조정.
+- **EP-24 Observability 표준화**: 구조적 로그/트레이스, SLO/에러버짓, Ops 대시보드 고도화.
+- [상세 스펙: phase-10-roadmap.md](./phase-10-roadmap.md)
+
 > 참고: “MVP를 안 한다”는 의미는 Phase 1~3을 모두 하겠다는 것으로 해석하되, **릴리즈 순서/의존성 관리**는 여전히 필요합니다.
 
 ---
@@ -211,4 +218,3 @@
 - `sampleCaseIds`: 실패 케이스 ID 샘플 (최대 3개)
 - `reproSteps`: 재현 및 디버깅 단계 (자동 생성)
 - `acceptanceCriteria`: 해결을 위한 수용 기준 (자동 생성)
-

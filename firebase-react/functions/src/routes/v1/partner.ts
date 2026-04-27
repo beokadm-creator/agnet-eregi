@@ -227,18 +227,138 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
     }
 
     try {
-      const apiKey = crypto.randomBytes(32).toString("hex");
+      const secret = crypto.randomBytes(32).toString("hex");
+      const prefix = secret.slice(0, 8);
+      const keyHash = crypto.createHash("sha256").update(secret).digest("hex");
+      const docRef = db.collection("api_keys").doc();
 
-      await db.collection("api_keys").doc(apiKey).set({
+      await docRef.set({
         partnerId,
+        prefix,
+        keyHash,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        status: "active",
+        status: "active"
       });
 
-      return ok(res, { apiKey }, requestId);
+      return ok(res, { apiKey: `ar_${prefix}.${secret}`, keyId: docRef.id, prefix }, requestId);
     } catch (error: any) {
       logError({ endpoint: "POST /v1/partner/api-keys", code: "INTERNAL", messageKo: "API 키 생성 실패", err: error });
       return fail(res, 500, "INTERNAL", "API 키 생성에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  app.get("/v1/partner/api-keys", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      const snap = await db.collection("api_keys")
+        .where("partnerId", "==", partnerId)
+        .orderBy("createdAt", "desc")
+        .limit(50)
+        .get();
+
+      const items = snap.docs.map(d => {
+        const data = d.data() as any;
+        return {
+          id: d.id,
+          prefix: data.prefix,
+          status: data.status,
+          createdAt: data.createdAt || null,
+          revokedAt: data.revokedAt || null,
+          lastUsedAt: data.lastUsedAt || null
+        };
+      });
+
+      return ok(res, { items }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "GET /v1/partner/api-keys", code: "INTERNAL", messageKo: "API 키 목록 조회 실패", err: error });
+      return fail(res, 500, "INTERNAL", "API 키 목록 조회에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  app.post("/v1/partner/api-keys/:keyId/revoke", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+    const keyId = String(req.params.keyId);
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      const ref = db.collection("api_keys").doc(keyId);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        return fail(res, 404, "NOT_FOUND", "API 키를 찾을 수 없습니다.", { requestId });
+      }
+      const data = snap.data() as any;
+      if (data.partnerId !== partnerId) {
+        return fail(res, 403, "FORBIDDEN", "API 키 접근 권한이 없습니다.", { requestId });
+      }
+
+      await ref.update({
+        status: "revoked",
+        revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return ok(res, { keyId, status: "revoked" }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "POST /v1/partner/api-keys/:keyId/revoke", code: "INTERNAL", messageKo: "API 키 회수 실패", err: error });
+      return fail(res, 500, "INTERNAL", "API 키 회수에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  app.post("/v1/partner/api-keys/rotate", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+    const revokeAll = req.body?.revokeAll === true;
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      if (revokeAll) {
+        const snap = await db.collection("api_keys")
+          .where("partnerId", "==", partnerId)
+          .where("status", "==", "active")
+          .limit(200)
+          .get();
+
+        const batch = db.batch();
+        for (const d of snap.docs) {
+          batch.update(d.ref, {
+            status: "revoked",
+            revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+        await batch.commit();
+      }
+
+      const secret = crypto.randomBytes(32).toString("hex");
+      const prefix = secret.slice(0, 8);
+      const keyHash = crypto.createHash("sha256").update(secret).digest("hex");
+      const docRef = db.collection("api_keys").doc();
+
+      await docRef.set({
+        partnerId,
+        prefix,
+        keyHash,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: "active"
+      });
+
+      return ok(res, { apiKey: `ar_${prefix}.${secret}`, keyId: docRef.id, prefix }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "POST /v1/partner/api-keys/rotate", code: "INTERNAL", messageKo: "API 키 회전 실패", err: error });
+      return fail(res, 500, "INTERNAL", "API 키 회전에 실패했습니다.", { error: error.message, requestId });
     }
   });
 }

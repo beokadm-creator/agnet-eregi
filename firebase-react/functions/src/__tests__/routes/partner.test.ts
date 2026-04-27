@@ -88,7 +88,8 @@ describe("Partner Routes (API Keys)", () => {
     expect(res.body.ok).toBe(true);
     expect(res.body.data.apiKey).toBeDefined();
     expect(typeof res.body.data.apiKey).toBe("string");
-    // 32 bytes hex string = 64 characters
-    expect(res.body.data.apiKey.length).toBe(64);
+    expect(res.body.data.apiKey).toMatch(/^ar_[a-f0-9]{8}\.[a-f0-9]{64}$/);
+    expect(res.body.data.keyId).toBeDefined();
+    expect(typeof res.body.data.keyId).toBe("string");
   });
 });
