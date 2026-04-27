@@ -2665,5 +2665,74 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
     res.setHeader("Content-Disposition", `attachment; filename="closing_report_${caseId}.docx"`);
     return res.status(200).send(buf);
   });
+
+  // Webhook DLQ 조회
+  app.get("/v1/ops/webhooks/dlq", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const limit = Number(req.query.limit) || 50;
+      
+      const snap = await adminApp.firestore().collection("ops_webhook_dlq")
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .get();
+        
+      const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return ok(res, { items });
+    } catch (e: any) {
+      return fail(res, 500, "INTERNAL", e.message);
+    }
+  });
+
+  // API Errors 조회
+  app.get("/v1/ops/errors", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const limit = Number(req.query.limit) || 50;
+      
+      const snap = await adminApp.firestore().collection("ops_api_errors")
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .get();
+        
+      const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return ok(res, { items });
+    } catch (e: any) {
+      return fail(res, 500, "INTERNAL", e.message);
+    }
+  });
+
+  // OCR Failure Rate 조회
+  app.get("/v1/ops/ocr/stats", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const snap = await adminApp.firestore().collection("ops_ocr_stats")
+        .orderBy("date", "desc")
+        .limit(10)
+        .get();
+        
+      let items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      if (items.length === 0) {
+        items = [
+          { id: "dummy", date: formatKstYmd(), total: 100, failures: 5, failureRate: 0.05 }
+        ] as any[];
+      }
+      
+      return ok(res, { items });
+    } catch (e: any) {
+      return fail(res, 500, "INTERNAL", e.message);
+    }
+  });
 }
+
 

@@ -243,6 +243,33 @@ function OpsShell() {
         </div>
       </section>
 
+      <section style={{ display: "grid", gap: 12, padding: 16, background: "white", border: "1px solid #e2e8f0", borderRadius: 12, marginTop: 16 }}>
+        <h3 style={{ margin: 0, color: "#9c27b0" }}>📊 Observability & Monitoring</h3>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Button 
+            disabled={busy} 
+            onClick={() => callApi(`/v1/ops/webhooks/dlq`)}
+            style={{ background: "#9c27b0", color: "white", padding: "6px 12px" }}
+          >
+            Webhook DLQ 조회
+          </Button>
+          <Button 
+            disabled={busy} 
+            onClick={() => callApi(`/v1/ops/errors`)}
+            style={{ background: "#e91e63", color: "white", padding: "6px 12px" }}
+          >
+            API Errors 조회
+          </Button>
+          <Button 
+            disabled={busy} 
+            onClick={() => callApi(`/v1/ops/ocr/stats`)}
+            style={{ background: "#673ab7", color: "white", padding: "6px 12px" }}
+          >
+            OCR Failure Rate 조회
+          </Button>
+        </div>
+      </section>
+
       <pre style={{ marginTop: 16, padding: 16, background: "#0f172a", color: "#e2e8f0", borderRadius: 12, overflowX: "auto" }}>{log}</pre>
     </main>
   );
