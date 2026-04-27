@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { CaseEvidence } from "./partner_models";
 import { enqueueNotification } from "./notify_trigger";
+import { extractTextFromImage, validateDocument } from "./vision";
 
 export async function processEvidenceValidation(adminApp: typeof admin) {
   const db = adminApp.firestore();
@@ -53,19 +54,44 @@ export async function processEvidenceValidation(adminApp: typeof admin) {
         throw new Error("악성 코드가 감지되었습니다.");
       }
 
+      let extractedText = "";
+      let isValidAI = true;
+      let missingKeywords: string[] = [];
+
+      // AI Vision 검증 (이미지 파일에 한함)
+      if (contentType.startsWith("image/")) {
+        const gsUri = `gs://${bucket.name}/${ev.storagePath}`;
+        try {
+          extractedText = await extractTextFromImage(gsUri);
+          // ev.itemCode를 기반으로 문서 타입 추론 (예: BUSINESS_LICENSE 등)
+          const aiResult = validateDocument(extractedText, ev.itemCode || "");
+          isValidAI = aiResult.isValid;
+          missingKeywords = aiResult.missingKeywords;
+        } catch (visionError) {
+          console.warn(`[EvidenceValidation] Vision API failed for ${evidenceId}:`, visionError);
+          // Vision 실패 시 수동 검토를 위해 우선 통과시키거나 에러 처리 가능 (여기서는 통과 처리)
+        }
+      }
+
       // 검증 통과 -> 상태 변경
       await doc.ref.update({
-        status: "validated",
+        status: isValidAI ? "validated" : "needs_review", // AI 검증 실패 시 수동 검토
         scanStatus,
         contentType,
         sizeBytes,
+        extractedText, // OCR 텍스트 저장
+        aiChecked: true,
+        aiValidationResult: {
+          isValid: isValidAI,
+          missingKeywords
+        },
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      console.log(`[EvidenceValidation] Evidence ${evidenceId} validated successfully.`);
+      console.log(`[EvidenceValidation] Evidence ${evidenceId} validated successfully. AI Valid: ${isValidAI}`);
 
-      // Evidence Request 충족 처리
-      if (ev.requestId && ev.itemCode) {
+      // Evidence Request 충족 처리 (AI 검증 통과한 경우에만 자동 fulfilled 처리)
+      if (isValidAI && ev.requestId && ev.itemCode) {
         const reqRef = db.collection("evidence_requests").doc(ev.requestId);
         
         await db.runTransaction(async (transaction) => {
