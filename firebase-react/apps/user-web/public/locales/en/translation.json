@@ -1,0 +1,15 @@
+{
+  "title": "AgentRegi User Console",
+  "auth_load": "Auth & Load Data",
+  "funnel_title": "Diagnosis (Funnel) & Matching",
+  "funnel_placeholder": "e.g. I want to register a change of executives",
+  "funnel_start": "Start Diagnosis",
+  "my_submissions": "My Submissions",
+  "refresh": "Refresh",
+  "pack_placeholder": "Select Case Category (Case Pack)",
+  "legacy_placeholder": "Or enter directly (Legacy type)",
+  "payload_placeholder": "Initial Payload (JSON or text)",
+  "submit_now": "Submit immediately (Skip Draft)",
+  "create_new": "Create New",
+  "empty_submissions": "No submission history."
+}

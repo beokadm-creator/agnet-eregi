@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
-import FloatingChatWidget from "./components/FloatingChatWidget";
-import TossPaymentModal from "./components/TossPaymentModal";
+
+const FloatingChatWidget = lazy(() => import("./components/FloatingChatWidget"));
+const TossPaymentModal = lazy(() => import("./components/TossPaymentModal"));
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -1281,29 +1282,33 @@ function App() {
       )}
       
       {/* 플로팅 챗봇 위젯 마운트 */}
-      <FloatingChatWidget token={token} />
+      <Suspense fallback={null}>
+        <FloatingChatWidget token={token} />
+      </Suspense>
 
       {/* 토스페이먼츠 결제 모달 마운트 */}
-      {showTossModal && payment && (
-        <TossPaymentModal
-          clientKey={payment.clientKey || ""}
-          customerKey={user?.uid || "anonymous"}
-          amount={payment.amount}
-          orderId={payment.id}
-          orderName={`결제건 ${payment.id}`}
-          successUrl={`${window.location.origin}${window.location.pathname}?tossSuccess=true&paymentId=${payment.id}&paymentKey={PAYMENT_KEY}&orderId={ORDER_ID}&amount={AMOUNT}`}
-          failUrl={`${window.location.origin}${window.location.pathname}?tossFail=true&paymentId=${payment.id}`}
-          onClose={() => {
-            setShowTossModal(false);
-            setBusy(false);
-          }}
-          onError={(err) => {
-            setLog(`[Error] 토스 결제 모달 오류: ${err.message || err}`);
-            setShowTossModal(false);
-            setBusy(false);
-          }}
-        />
-      )}
+      <Suspense fallback={null}>
+        {showTossModal && payment && (
+          <TossPaymentModal
+            clientKey={payment.clientKey || ""}
+            customerKey={user?.uid || "anonymous"}
+            amount={payment.amount}
+            orderId={payment.id}
+            orderName={`결제건 ${payment.id}`}
+            successUrl={`${window.location.origin}${window.location.pathname}?tossSuccess=true&paymentId=${payment.id}&paymentKey={PAYMENT_KEY}&orderId={ORDER_ID}&amount={AMOUNT}`}
+            failUrl={`${window.location.origin}${window.location.pathname}?tossFail=true&paymentId=${payment.id}`}
+            onClose={() => {
+              setShowTossModal(false);
+              setBusy(false);
+            }}
+            onError={(err) => {
+              setLog(`[Error] 토스 결제 모달 오류: ${err.message || err}`);
+              setShowTossModal(false);
+              setBusy(false);
+            }}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

@@ -49,5 +49,11 @@ jobs:
       - name: Test Ops Console
         run: npm run test -w ops-console
 
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: npx playwright test
+
       - name: Build All Workspaces
         run: npm run build
