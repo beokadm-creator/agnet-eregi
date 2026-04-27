@@ -84,3 +84,31 @@ export interface CasePackage {
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }
+
+export type RBACRole = "owner" | "admin" | "editor" | "viewer" | "billing" | "agent";
+
+export interface Organization {
+  id?: string;
+  name: string;
+  ownerId: string;
+  createdAt: admin.firestore.Timestamp;
+  updatedAt: admin.firestore.Timestamp;
+}
+
+export interface Workspace {
+  id?: string;
+  organizationId: string;
+  name: string;
+  createdAt: admin.firestore.Timestamp;
+  updatedAt: admin.firestore.Timestamp;
+}
+
+export interface PartnerMember {
+  id?: string;
+  userId: string;
+  organizationId: string;
+  workspaceIds?: string[];
+  role: RBACRole;
+  createdAt: admin.firestore.Timestamp;
+  updatedAt: admin.firestore.Timestamp;
+}

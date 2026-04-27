@@ -507,4 +507,86 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
       return fail(res, 500, "INTERNAL", "웹훅 삭제에 실패했습니다.", { error: error.message, requestId });
     }
   });
+
+  // 10. 조직 생성 (POST /v1/partner/organizations)
+  app.post("/v1/partner/organizations", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const uid = (req as any).user.uid;
+    const { name } = req.body;
+
+    if (!name) {
+      return fail(res, 400, "INVALID_ARGUMENT", "조직 이름(name)이 필요합니다.", { requestId });
+    }
+
+    try {
+      const docRef = db.collection("organizations").doc();
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      await docRef.set({
+        name,
+        ownerId: uid,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      return ok(res, { id: docRef.id, name, ownerId: uid }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "POST /v1/partner/organizations", code: "INTERNAL", messageKo: "조직 생성 실패", err: error });
+      return fail(res, 500, "INTERNAL", "조직 생성에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  // 11. 워크스페이스 생성 (POST /v1/partner/workspaces)
+  app.post("/v1/partner/workspaces", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const { name, organizationId } = req.body;
+
+    if (!name || !organizationId) {
+      return fail(res, 400, "INVALID_ARGUMENT", "워크스페이스 이름(name)과 조직 ID(organizationId)가 필요합니다.", { requestId });
+    }
+
+    try {
+      const docRef = db.collection("workspaces").doc();
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      await docRef.set({
+        name,
+        organizationId,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      return ok(res, { id: docRef.id, name, organizationId }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "POST /v1/partner/workspaces", code: "INTERNAL", messageKo: "워크스페이스 생성 실패", err: error });
+      return fail(res, 500, "INTERNAL", "워크스페이스 생성에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  // 12. 케이스 특정 멤버 할당 (POST /v1/partner/cases/:caseId/assign)
+  app.post("/v1/partner/cases/:caseId/assign", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const caseId = String(req.params.caseId);
+    const { memberId } = req.body;
+
+    if (!memberId) {
+      return fail(res, 400, "INVALID_ARGUMENT", "할당할 멤버 ID(memberId)가 필요합니다.", { requestId });
+    }
+
+    try {
+      const caseRef = db.collection("cases").doc(caseId);
+      const caseDoc = await caseRef.get();
+      if (!caseDoc.exists) {
+        return fail(res, 404, "NOT_FOUND", "해당 케이스를 찾을 수 없습니다.", { requestId });
+      }
+
+      await caseRef.update({
+        assignedMemberId: memberId,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return ok(res, { caseId, assignedMemberId: memberId }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "POST /v1/partner/cases/:caseId/assign", code: "INTERNAL", messageKo: "케이스 멤버 할당 실패", err: error });
+      return fail(res, 500, "INTERNAL", "케이스 멤버 할당에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
 }
