@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -52,9 +53,9 @@ export default function Subscriptions() {
                 해지 예약: {subscription.cancelAtPeriodEnd ? "예약됨 (이번 주기 후 만료)" : "자동 갱신 예정"}
               </div>
               {!subscription.cancelAtPeriodEnd && subscription.status === "active" && (
-                <button onClick={cancelSubscription} disabled={busy} style={{ background: "#d32f2f", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}>
+                <Button onClick={cancelSubscription} disabled={busy} style={{ background: "#d32f2f", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}>
                   구독 해지 예약
-                </button>
+                </Button>
               )}
             </div>
           ) : (
@@ -75,13 +76,13 @@ export default function Subscriptions() {
                 <ul style={{ margin: "0 0 12px 0", paddingLeft: 20, fontSize: "0.85em", color: "#555" }}>
                   {plan.features?.map((f: string, idx: number) => <li key={idx}>{f}</li>)}
                 </ul>
-                <button 
+                <Button 
                   onClick={() => subscribePlan(plan.id)} 
                   disabled={busy || (subscription && subscription.planId === plan.id && !subscription.cancelAtPeriodEnd)}
                   style={{ width: "100%", padding: 8, background: (subscription && subscription.planId === plan.id) ? "#9e9e9e" : "#0288d1", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}
                 >
                   {(subscription && subscription.planId === plan.id) ? "현재 이용 중" : "가입 / 변경하기"}
-                </button>
+                </Button>
               </div>
             ))}
           </div>

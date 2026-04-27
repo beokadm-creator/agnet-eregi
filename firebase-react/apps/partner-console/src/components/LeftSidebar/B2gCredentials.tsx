@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -40,10 +41,10 @@ export default function B2gCredentials() {
           <option value="HOMETAX">국세청 홈택스 (HOMETAX)</option>
           <option value="GOV24">정부24 (GOV24)</option>
         </select>
-        <input type="password" placeholder="인증서 비밀번호" value={newB2gPassword} onChange={e => setNewB2gPassword(e.target.value)} style={{ padding: 6, flex: 1 }} />
-        <button onClick={registerB2gCredential} disabled={busy || !newB2gPassword} style={{ padding: "6px 12px", background: "#1565c0", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+        <Input type="password" placeholder="인증서 비밀번호" value={newB2gPassword} onChange={e => setNewB2gPassword(e.target.value)} style={{ padding: 6, flex: 1 }} />
+        <Button onClick={registerB2gCredential} disabled={busy || !newB2gPassword} style={{ padding: "6px 12px", background: "#1565c0", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
           인증서 등록
-        </button>
+        </Button>
       </div>
 
       {b2gCredentials.length === 0 ? (

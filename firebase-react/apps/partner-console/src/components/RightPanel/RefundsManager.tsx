@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -38,28 +39,28 @@ export default function RefundsManager() {
       <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", borderBottom: "1px solid #eee", paddingBottom: 8 }}>💸 환불 요청 (Refunds)</h3>
       
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-        <input 
+        <Input 
           placeholder="결제 ID (Payment ID)" 
           value={newRefundPaymentId} 
           onChange={e => setNewRefundPaymentId(e.target.value)} 
           style={{ flex: 1, padding: 6, minWidth: 150 }} 
         />
-        <input 
+        <Input 
           type="number"
           placeholder="환불 금액" 
           value={newRefundAmount || ""} 
           onChange={e => setNewRefundAmount(Number(e.target.value))} 
           style={{ width: 100, padding: 6 }} 
         />
-        <input 
+        <Input 
           placeholder="환불 사유" 
           value={newRefundReason} 
           onChange={e => setNewRefundReason(e.target.value)} 
           style={{ flex: 2, padding: 6, minWidth: 200 }} 
         />
-        <button onClick={createRefund} disabled={busy || !newRefundPaymentId || !newRefundAmount || !newRefundReason} style={{ padding: "6px 12px", background: "#d84315", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+        <Button onClick={createRefund} disabled={busy || !newRefundPaymentId || !newRefundAmount || !newRefundReason} style={{ padding: "6px 12px", background: "#d84315", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
           환불 요청
-        </button>
+        </Button>
       </div>
 
       {refunds.length === 0 ? (

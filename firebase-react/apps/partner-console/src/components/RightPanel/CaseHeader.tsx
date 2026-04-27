@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 
 export default function CaseHeader() {
@@ -40,19 +41,19 @@ export default function CaseHeader() {
       </div>
       <div style={{ textAlign: "right" }}>
         <div style={{ fontWeight: "bold", marginBottom: 4 }}>상태: {statusText[selectedCase.status] || selectedCase.status.toUpperCase()}</div>
-        <button 
+        <Button 
           onClick={() => loadCaseDetail(selectedCase.id)} 
           disabled={busy} 
           style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em", marginRight: 8 }}
         >
           상세 새로고침
-        </button>
-        <button 
+        </Button>
+        <Button 
           onClick={() => setSelectedCase(null)} 
           style={{ background: "none", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em" }}
         >
           뒤로가기
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@agentregi/ui-components";
 import { ensureLogin, apiBase } from "../../api";
 
 interface Props {
@@ -141,30 +142,30 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
       </div>
 
       <div style={{ display: "flex", gap: 16, justifyContent: "center" }}>
-        <button 
+        <Button 
           onClick={downloadSubmissionPackage} 
           disabled={busy} 
           style={{ padding: "12px 24px", fontSize: 16, background: "#1890ff", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold" }}
         >
           제출 패키지 (ZIP)
-        </button>
-        <button 
+        </Button>
+        <Button 
           onClick={downloadClosingReport} 
           disabled={busy} 
           style={{ padding: "12px 24px", fontSize: 16, background: "#fff", color: "#1890ff", border: "1px solid #1890ff", borderRadius: 6, cursor: "pointer", fontWeight: "bold" }}
         >
           종료 리포트 (DOCX)
-        </button>
+        </Button>
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <button
+        <Button
           onClick={validatePackage}
           disabled={busy || validating}
           style={{ padding: "8px 16px", fontSize: 14, background: "#fff", color: "#389e0d", border: "1px solid #b7eb8f", borderRadius: 6, cursor: "pointer", fontWeight: "bold" }}
         >
           {validating ? "검증 중..." : "ZIP 포함 파일 검증"}
-        </button>
+        </Button>
       </div>
 
       {validationError && (
@@ -173,12 +174,12 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
             <div>
               <strong>검증 오류:</strong> {validationError}
             </div>
-            <button 
+            <Button 
               onClick={handleCopyEvidence}
               style={{ padding: "4px 8px", fontSize: 12, background: copied ? "#52c41a" : "#fff", color: copied ? "#fff" : "#1890ff", border: `1px solid ${copied ? "#52c41a" : "#1890ff"}`, borderRadius: 4, cursor: "pointer" }}
             >
               {copied ? "복사됨!" : "에러 복사"}
-            </button>
+            </Button>
           </div>
           <div style={{ marginTop: 8, fontWeight: "bold" }}>다음 액션 가이드:</div>
           <div>서류 업로드 상태를 확인한 후 다시 검증을 시도해주세요.</div>
@@ -192,12 +193,12 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
             <div style={{ fontWeight: 700, color: validation.ok ? "#389e0d" : "#cf1322" }}>
               {validation.ok ? "✅ signed/ 및 접수증 포함 확인됨" : "⚠️ 누락된 파일이 있습니다"}
             </div>
-            <button 
+            <Button 
               onClick={handleCopyEvidence}
               style={{ padding: "4px 8px", fontSize: 12, background: copied ? "#52c41a" : "#fff", color: copied ? "#fff" : "#1890ff", border: `1px solid ${copied ? "#52c41a" : "#1890ff"}`, borderRadius: 4, cursor: "pointer" }}
             >
               {copied ? "복사됨!" : "증거 복사"}
-            </button>
+            </Button>
           </div>
           {evidenceId && (
             <div style={{ fontSize: 11, color: "#8c8c8c", marginBottom: 8 }}>

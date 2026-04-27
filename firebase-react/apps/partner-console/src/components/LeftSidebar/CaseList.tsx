@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -35,12 +36,12 @@ export default function CaseList() {
     <>
       <h2 style={{ margin: "0 0 16px 0", color: "#00695c", fontSize: "1.2em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         내 케이스 목록
-        <button onClick={loadCases} disabled={busy} style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em" }}>새로고침</button>
+        <Button onClick={loadCases} disabled={busy} style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em" }}>새로고침</Button>
       </h2>
       
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <input value={newCaseTitle} onChange={e => setNewCaseTitle(e.target.value)} placeholder="새 케이스 제목" style={{ flex: 1, padding: 6 }} />
-        <button onClick={createCase} disabled={busy || !newCaseTitle} style={{ padding: "6px 12px", background: "#00897b", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>생성</button>
+        <Input value={newCaseTitle} onChange={e => setNewCaseTitle(e.target.value)} placeholder="새 케이스 제목" style={{ flex: 1, padding: 6 }} />
+        <Button onClick={createCase} disabled={busy || !newCaseTitle} style={{ padding: "6px 12px", background: "#00897b", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>생성</Button>
       </div>
 
       {cases.length === 0 ? (

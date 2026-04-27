@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -61,15 +62,15 @@ export default function NotificationSettings() {
       <h3 style={{ margin: "0 0 12px 0", color: "#00695c", fontSize: "1.1em" }}>알림 설정 (Webhooks)</h3>
       <div style={{ marginBottom: 12, fontSize: "0.9em" }}>
         <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <input type="checkbox" checked={notificationSettings.events?.packageReady} onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, packageReady: e.target.checked } })} />
+          <Input type="checkbox" checked={notificationSettings.events?.packageReady} onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, packageReady: e.target.checked } })} />
           Package Ready
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <input type="checkbox" checked={notificationSettings.events?.closingReportReady} onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, closingReportReady: e.target.checked } })} />
+          <Input type="checkbox" checked={notificationSettings.events?.closingReportReady} onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, closingReportReady: e.target.checked } })} />
           Closing Report Ready
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <input type="checkbox" checked={notificationSettings.events?.caseCompleted} onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, caseCompleted: e.target.checked } })} />
+          <Input type="checkbox" checked={notificationSettings.events?.caseCompleted} onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, caseCompleted: e.target.checked } })} />
           Case Completed
         </label>
       </div>
@@ -82,19 +83,19 @@ export default function NotificationSettings() {
               <div><strong>URL:</strong> {w.url}</div>
               {w.secret && <div><strong>Secret:</strong> ***</div>}
             </div>
-            <button onClick={() => {
+            <Button onClick={() => {
               const currentChannels = notificationSettings.channels || {};
               const newWebhooks = [...(currentChannels.webhook || [])];
               newWebhooks.splice(idx, 1);
               updateNotificationSettings({ ...notificationSettings, channels: { ...currentChannels, webhook: newWebhooks } });
-            }} style={{ background: "#d32f2f", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>삭제</button>
+            }} style={{ background: "#d32f2f", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>삭제</Button>
           </div>
         ))}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <input placeholder="https://my-server.com/webhook" value={newWebhookUrl} onChange={e => setNewWebhookUrl(e.target.value)} style={{ padding: 6, fontSize: "0.85em" }} />
-        <input placeholder="Secret (optional)" value={newWebhookSecret} onChange={e => setNewWebhookSecret(e.target.value)} style={{ padding: 6, fontSize: "0.85em" }} />
-        <button onClick={addWebhook} disabled={busy || !newWebhookUrl} style={{ padding: "6px 12px", background: "#0277bd", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.9em" }}>웹훅 추가</button>
+        <Input placeholder="https://my-server.com/webhook" value={newWebhookUrl} onChange={e => setNewWebhookUrl(e.target.value)} style={{ padding: 6, fontSize: "0.85em" }} />
+        <Input placeholder="Secret (optional)" value={newWebhookSecret} onChange={e => setNewWebhookSecret(e.target.value)} style={{ padding: 6, fontSize: "0.85em" }} />
+        <Button onClick={addWebhook} disabled={busy || !newWebhookUrl} style={{ padding: "6px 12px", background: "#0277bd", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.9em" }}>웹훅 추가</Button>
       </div>
       
       <div style={{ marginTop: 20, marginBottom: 12 }}>
@@ -104,17 +105,17 @@ export default function NotificationSettings() {
             <div>
               <div><strong>URL:</strong> {s.url}</div>
             </div>
-            <button onClick={() => {
+            <Button onClick={() => {
               const currentChannels = notificationSettings.channels || {};
               const newSlack = [...(currentChannels.slack || [])];
               newSlack.splice(idx, 1);
               updateNotificationSettings({ ...notificationSettings, channels: { ...currentChannels, slack: newSlack } });
-            }} style={{ background: "#d32f2f", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>삭제</button>
+            }} style={{ background: "#d32f2f", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>삭제</Button>
           </div>
         ))}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-          <input placeholder="https://hooks.slack.com/services/..." value={newSlackWebhookUrl} onChange={e => setNewSlackWebhookUrl(e.target.value)} style={{ padding: 6, fontSize: "0.85em" }} />
-          <button onClick={addSlackWebhook} disabled={busy || !newSlackWebhookUrl} style={{ padding: "6px 12px", background: "#e91e63", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.9em" }}>Slack 웹훅 추가</button>
+          <Input placeholder="https://hooks.slack.com/services/..." value={newSlackWebhookUrl} onChange={e => setNewSlackWebhookUrl(e.target.value)} style={{ padding: 6, fontSize: "0.85em" }} />
+          <Button onClick={addSlackWebhook} disabled={busy || !newSlackWebhookUrl} style={{ padding: "6px 12px", background: "#e91e63", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.9em" }}>Slack 웹훅 추가</Button>
         </div>
       </div>
     </div>

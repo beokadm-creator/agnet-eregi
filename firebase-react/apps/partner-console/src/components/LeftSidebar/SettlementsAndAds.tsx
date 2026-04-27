@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -50,9 +51,9 @@ export default function SettlementsAndAds() {
       <div>
         <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em", color: "#1565c0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           광고 캠페인
-          <button onClick={createAdCampaign} disabled={busy} style={{ background: "#0288d1", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}>
+          <Button onClick={createAdCampaign} disabled={busy} style={{ background: "#0288d1", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}>
             + 새 캠페인 (CPC)
-          </button>
+          </Button>
         </h4>
         {adCampaigns.length === 0 ? (
           <div style={{ color: "#999", fontSize: "0.85em" }}>활성 캠페인이 없습니다.</div>

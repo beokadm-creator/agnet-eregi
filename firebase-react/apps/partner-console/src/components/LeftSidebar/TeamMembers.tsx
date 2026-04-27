@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -51,12 +52,12 @@ export default function TeamMembers() {
     <div style={{ borderTop: "2px solid #eee", paddingTop: 16, marginTop: 16 }}>
       <h3 style={{ margin: "0 0 12px 0", color: "#424242", fontSize: "1.1em", display: "flex", justifyContent: "space-between" }}>
         팀 멤버 관리 (EP-07-04)
-        <button onClick={loadTeamMembers} disabled={busy} style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em" }}>새로고침</button>
+        <Button onClick={loadTeamMembers} disabled={busy} style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em" }}>새로고침</Button>
       </h3>
       
       {/* 팀원 초대 폼 */}
       <div style={{ display: "flex", gap: 8, marginBottom: 12, background: "#f5f5f5", padding: 12, borderRadius: 6 }}>
-        <input 
+        <Input 
           type="email" 
           placeholder="초대할 이메일" 
           value={newInviteEmail} 
@@ -74,9 +75,9 @@ export default function TeamMembers() {
           <option value="viewer">Viewer (조회자)</option>
           <option value="member">Member (일반)</option>
         </select>
-        <button onClick={inviteTeamMember} disabled={busy || !newInviteEmail} style={{ padding: "6px 12px", background: "#424242", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+        <Button onClick={inviteTeamMember} disabled={busy || !newInviteEmail} style={{ padding: "6px 12px", background: "#424242", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
           초대하기
-        </button>
+        </Button>
       </div>
 
       {/* 팀원 목록 */}
@@ -97,13 +98,13 @@ export default function TeamMembers() {
                   상태: {member.status} | 합류일: {new Date(member.joinedAt).toLocaleDateString()}
                 </div>
               </div>
-              <button 
+              <Button 
                 onClick={() => removeTeamMember(member.userId)} 
                 disabled={busy}
                 style={{ background: "#ffebee", color: "#c62828", border: "1px solid #ffcdd2", padding: "6px 10px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}
               >
                 추방
-              </button>
+              </Button>
             </div>
           ))}
         </div>

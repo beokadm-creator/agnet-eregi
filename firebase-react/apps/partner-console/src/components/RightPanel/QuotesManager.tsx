@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -82,24 +83,24 @@ export default function QuotesManager() {
     <div style={{ marginBottom: 24 }}>
       <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", borderBottom: "1px solid #eee", paddingBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span>💰 견적 관리 (Quotes)</span>
-        <button 
+        <Button 
           onClick={generateAIAssistantQuote} 
           disabled={busy} 
           style={{ background: "#4a148c", color: "white", border: "none", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.85em", fontWeight: "bold" }}
         >
           🤖 AI로 초안 생성
-        </button>
+        </Button>
       </h3>
       
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", background: "#f5f5f5", padding: 12, borderRadius: 6 }}>
         <h4 style={{ margin: "0 0 8px 0", width: "100%", fontSize: "0.95em" }}>견적 제안 (Draft) 생성</h4>
-        <input type="number" placeholder="최소 금액" value={newQuotePriceMin || ""} onChange={e => setNewQuotePriceMin(Number(e.target.value))} style={{ flex: 1, padding: 6, minWidth: 100 }} />
-        <input type="number" placeholder="최대 금액" value={newQuotePriceMax || ""} onChange={e => setNewQuotePriceMax(Number(e.target.value))} style={{ flex: 1, padding: 6, minWidth: 100 }} />
-        <input type="number" placeholder="최소 소요시간(hr)" value={newQuoteEtaMin || ""} onChange={e => setNewQuoteEtaMin(Number(e.target.value))} style={{ flex: 1, padding: 6, minWidth: 100 }} />
-        <input type="number" placeholder="최대 소요시간(hr)" value={newQuoteEtaMax || ""} onChange={e => setNewQuoteEtaMax(Number(e.target.value))} style={{ flex: 1, padding: 6, minWidth: 100 }} />
-        <button onClick={createQuoteDraft} disabled={busy || !newQuotePriceMin || !newQuotePriceMax} style={{ padding: "6px 12px", background: "#00897b", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+        <Input type="number" placeholder="최소 금액" value={newQuotePriceMin || ""} onChange={e => setNewQuotePriceMin(Number(e.target.value))} style={{ flex: 1, padding: 6, minWidth: 100 }} />
+        <Input type="number" placeholder="최대 금액" value={newQuotePriceMax || ""} onChange={e => setNewQuotePriceMax(Number(e.target.value))} style={{ flex: 1, padding: 6, minWidth: 100 }} />
+        <Input type="number" placeholder="최소 소요시간(hr)" value={newQuoteEtaMin || ""} onChange={e => setNewQuoteEtaMin(Number(e.target.value))} style={{ flex: 1, padding: 6, minWidth: 100 }} />
+        <Input type="number" placeholder="최대 소요시간(hr)" value={newQuoteEtaMax || ""} onChange={e => setNewQuoteEtaMax(Number(e.target.value))} style={{ flex: 1, padding: 6, minWidth: 100 }} />
+        <Button onClick={createQuoteDraft} disabled={busy || !newQuotePriceMin || !newQuotePriceMax} style={{ padding: "6px 12px", background: "#00897b", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
           제안 생성
-        </button>
+        </Button>
       </div>
 
       {quotes.length === 0 ? (
@@ -136,11 +137,11 @@ export default function QuotesManager() {
 
               {q.status === "draft" && (
                 <div style={{ display: "flex", gap: 8, marginTop: 8, background: "#fff3e0", padding: 8, borderRadius: 4 }}>
-                  <input type="number" placeholder="최종 확정 금액" value={finalizeQuotePrice || ""} onChange={e => setFinalizeQuotePrice(Number(e.target.value))} style={{ flex: 1, padding: 6 }} />
-                  <input placeholder="전제 조건 (쉼표로 구분)" value={finalizeQuoteAssumptions} onChange={e => setFinalizeQuoteAssumptions(e.target.value)} style={{ flex: 2, padding: 6 }} />
-                  <button onClick={() => finalizeQuote(q.id)} disabled={busy || !finalizeQuotePrice} style={{ padding: "6px 12px", background: "#f57c00", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.9em" }}>
+                  <Input type="number" placeholder="최종 확정 금액" value={finalizeQuotePrice || ""} onChange={e => setFinalizeQuotePrice(Number(e.target.value))} style={{ flex: 1, padding: 6 }} />
+                  <Input placeholder="전제 조건 (쉼표로 구분)" value={finalizeQuoteAssumptions} onChange={e => setFinalizeQuoteAssumptions(e.target.value)} style={{ flex: 2, padding: 6 }} />
+                  <Button onClick={() => finalizeQuote(q.id)} disabled={busy || !finalizeQuotePrice} style={{ padding: "6px 12px", background: "#f57c00", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.9em" }}>
                     최종 확정하기
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

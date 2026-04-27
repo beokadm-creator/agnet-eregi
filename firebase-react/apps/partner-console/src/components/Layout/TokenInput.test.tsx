@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { vi } from 'vitest';
 import TokenInput from './TokenInput';
 import { AppProvider } from '../../context/AppContext';
 

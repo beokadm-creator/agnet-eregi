@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -66,13 +67,13 @@ export default function EvidencesManager() {
           <option value="bank_statement">은행 잔고 증명서</option>
           <option value="business_license">사업자 등록증</option>
         </select>
-        <input 
+        <Input 
           type="file"
           accept=".pdf,image/png,image/jpeg,image/jpg"
           onChange={e => setNewEvidenceFile(e.target.files?.[0] || null)} 
           style={{ flex: 1, padding: 6 }} 
         />
-        <button onClick={addEvidence} disabled={busy || !newEvidenceType || !newEvidenceFile} style={{ padding: "6px 12px", background: "#0277bd", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>업로드</button>
+        <Button onClick={addEvidence} disabled={busy || !newEvidenceType || !newEvidenceFile} style={{ padding: "6px 12px", background: "#0277bd", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>업로드</Button>
       </div>
 
       {evidences.length === 0 ? (
@@ -104,9 +105,9 @@ export default function EvidencesManager() {
                     {e.status === "pending" ? (
                       <span style={{ color: "#999" }}>업로드 중...</span>
                     ) : (
-                      <button onClick={(event) => { event.stopPropagation(); downloadEvidence(e.id); }} style={{ background: "transparent", border: "none", color: "#0288d1", textDecoration: "underline", cursor: "pointer", padding: 0 }}>
+                      <Button onClick={(event) => { event.stopPropagation(); downloadEvidence(e.id); }} style={{ background: "transparent", border: "none", color: "#0288d1", textDecoration: "underline", cursor: "pointer", padding: 0 }}>
                         {e.filename || "다운로드"}
-                      </button>
+                      </Button>
                     )}
                   </td>
                   <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>
