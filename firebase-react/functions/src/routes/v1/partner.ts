@@ -361,4 +361,150 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
       return fail(res, 500, "INTERNAL", "API 키 회전에 실패했습니다.", { error: error.message, requestId });
     }
   });
+
+  // 6. 파트너 웹훅 설정 조회 (GET /v1/partner/webhooks)
+  app.get("/v1/partner/webhooks", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      const snap = await db.collection("partner_webhooks")
+        .where("partnerId", "==", partnerId)
+        .orderBy("createdAt", "desc")
+        .limit(10)
+        .get();
+
+      const items = snap.docs.map(d => {
+        const data = d.data() as any;
+        return {
+          id: d.id,
+          url: data.url,
+          events: data.events || [],
+          status: data.status,
+          createdAt: data.createdAt || null,
+          updatedAt: data.updatedAt || null,
+        };
+      });
+
+      return ok(res, { items }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "GET /v1/partner/webhooks", code: "INTERNAL", messageKo: "웹훅 목록 조회 실패", err: error });
+      return fail(res, 500, "INTERNAL", "웹훅 목록 조회에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  // 7. 파트너 웹훅 등록 (POST /v1/partner/webhooks)
+  app.post("/v1/partner/webhooks", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+    const { url, events } = req.body;
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    if (!url || typeof url !== "string" || !url.startsWith("http")) {
+      return fail(res, 400, "INVALID_ARGUMENT", "유효한 웹훅 URL이 필요합니다.", { requestId });
+    }
+
+    try {
+      // Create a secure random secret for this webhook
+      const secret = crypto.randomBytes(32).toString("hex");
+      const docRef = db.collection("partner_webhooks").doc();
+
+      await docRef.set({
+        partnerId,
+        url,
+        events: events || ["*"],
+        secret,
+        status: "active",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return ok(res, { 
+        id: docRef.id, 
+        url, 
+        events: events || ["*"], 
+        secret, // Secret is returned only once upon creation
+        status: "active" 
+      }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "POST /v1/partner/webhooks", code: "INTERNAL", messageKo: "웹훅 등록 실패", err: error });
+      return fail(res, 500, "INTERNAL", "웹훅 등록에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  // 8. 파트너 웹훅 수정 (PUT /v1/partner/webhooks/:webhookId)
+  app.put("/v1/partner/webhooks/:webhookId", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+    const webhookId = String(req.params.webhookId);
+    const { url, events, status } = req.body;
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      const ref = db.collection("partner_webhooks").doc(webhookId);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        return fail(res, 404, "NOT_FOUND", "웹훅을 찾을 수 없습니다.", { requestId });
+      }
+      const data = snap.data() as any;
+      if (data.partnerId !== partnerId) {
+        return fail(res, 403, "FORBIDDEN", "웹훅 접근 권한이 없습니다.", { requestId });
+      }
+
+      const updates: any = {
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      
+      if (url && typeof url === "string" && url.startsWith("http")) updates.url = url;
+      if (events && Array.isArray(events)) updates.events = events;
+      if (status && ["active", "inactive"].includes(status)) updates.status = status;
+
+      await ref.update(updates);
+
+      return ok(res, { webhookId, ...updates, updatedAt: undefined }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "PUT /v1/partner/webhooks/:webhookId", code: "INTERNAL", messageKo: "웹훅 수정 실패", err: error });
+      return fail(res, 500, "INTERNAL", "웹훅 수정에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  // 9. 파트너 웹훅 삭제 (DELETE /v1/partner/webhooks/:webhookId)
+  app.delete("/v1/partner/webhooks/:webhookId", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+    const webhookId = String(req.params.webhookId);
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      const ref = db.collection("partner_webhooks").doc(webhookId);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        return fail(res, 404, "NOT_FOUND", "웹훅을 찾을 수 없습니다.", { requestId });
+      }
+      const data = snap.data() as any;
+      if (data.partnerId !== partnerId) {
+        return fail(res, 403, "FORBIDDEN", "웹훅 접근 권한이 없습니다.", { requestId });
+      }
+
+      await ref.delete();
+
+      return ok(res, { webhookId, deleted: true }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "DELETE /v1/partner/webhooks/:webhookId", code: "INTERNAL", messageKo: "웹훅 삭제 실패", err: error });
+      return fail(res, 500, "INTERNAL", "웹훅 삭제에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
 }
