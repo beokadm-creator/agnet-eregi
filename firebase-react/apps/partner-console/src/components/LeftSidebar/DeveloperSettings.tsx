@@ -3,6 +3,7 @@ import { Button, Input } from "@agentregi/ui-components";
 import { getAuth } from "firebase/auth";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
+import WebhookSettings from "./WebhookSettings";
 
 type ApiKeyItem = {
   id: string;
@@ -101,8 +102,9 @@ export default function DeveloperSettings() {
   }
 
   return (
-    <div style={{ marginTop: 24, padding: 16, border: "1px solid #ccc", borderRadius: 8, background: "#fafafa" }}>
-      <h3 style={{ margin: "0 0 12px" }}>개발자 설정 (API 연동)</h3>
+    <>
+      <div style={{ marginTop: 24, padding: 16, border: "1px solid #ccc", borderRadius: 8, background: "#fafafa" }}>
+        <h3 style={{ margin: "0 0 12px" }}>개발자 설정 (API 연동)</h3>
       <p style={{ fontSize: "0.9em", color: "#555", marginBottom: 12 }}>
         B2B/B2G 파트너 시스템 연동을 위한 API 키를 발급받을 수 있습니다. 발급된 키는 안전하게 보관하세요.
       </p>
@@ -154,6 +156,9 @@ export default function DeveloperSettings() {
           ))
         )}
       </div>
-    </div>
+      </div>
+      
+      <WebhookSettings />
+    </>
   );
 }
