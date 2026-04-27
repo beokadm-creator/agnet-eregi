@@ -6,6 +6,7 @@ import B2gCredentials from "../LeftSidebar/B2gCredentials";
 import SettlementsAndAds from "../LeftSidebar/SettlementsAndAds";
 import Subscriptions from "../LeftSidebar/Subscriptions";
 import TeamMembers from "../LeftSidebar/TeamMembers";
+import SecuritySettings from "../LeftSidebar/SecuritySettings";
 
 export default function LeftSidebar() {
   return (
@@ -17,6 +18,7 @@ export default function LeftSidebar() {
       <SettlementsAndAds />
       <Subscriptions />
       <TeamMembers />
+      <SecuritySettings />
     </div>
   );
 }
