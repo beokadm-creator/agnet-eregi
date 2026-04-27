@@ -66,6 +66,12 @@
 - **EP-17 인프라 보안 및 컴플라이언스**: Firebase App Check, 2FA(이중 인증), PII(개인식별정보) 암호화 등 보안 적용.
 - [상세 스펙: phase-8-roadmap.md](./phase-8-roadmap.md)
 
+### Phase 9 — 지능형 자동화 및 파트너 확장 (Intelligent Automation & Partner Ecosystem)
+- **EP-18 AI 기반 서류 자동 검증 (OCR/Vision)**: 사용자 증빙 서류에 대한 AI 1차 판독 및 필수 항목 누락 자동 확인.
+- **EP-19 파트너 오픈 API 및 고급 Webhook**: ERP/CRM 연동용 Public API Key 발급 및 재시도 로직 포함된 Webhook 발송 시스템.
+- **EP-20 고급 멀티채널 고객 알림**: 케이스 진행 상황을 이메일(Sendgrid) 및 SMS(Twilio)로 자동 발송하는 템플릿 시스템.
+- [상세 스펙: phase-9-roadmap.md](./phase-9-roadmap.md)
+
 > 참고: “MVP를 안 한다”는 의미는 Phase 1~3을 모두 하겠다는 것으로 해석하되, **릴리즈 순서/의존성 관리**는 여전히 필요합니다.
 
 ---
