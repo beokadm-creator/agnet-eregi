@@ -79,6 +79,13 @@
 - **EP-24 Observability 표준화**: 구조적 로그/트레이스, SLO/에러버짓, Ops 대시보드 고도화.
 - [상세 스펙: phase-10-roadmap.md](./phase-10-roadmap.md)
 
+### Phase 11 — 엔터프라이즈 SaaS 확장 및 팀 협업 고도화 (Enterprise SaaS & Team Collaboration)
+- **EP-25 엔터프라이즈 조직 및 팀 워크스페이스**: `partnerId` 기반에서 Organization -> Workspace -> Member 계층화.
+- **EP-26 세분화된 역할 기반 접근 제어 (Advanced RBAC)**: Owner, Admin, Member 커스텀 역할 및 케이스 담당자 할당.
+- **EP-27 엔터프라이즈 커스텀 템플릿 및 자동화 룰**: 파트너가 자체적인 서류 요청 양식, 견적 템플릿 생성 및 조건부 배정.
+- **EP-28 엔터프라이즈 SLA 및 리포팅 대시보드**: 팀원별 퍼포먼스, CSAT, 매출 분석 통계 차트 및 데이터 내보내기.
+- [상세 스펙: phase-11-roadmap.md](./phase-11-roadmap.md)
+
 > 참고: “MVP를 안 한다”는 의미는 Phase 1~3을 모두 하겠다는 것으로 해석하되, **릴리즈 순서/의존성 관리**는 여전히 필요합니다.
 
 ---
