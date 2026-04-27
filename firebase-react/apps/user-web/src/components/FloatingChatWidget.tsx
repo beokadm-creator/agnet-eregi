@@ -10,6 +10,8 @@ interface FloatingChatWidgetProps {
   token: string;
 }
 
+import { Button, Input } from "@agentregi/ui-components";
+
 export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -211,7 +213,7 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
             gap: '8px',
             backgroundColor: '#fff'
           }}>
-            <input
+            <Input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -227,7 +229,7 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
                 fontSize: '0.9em'
               }}
             />
-            <button
+            <Button
               onClick={handleSendMessage}
               disabled={isLoading || !inputValue.trim()}
               style={{
@@ -241,7 +243,7 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
               }}
             >
               전송
-            </button>
+            </Button>
           </div>
         </div>
       ) : (

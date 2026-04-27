@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { loadPaymentWidget, PaymentWidgetInstance } from "@tosspayments/payment-widget-sdk";
 
+import { Button } from "@agentregi/ui-components";
+
 interface TossPaymentModalProps {
   clientKey: string;
   customerKey: string;
@@ -116,19 +118,12 @@ export default function TossPaymentModal({
         <div id="payment-widget" style={{ minHeight: "200px" }} />
         <div id="agreement" style={{ marginTop: "16px" }} />
         
-        <button 
-          onClick={handlePaymentRequest}
-          disabled={!isLoaded}
-          style={{
-            width: "100%", padding: "16px", marginTop: "24px",
-            backgroundColor: isLoaded ? "#3182f6" : "#b0bec5", 
-            color: "white", border: "none",
-            borderRadius: "8px", fontSize: "16px", cursor: isLoaded ? "pointer" : "not-allowed", 
-            fontWeight: "bold", transition: "background-color 0.2s"
-          }}
-        >
-          {amount.toLocaleString()}원 결제하기
-        </button>
+        <div className="flex justify-end mt-4">
+          <Button variant="secondary" onClick={onClose} className="mr-2">취소</Button>
+          <Button variant="primary" onClick={handlePaymentRequest} disabled={!isLoaded}>
+            결제하기
+          </Button>
+        </div>
       </div>
     </div>
   );
