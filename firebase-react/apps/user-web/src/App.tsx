@@ -85,7 +85,8 @@ function App() {
       
       const doConfirm = async () => {
         try {
-          const res = await fetch(`/v1/user/payments/${paymentId}/confirm`, {
+          const apiUrl = import.meta.env.VITE_API_URL || "";
+          const res = await fetch(`${apiUrl}/v1/user/payments/${paymentId}/confirm`, {
             method: "POST",
             headers: { 
               Authorization: `Bearer ${token}`,
@@ -103,7 +104,7 @@ function App() {
           setLog(`[Success] 토스 결제 승인 완료!`);
           window.history.replaceState({}, document.title, window.location.pathname);
           // 상태가 동기화된 후 데이터를 다시 불러옵니다.
-          const submissionsRes = await fetch("/v1/user/submissions", {
+          const submissionsRes = await fetch(`${apiUrl}/v1/user/submissions`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           const submissionsData = await submissionsRes.json();
@@ -132,7 +133,8 @@ function App() {
   }
 
   async function apiGet(path: string) {
-    const res = await fetch(path, {
+    const apiUrl = import.meta.env.VITE_API_URL || "";
+    const res = await fetch(`${apiUrl}${path}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const data = await res.json();
@@ -141,7 +143,8 @@ function App() {
   }
 
   async function apiPost(path: string, body: any) {
-    const res = await fetch(path, {
+    const apiUrl = import.meta.env.VITE_API_URL || "";
+    const res = await fetch(`${apiUrl}${path}`, {
       method: "POST",
       headers: { 
         Authorization: `Bearer ${token}`,
@@ -482,8 +485,9 @@ function App() {
     setBusy(true);
     setLog("견적 동의 중...");
     try {
+      const apiUrl = import.meta.env.VITE_API_URL || "";
       const idempotencyKey = `quote_${quoteId}_${Date.now()}`;
-      await fetch(`/v1/user/cases/${selectedSub.id}/quotes/${quoteId}/accept`, {
+      await fetch(`${apiUrl}/v1/user/cases/${selectedSub.id}/quotes/${quoteId}/accept`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

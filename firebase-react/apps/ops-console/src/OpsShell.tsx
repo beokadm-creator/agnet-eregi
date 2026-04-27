@@ -5,7 +5,7 @@ import { signInAnonymously } from "firebase/auth";
 import "./App.css";
 
 function OpsShell() {
-  const apiBase = useMemo(() => import.meta.env.VITE_API_BASE || "", []);
+  const apiBase = useMemo(() => import.meta.env.VITE_API_URL || "", []);
   const [token, setToken] = useState("");
   const [gateKey, setGateKey] = useState("pilot-gate");
   const [caseId, setCaseId] = useState("");

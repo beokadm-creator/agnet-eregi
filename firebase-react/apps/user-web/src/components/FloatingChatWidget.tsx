@@ -33,7 +33,7 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
   }, [isOpen, token, sessionId]);
 
   const apiFetch = async (path: string, method: string = 'GET', body?: any) => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/agent-eregi/asia-northeast3/api';
+    const apiUrl = import.meta.env.VITE_API_URL || '';
     const res = await fetch(`${apiUrl}${path}`, {
       method,
       headers: {

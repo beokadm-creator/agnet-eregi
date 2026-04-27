@@ -9,15 +9,19 @@ export class ApiService {
     };
   }
 
+  private getBaseUrl() {
+    return import.meta.env.VITE_API_URL || "";
+  }
+
   async get(path: string) {
-    const res = await fetch(path, { headers: { Authorization: `Bearer ${this.getToken()}` } });
+    const res = await fetch(`${this.getBaseUrl()}${path}`, { headers: { Authorization: `Bearer ${this.getToken()}` } });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.messageKo || data.error?.code || "API Error");
     return data.data;
   }
 
   async post(path: string, body: any) {
-    const res = await fetch(path, {
+    const res = await fetch(`${this.getBaseUrl()}${path}`, {
       method: "POST",
       headers: this.headers,
       body: JSON.stringify(body)
@@ -28,7 +32,7 @@ export class ApiService {
   }
 
   async put(path: string, body: any) {
-    const res = await fetch(path, {
+    const res = await fetch(`${this.getBaseUrl()}${path}`, {
       method: "PUT",
       headers: this.headers,
       body: JSON.stringify(body)
@@ -39,7 +43,7 @@ export class ApiService {
   }
 
   async delete(path: string) {
-    const res = await fetch(path, {
+    const res = await fetch(`${this.getBaseUrl()}${path}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${this.getToken()}` }
     });
