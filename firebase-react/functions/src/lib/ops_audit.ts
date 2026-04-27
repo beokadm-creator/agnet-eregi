@@ -78,8 +78,41 @@ export function categorizeError(errorMsg: string): { category: OpsErrorCategory;
   };
 }
 
-export async function logOpsEvent(adminApp: typeof admin, event: OpsAuditEvent) {
+export async function logOpsEvent(adminApp: typeof admin, event: OpsAuditEvent): Promise<void>;
+export async function logOpsEvent(
+  db: admin.firestore.Firestore,
+  action: string,
+  status: "SUCCESS" | "FAIL" | "success" | "fail",
+  actorUid: string,
+  requestId: string,
+  caseId: string,
+  target?: Record<string, unknown>
+): Promise<void>;
+export async function logOpsEvent(
+  adminOrDb: typeof admin | admin.firestore.Firestore,
+  eventOrAction: OpsAuditEvent | string,
+  status?: "SUCCESS" | "FAIL" | "success" | "fail",
+  actorUid?: string,
+  requestId?: string,
+  caseId?: string,
+  target?: Record<string, unknown>
+): Promise<void> {
   try {
+    const firestore = typeof eventOrAction === "string"
+      ? adminOrDb as admin.firestore.Firestore
+      : (adminOrDb as typeof admin).firestore();
+
+    const event: OpsAuditEvent = typeof eventOrAction === "string"
+      ? {
+          action: eventOrAction,
+          status: status === "FAIL" || status === "fail" ? "fail" : "success",
+          actorUid: actorUid || "unknown",
+          requestId: requestId || `req_${Date.now()}`,
+          summary: `${eventOrAction} ${status || "success"}`,
+          target: { caseId, ...(target || {}) },
+        }
+      : eventOrAction;
+
     if (!event.correlationId) {
       event.correlationId = event.requestId || `corr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     }
@@ -93,10 +126,10 @@ export async function logOpsEvent(adminApp: typeof admin, event: OpsAuditEvent) 
       }
     }
 
-    const docRef = adminApp.firestore().collection("ops_audit_events").doc();
+    const docRef = firestore.collection("ops_audit_events").doc();
     await docRef.set({
       ...event,
-      createdAt: adminApp.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     // 치명적 에러 발생 시 즉시 알림

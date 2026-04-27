@@ -14,15 +14,32 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
       if (!auth) return;
 
       const userId = auth.uid;
-      const { inputType, payload, partnerId, submitNow } = req.body;
+      const { inputType, payload, partnerId, submitNow, sessionId } = req.body;
 
-      if (!inputType || !payload) {
-        return fail(res, 400, "INVALID_ARGUMENT", "inputType과 payload가 필요합니다.");
+      if (!inputType) {
+        return fail(res, 400, "INVALID_ARGUMENT", "inputType이 필요합니다.");
       }
       
       const pId = partnerId || "default_partner";
-
       const db = adminApp.firestore();
+
+      let finalPayload = payload || {};
+
+      if (sessionId) {
+        const sessionSnap = await db.collection("funnel_sessions").doc(sessionId).get();
+        if (sessionSnap.exists) {
+          const sessionData = sessionSnap.data();
+          if (sessionData?.status === "converted") {
+            return fail(res, 400, "FAILED_PRECONDITION", "이미 전환된 세션입니다.");
+          }
+          // Merge funnel answers into payload if payload is empty or combine them
+          if (!payload || Object.keys(payload).length === 0) {
+            finalPayload = sessionData?.answers || {};
+          }
+          await sessionSnap.ref.update({ status: "converted" });
+        }
+      }
+
       const docRef = db.collection("user_submissions").doc();
       
       const newSubmission: UserSubmission = {
@@ -31,7 +48,7 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
         status: submitNow ? "submitted" : "draft",
         input: {
           type: inputType,
-          payload
+          payload: finalPayload
         },
         createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
         updatedAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
@@ -605,9 +622,98 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
+      // 만약 특정 evidence request에 연결된 항목이라면 해당 request item 상태 업데이트
+      if (evData?.requestId && evData?.itemCode) {
+        const reqRef = db.collection("evidence_requests").doc(evData.requestId);
+        const reqSnap = await reqRef.get();
+        
+        if (reqSnap.exists && reqSnap.data()?.status === "open") {
+          const items = reqSnap.data()?.items || [];
+          let allFulfilled = true;
+          
+          const updatedItems = items.map((item: any) => {
+            if (item.code === evData.itemCode) {
+              item.status = "fulfilled";
+              item.evidenceId = eId;
+            }
+            if (item.status !== "fulfilled") {
+              allFulfilled = false;
+            }
+            return item;
+          });
+          
+          await reqRef.update({
+            items: updatedItems,
+            status: allFulfilled ? "fulfilled" : "open",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+
+          // 전체 항목이 제출되었으면 파트너에게 알림 발송
+          if (allFulfilled) {
+            const { enqueueNotification } = require("../../lib/notify_trigger");
+            await enqueueNotification(adminApp, { partnerId: evData.partnerId }, "evidence.fulfilled", {
+              caseId,
+              submissionId: subId,
+              requestId: evData.requestId
+            });
+
+            // 타임라인 이벤트 추가
+            const eventRef = db.collection("submission_events").doc();
+            await eventRef.set({
+              submissionId: subId,
+              userId,
+              type: "processing_progress",
+              message: "모든 보완 요청 서류가 제출되었습니다.",
+              createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+          }
+        }
+      }
+
       return ok(res, { message: "업로드 완료 확정됨", status: "uploaded" });
     } catch (err: any) {
       logError({ endpoint: "user/evidences/complete", code: "INTERNAL", messageKo: "업로드 완료 처리 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 14) GET /v1/user/submissions/:id/b2g
+  app.get("/v1/user/submissions/:id/b2g", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const userId = auth.uid;
+      const subId = String(req.params.id);
+      const db = adminApp.firestore();
+
+      const subSnap = await db.collection("user_submissions").doc(subId).get();
+      if (!subSnap.exists || subSnap.data()?.userId !== userId) {
+        return fail(res, 404, "NOT_FOUND", "제출 내역을 찾을 수 없습니다.");
+      }
+
+      const caseId = subSnap.data()?.caseId;
+      if (!caseId) {
+        return ok(res, { items: [], fees: [] });
+      }
+
+      const b2gSnap = await db.collection("b2g_submissions")
+        .where("caseId", "==", caseId)
+        .get();
+
+      const items = b2gSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      items.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+
+      const feesSnap = await db.collection("b2g_fee_payments")
+        .where("caseId", "==", caseId)
+        .get();
+
+      const fees = feesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      fees.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+
+      return ok(res, { items, fees });
+    } catch (err: any) {
+      logError({ endpoint: "user/submissions/b2g", code: "INTERNAL", messageKo: "B2G 제출 내역 조회 실패", err });
       return fail(res, 500, "INTERNAL", err.message);
     }
   });

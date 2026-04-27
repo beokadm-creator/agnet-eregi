@@ -6,6 +6,7 @@ import { requireAuth } from "../../lib/auth";
 import { fail, ok, logError } from "../../lib/http";
 import { Payment } from "../../lib/payment_models";
 import { tossConfirmPayment, getTossPaymentsSettings } from "../../lib/tosspayments";
+import { getExchangeRate, convertCurrency } from "../../lib/exchange_rate";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2023-10-16" as any });
 
@@ -27,15 +28,29 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
         return fail(res, 400, "INVALID_ARGUMENT", "amount와 currency가 필요합니다.");
       }
 
+      let finalAmount = amount;
+      let finalCurrency = currency.toUpperCase();
+
+      // EP-15-02: 토스페이먼츠 요청 시 타 통화라면 KRW로 강제 환산
+      if (providerNormalized === "tosspayments" && finalCurrency !== "KRW") {
+        finalAmount = await convertCurrency(amount, finalCurrency, "KRW");
+        finalCurrency = "KRW";
+      }
+
       const db = adminApp.firestore();
       const docRef = db.collection("payments").doc();
 
-      const payment: Payment = {
+      const payment: any = {
         userId,
         caseId: caseId || null,
         submissionId: submissionId || null,
-        amount,
-        currency,
+        amount: finalAmount,                   // 프로바이더 전달용 최종 금액
+        currency: finalCurrency,               // 프로바이더 전달용 최종 통화
+        originalAmount: amount,                // 고객이 요청한 원본 금액
+        originalCurrency: currency.toUpperCase(), 
+        exchangeRate: finalCurrency !== currency.toUpperCase() 
+          ? await getExchangeRate(currency.toUpperCase(), finalCurrency) 
+          : 1,
         status: "initiated",
         provider: providerNormalized,
         refundedAmount: 0,
@@ -51,11 +66,11 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
           payment_method_types: ['card'],
           line_items: [{
             price_data: {
-              currency: currency,
+              currency: finalCurrency.toLowerCase(),
               product_data: {
                 name: `Payment for Case ${caseId || submissionId || 'Unknown'}`,
               },
-              unit_amount: amount, // Assuming amount is in smallest currency unit
+              unit_amount: Math.round(finalAmount * 100), // Stripe uses smallest currency unit (cents for USD)
             },
             quantity: 1,
           }],
@@ -70,7 +85,7 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
             submissionId: submissionId || ""
           }
         }, {
-          idempotencyKey: docRef.id // Ensure we don't create multiple checkout sessions for the same payment document
+          idempotencyKey: docRef.id 
         });
 
         payment.checkoutUrl = session.url || undefined;

@@ -1,0 +1,22 @@
+import React from "react";
+import QualityTier from "../LeftSidebar/QualityTier";
+import CaseList from "../LeftSidebar/CaseList";
+import NotificationSettings from "../LeftSidebar/NotificationSettings";
+import B2gCredentials from "../LeftSidebar/B2gCredentials";
+import SettlementsAndAds from "../LeftSidebar/SettlementsAndAds";
+import Subscriptions from "../LeftSidebar/Subscriptions";
+import TeamMembers from "../LeftSidebar/TeamMembers";
+
+export default function LeftSidebar() {
+  return (
+    <div style={{ flex: 1, background: "#fff", padding: 16, borderRadius: 8, border: "1px solid #ddd" }}>
+      <QualityTier />
+      <CaseList />
+      <NotificationSettings />
+      <B2gCredentials />
+      <SettlementsAndAds />
+      <Subscriptions />
+      <TeamMembers />
+    </div>
+  );
+}

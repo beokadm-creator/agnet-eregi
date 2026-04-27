@@ -41,6 +41,31 @@
 - 품질지표/랭킹 고도화
 - 파트너 팀 계정/권한/템플릿
 
+### Phase 5 — 스케일업 및 지능화 (Scale-up & AI Intelligence)
+목표: 누적된 데이터와 AI를 활용하여 수동 운영 비용을 최소화하고, 옴니채널을 통해 사용자/파트너 경험을 극대화합니다.
+- AI 문서 인식(Document AI) 및 결함 사전 차단
+- 옴니채널 알림(Slack, 카카오톡, SMS) 및 매직 링크
+- 24/7 AI CS 챗봇 및 파트너용 AI 어시스턴트
+- 데이터 기반 소요 시간(ETA) 예측 및 동적 파트너 매칭 최적화
+
+### Phase 6 — 초자동화 및 B2G 연동 (Hyper-Automation & B2G Integration)
+목표: 플랫폼 내 서류를 대법원 등 관공서에 직접 제출(E-Filing)하여 수작업을 완전히 제거(Zero-Touch)합니다.
+- 공공기관 인증서 및 자격증명 중앙 관리 (GCP Secret Manager)
+- B2G 전자신청 패키지 자동 전송 (IROS, 정부24 등)
+- 공과금 및 세금 파싱 및 자동 납부 연동
+- 관공서 처리 상태(보정명령 등) 폴링 및 실시간 동기화
+
+### Phase 7 — B2B 파트너십 및 글로벌 확장 (B2B API & Global Localization)
+- **EP-14 B2B 오픈 API 연동**: 외부 B2B 플랫폼에서 당사 시스템으로 사건팩을 위탁할 수 있는 Webhook/API 연동(OAuth2 기반).
+- **EP-15 글로벌 다국어 지원**: `react-i18next` 기반의 다국어(i18n) 시스템과 Firestore 기반 다중 통화(결제) 및 환율 관리 로직 추가.
+- [상세 스펙: 65-b2b-open-api.md](../13-implementation/65-b2b-open-api.md)
+- [상세 스펙: 66-global-localization.md](../13-implementation/66-global-localization.md)
+
+### Phase 8 — 프로덕션 스케일업 및 완전 자동화 (Scale & Maturity)
+- **EP-16 프론트엔드 UI/UX 고도화 및 테스트**: Component Library 도입, React Testing Library 및 E2E 테스트 커버리지 확장.
+- **EP-17 인프라 보안 및 컴플라이언스**: Firebase App Check, 2FA(이중 인증), PII(개인식별정보) 암호화 등 보안 적용.
+- [상세 스펙: phase-8-roadmap.md](./phase-8-roadmap.md)
+
 > 참고: “MVP를 안 한다”는 의미는 Phase 1~3을 모두 하겠다는 것으로 해석하되, **릴리즈 순서/의존성 관리**는 여전히 필요합니다.
 
 ---
@@ -88,6 +113,42 @@
 - EP-08-02 문서 저장/암호화/보관/삭제요청
 - EP-08-03 관측(제품 분석 + 운영 모니터링)
 - EP-08-04 약관/개인정보/책임분리 문구/동의 로그
+
+### EP-09 AI 문서 인식 및 검증 (Document AI)
+- EP-09-01: 업로드 문서 OCR 자동 판독 및 정보 추출
+- EP-09-02: 결함 문서(유효기간, 서명 누락 등) 사전 차단
+- EP-09-03: 민감 개인정보(주민번호 등) 식별 및 마스킹
+
+### EP-10 옴니채널 알림 및 외부 연동 (Omni-channel)
+- EP-10-01: 사용자 대상 카카오 알림톡/SMS 연동
+- EP-10-02: 파트너/운영팀 대상 Slack/Teams 연동
+- EP-10-03: 보안 딥링크(Magic Link) 워크스페이스 진입
+
+### EP-11 지능형 CS 및 대화형 에이전트 (AI Agent)
+- EP-11-01: 24/7 LLM 기반 CS 챗봇 도입
+- EP-11-02: 대화형 진단 챗봇 인터페이스
+- EP-11-03: 파트너용 AI 어시스턴트 (답변/견적 초안)
+
+### EP-12 데이터 기반 예측 및 동적 최적화 (Data Analytics)
+- EP-12-01: ETA 및 승인 확률 예측 모델링
+- EP-12-02: 실시간 파트너 Capacity 기반 매칭
+- EP-12-03: 이탈(Drop-off) 자동 감지 및 리마인드
+
+### EP-13 B2G 연동 (공공기관 E-Filing)
+- EP-13-01: 공공기관 인증서(Credential) 암호화 관리
+- EP-13-02: 대법원/정부24 패키지 자동 전송 워커
+- EP-13-03: 공과금 및 세금 자동 파싱/납부 연동
+- EP-13-04: 공공기관 심사 상태 폴링 및 보정명령 에스컬레이션
+
+### EP-14 B2B Open API 및 파트너십 연동
+- EP-14-01: JWT 기반 API 인증 및 Rate Limiting
+- EP-14-02: 케이스 관리 API (생성/조회) 및 서류 업로드
+- EP-14-03: 상태 변화 실시간 알림을 위한 Webhook 연동
+
+### EP-15 글로벌 확장 및 지역화 (Global & Localization)
+- EP-15-01: 다국어(i18n) 번역 및 메타데이터 파이프라인
+- EP-15-02: 글로벌 결제(Stripe) 및 실시간 환율 기반 견적
+- EP-15-03: 아포스티유(Apostille) 문서 AI 자동 판독 및 매뉴얼 리뷰
 
 ---
 

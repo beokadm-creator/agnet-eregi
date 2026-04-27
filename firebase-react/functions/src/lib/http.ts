@@ -3,10 +3,12 @@ import * as express from "express";
 export type ApiErrorCode =
   | "UNAUTHENTICATED"
   | "FORBIDDEN"
+  | "PERMISSION_DENIED"
   | "NOT_FOUND"
   | "INVALID_ARGUMENT"
   | "FAILED_PRECONDITION"
   | "CONFLICT"
+  | "ALREADY_EXISTS"
   | "RATE_LIMITED"
   | "APPROVAL_REQUIRED"
   | "INTERNAL"
@@ -21,10 +23,48 @@ export interface ErrorLogPayload {
   evidenceId?: string;
   code: ApiErrorCode;
   messageKo: string;
-  err?: any;
+  err?: unknown;
 }
 
-export function logError(payload: ErrorLogPayload) {
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err || "");
+}
+
+function errorStack(err: unknown): string {
+  if (err instanceof Error) return err.stack || "";
+  return "";
+}
+
+export function logError(payload: ErrorLogPayload): void;
+export function logError(
+  endpoint: string,
+  caseId: string,
+  code: ApiErrorCode,
+  messageKo: string,
+  err?: unknown,
+  requestId?: string
+): void;
+export function logError(
+  payloadOrEndpoint: ErrorLogPayload | string,
+  caseId?: string,
+  code?: ApiErrorCode,
+  messageKo?: string,
+  err?: unknown,
+  requestId?: string
+) {
+  const payload: ErrorLogPayload & { requestId?: string } =
+    typeof payloadOrEndpoint === "string"
+      ? {
+          endpoint: payloadOrEndpoint,
+          caseId,
+          code: code || "INTERNAL",
+          messageKo: messageKo || "요청 처리 중 오류가 발생했습니다.",
+          err,
+          requestId,
+        }
+      : payloadOrEndpoint;
+
   const logObj = {
     severity: "ERROR",
     endpoint: payload.endpoint,
@@ -32,8 +72,9 @@ export function logError(payload: ErrorLogPayload) {
     evidenceId: payload.evidenceId || "N/A",
     code: payload.code,
     messageKo: payload.messageKo,
-    errMessage: payload.err?.message || String(payload.err || ""),
-    errStack: payload.err?.stack || ""
+    requestId: payload.requestId || "N/A",
+    errMessage: errorMessage(payload.err),
+    errStack: errorStack(payload.err)
   };
   console.error(JSON.stringify(logObj));
 }
@@ -46,11 +87,11 @@ export function requestIdMiddleware(req: express.Request, res: express.Response,
   next();
 }
 
-export function ok(res: express.Response, data: any) {
+export function ok(res: express.Response, data: unknown, requestId?: string) {
   return res.status(200).json({ 
     ok: true, 
     data,
-    requestId: (res.req as any).requestId
+    requestId: requestId || (res.req as any).requestId
   });
 }
 
@@ -59,7 +100,7 @@ export function fail(
   status: number,
   code: ApiErrorCode,
   messageKo: string,
-  details?: any
+  details?: unknown
 ) {
   const req = res.req as any;
   const requestId = res.getHeader("X-Request-Id") || req?.requestId || req?.headers?.["x-request-id"] || req?.body?._requestId || "unknown";

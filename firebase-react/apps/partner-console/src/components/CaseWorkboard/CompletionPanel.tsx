@@ -229,3 +229,4 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
     </div>
   );
 }
+export default CompletionPanel;

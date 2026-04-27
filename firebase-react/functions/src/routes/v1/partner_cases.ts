@@ -922,4 +922,127 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
     }
   });
 
+  // 18) POST /v1/partner/cases/:caseId/ai-assistant/quote (EP-11-03)
+  app.post("/v1/partner/cases/:caseId/ai-assistant/quote", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      
+      const partnerId = partnerIdOf(auth);
+      if (!partnerId) return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.");
+
+      const cId = String(req.params.caseId);
+      const db = adminApp.firestore();
+
+      const caseSnap = await db.collection("cases").doc(cId).get();
+      if (!caseSnap.exists || caseSnap.data()?.partnerId !== partnerId) {
+        return fail(res, 404, "NOT_FOUND", "접근할 수 없는 케이스입니다.");
+      }
+
+      const caseData = caseSnap.data();
+      let submissionData = null;
+      if (caseData?.submissionId) {
+        const subSnap = await db.collection("user_submissions").doc(caseData.submissionId).get();
+        if (subSnap.exists) {
+          submissionData = subSnap.data();
+        }
+      }
+
+      const { VertexAI } = require("@google-cloud/vertexai");
+      const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || "agent-eregi";
+      const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || "asia-northeast3";
+      const MODEL_NAME = "gemini-1.5-flash-preview-0514";
+
+      const vertexAi = new VertexAI({ project: PROJECT_ID, location: LOCATION });
+      const model = vertexAi.getGenerativeModel({
+        model: MODEL_NAME,
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: "application/json",
+        },
+      });
+
+      const prompt = `
+당신은 파트너를 돕는 AI 어시스턴트입니다.
+사용자가 제출한 사건 정보를 바탕으로 예상 견적(최소/최대 금액, 최소/최대 소요 시간)과 전제 조건을 제안해주세요.
+
+[사건 정보]
+제목: ${caseData?.title || "제목 없음"}
+사용자 제출 정보: ${submissionData ? JSON.stringify(submissionData.input || {}) : "없음"}
+
+[출력 형식 (JSON)]
+{
+  "priceMin": 100000,
+  "priceMax": 300000,
+  "etaMinHours": 24,
+  "etaMaxHours": 72,
+  "assumptionsKo": ["기본 서류 완비 기준", "추가 인원 발생 시 비용 추가"]
+}
+`;
+      const responseStream = await model.generateContent(prompt);
+      const response = await responseStream.response;
+      const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      
+      const parsed = JSON.parse(text);
+
+      return ok(res, { draft: parsed });
+    } catch (err: any) {
+      logError({ endpoint: "partner/ai-assistant/quote", code: "INTERNAL", messageKo: "AI 견적 초안 생성 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 19) POST /v1/partner/cases/:caseId/ai-assistant/evidence-request (EP-11-03)
+  app.post("/v1/partner/cases/:caseId/ai-assistant/evidence-request", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      
+      const partnerId = partnerIdOf(auth);
+      if (!partnerId) return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.");
+
+      const { defectReasons } = req.body;
+      if (!defectReasons || !Array.isArray(defectReasons)) {
+        return fail(res, 400, "INVALID_ARGUMENT", "defectReasons 배열이 필요합니다.");
+      }
+
+      const { VertexAI } = require("@google-cloud/vertexai");
+      const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || "agent-eregi";
+      const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || "asia-northeast3";
+      const MODEL_NAME = "gemini-1.5-flash-preview-0514";
+
+      const vertexAi = new VertexAI({ project: PROJECT_ID, location: LOCATION });
+      const model = vertexAi.getGenerativeModel({
+        model: MODEL_NAME,
+        generationConfig: {
+          temperature: 0.3,
+          responseMimeType: "application/json",
+        },
+      });
+
+      const prompt = `
+당신은 파트너를 돕는 AI 어시스턴트입니다.
+사용자가 제출한 서류에서 결함이 발견되어 다시 요청해야 합니다. 고객에게 보낼 정중하고 명확한 요청 메시지를 작성해주세요.
+
+[결함 사유]
+${defectReasons.join(", ")}
+
+[출력 형식 (JSON)]
+{
+  "messageToUserKo": "고객님, 제출해주신 서류에서 [결함내용 요약] 문제가 확인되었습니다. 원활한 처리를 위해 다시 한 번 확인하여 업로드 부탁드립니다."
+}
+`;
+      const responseStream = await model.generateContent(prompt);
+      const response = await responseStream.response;
+      const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      
+      const parsed = JSON.parse(text);
+
+      return ok(res, { draft: parsed });
+    } catch (err: any) {
+      logError({ endpoint: "partner/ai-assistant/evidence-request", code: "INTERNAL", messageKo: "AI 서류 요청 초안 생성 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
 }

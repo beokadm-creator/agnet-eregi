@@ -6,12 +6,12 @@ import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, 
 import { requireAuth, isOps, partnerIdOf } from "../../lib/auth";
 import { fail, logError, ok } from "../../lib/http";
 import { caseRef } from "../../lib/firestore";
-import { logOpsEvent, categorizeError } from "../../lib/ops_audit";
+import { logOpsEvent } from "../../lib/ops_audit";
 import { enqueueRetryJob, isRetryableAction } from "../../lib/ops_retry";
-import { doResolve, discoverProjectConfigAction, doResolveAction, dispatchWorkflowAction, generateMonthlyReportAction } from "../../lib/ops_actions";
+import { doResolve, discoverProjectConfigAction, doResolveAction, dispatchWorkflowAction, generateMonthlyReportAction, createBacklogIssuesAction, addBacklogIssuesToProjectAction } from "../../lib/ops_actions";
 import { notifyOpsAlert } from "../../lib/ops_alert";
 
-import { checkCircuitBreaker, recordCircuitBreakerSuccess, recordCircuitBreakerFail, getCircuitBreakerState, resetCircuitBreaker } from "../../lib/ops_circuit_breaker";
+import { getCircuitBreakerState, resetCircuitBreaker } from "../../lib/ops_circuit_breaker";
 import { getOpsGateSettingsCollection, OpsGateSettings } from "../../lib/ops_gate_settings";
 
 function fmtTs(v: any) {
@@ -1264,7 +1264,6 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", String(req.params.gateKey));
       if (!hasRole) return;
 
-
       const { date, dryRun = false, topN = 3 } = req.body;
       const targetDateStr = date ? String(date) : formatKstYmd();
       const targetDate = new Date(`${targetDateStr}T00:00:00+09:00`);
@@ -1273,154 +1272,24 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 날짜입니다.");
       }
 
-      const ssotDocId = gateKey === "pilot-gate" ? targetDateStr : `${gateKey}:${targetDateStr}`;
-      const logDocRef = adminApp.firestore().collection("ops_daily_logs").doc(ssotDocId);
-      const logDoc = await logDocRef.get();
-      if (!logDoc.exists) {
-        return fail(res, 404, "NOT_FOUND", "먼저 SSOT 저장을 수행하세요.");
-      }
-
-      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
-      const config = configDoc.data() || {};
-      const githubConfig = config.github || {};
-      const rules = config.rules || {};
-      
-      const owner = githubConfig.owner || "beokadm-creator";
-      const repo = githubConfig.repo || "agnet-eregi";
-      const tokenRef = githubConfig.tokenRef || "GITHUB_TOKEN_BACKLOG_BOT";
-      const GITHUB_TOKEN = process.env[tokenRef] || "";
-
-      const logData = logDoc.data() as any;
-      const topIssues = Array.isArray(logData.topIssues) ? logData.topIssues.slice(0, Number(topN)) : [];
-      
-      const created = [];
-      const skipped = [];
-      const failed = [];
-
-      for (const issue of topIssues) {
-        const dedupeKey = `${gateKey}:${targetDateStr}:${issue.slotId}`;
-        const dedupeRef = adminApp.firestore().collection("ops_backlog_issues").doc(dedupeKey);
-        
-        try {
-          // 1. 멱등성 확보를 위한 create
-          if (!dryRun) {
-            await dedupeRef.create({
-              gateKey,
-              date: targetDateStr,
-              slotId: issue.slotId,
-              severity: issue.severity,
-              impactCount: issue.impactCount,
-              status: "pending",
-              createdAt: adminApp.firestore.FieldValue.serverTimestamp()
-            });
-          }
-          
-          // 2. GitHub Issue 생성
-          const title = `[pilot-gate][${issue.severity}][${targetDateStr}] ${issue.slotId} 누락 대응`;
-          const body = `
-### 이슈 개요
-- **발생일**: ${targetDateStr}
-- **영향도**: ${issue.impactCount}건 발생
-- **SSOT 문서**: \`ops_daily_logs/${ssotDocId}\`
-- **Req ID**: ${logData.requestId || "N/A"}
-
-### 재현 단계
-1. 파트너 콘솔에서 ${issue.slotId} 업로드 누락 또는 API 오류 확인
-2. ${issue.slotId} 제출 로직 디버깅
-
-### Acceptance Criteria (AC)
-1. ${issue.slotId} 파일이 정상적으로 Storage에 업로드됨
-2. Gate 검증 API 호출 시 missing 배열에 ${issue.slotId}가 포함되지 않음
-3. ok: true 달성
-          `.trim();
-
-          const baseLabels = rules.issueLabels || ["ops", "automation", "backlog"];
-          const labels = [...baseLabels, issue.severity.toLowerCase()];
-          
-          let issueUrl = "dry-run-url";
-          let issueNumber = 0;
-
-          if (!dryRun) {
-            if (!GITHUB_TOKEN) {
-              throw new Error("GITHUB_TOKEN_BACKLOG_BOT is not configured.");
-            }
-            
-            await checkCircuitBreaker(adminApp, gateKey);
-
-            // Fetch to GitHub API
-            const ghRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
-              method: "POST",
-              headers: {
-                "Accept": "application/vnd.github+json",
-                "Authorization": `Bearer ${GITHUB_TOKEN}`,
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                title,
-                body,
-                labels
-              })
-            });
-
-            if (!ghRes.ok) {
-              const errText = await ghRes.text();
-              const errorMsg = `GitHub API Error: ${ghRes.status} ${errText}`;
-              const { category } = categorizeError(errorMsg);
-              await recordCircuitBreakerFail(adminApp, gateKey, category, errorMsg);
-              throw new Error(errorMsg);
-            }
-            
-            await recordCircuitBreakerSuccess(adminApp, gateKey);
-            
-            const ghData = await ghRes.json();
-            issueUrl = ghData.html_url;
-            issueNumber = ghData.number;
-            
-            await dedupeRef.update({
-              issueNumber,
-              issueUrl,
-              updatedAt: adminApp.firestore.FieldValue.serverTimestamp()
-            });
-          }
-          
-          created.push({ dedupeKey, issueUrl, issueNumber });
-        } catch (e: any) {
-          const isAlreadyExists = 
-            e.code === 6 || 
-            e.status === "ALREADY_EXISTS" ||
-            (e.message && e.message.includes("ALREADY_EXISTS")) ||
-            (e.details && e.details.includes("ALREADY_EXISTS"));
-            
-          if (isAlreadyExists) {
-            skipped.push({ dedupeKey, reason: "ALREADY_EXISTS" });
-          } else {
-            console.error(`[backlog create error] dedupeKey=${dedupeKey}`, e);
-            skipped.push({ dedupeKey, reason: e.message || "ERROR" });
-            failed.push({ dedupeKey, reason: e.message || "ERROR" });
-            // 실패 시 롤백 (dryRun이 아닐 때만 create 했으므로)
-            if (!dryRun && !isAlreadyExists) {
-               await dedupeRef.delete().catch(() => {});
-            }
-          }
-        }
-      }
+      const result = await createBacklogIssuesAction(adminApp, gateKey, targetDateStr, Number(topN), Boolean(dryRun));
 
       await logOpsEvent(adminApp, {
         gateKey,
         action: "issue.create",
-        status: failed.length > 0 ? "fail" : "success",
+        status: result.failed.length > 0 ? "fail" : "success",
         actorUid: auth.uid,
         requestId: req.headers["x-request-id"] as string || "N/A",
         target: { date: targetDateStr },
-        summary: `이슈 생성 완료 (생성: ${created.length}, 스킵: ${skipped.length - failed.length}, 실패: ${failed.length})`
+        summary: `이슈 생성 완료 (생성: ${result.created.length}, 스킵: ${result.skipped.length - result.failed.length}, 실패: ${result.failed.length})`
       });
 
       return res.status(200).json({
         ok: true,
         data: {
           date: targetDateStr,
-          created,
-          skipped
+          created: result.created,
+          skipped: result.skipped
         }
       });
     } catch (err: any) {
@@ -1434,7 +1303,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         summary: "이슈 생성 중 오류 발생",
         error: { message: err.message }
       });
-      return fail(res, 500, "INTERNAL", "이슈 생성 중 오류가 발생했습니다.");
+      return fail(res, 500, "INTERNAL", err.message || "이슈 생성 중 오류가 발생했습니다.");
     }
   });
 
@@ -2272,7 +2141,6 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", String(req.params.gateKey));
       if (!hasRole) return;
 
-
       const { date, dryRun = false, topN = 3 } = req.body;
       const targetDateStr = date ? String(date) : formatKstYmd();
       const targetDate = new Date(`${targetDateStr}T00:00:00+09:00`);
@@ -2281,243 +2149,21 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 날짜입니다.");
       }
 
-      // 1. 이미 생성된 이슈 목록 가져오기
-      const snap = await adminApp.firestore()
-        .collection("ops_backlog_issues")
-        .where("gateKey", "==", gateKey)
-        .where("date", "==", targetDateStr)
-        .limit(Number(topN))
-        .get();
-
-      let issues: any[] = [];
-      if (snap.empty) {
-        // 기존 생성된 문서(gateKey 필드가 없는 경우)와의 호환성을 위해 한 번 더 시도
-        const legacySnap = await adminApp.firestore()
-          .collection("ops_backlog_issues")
-          .where("date", "==", targetDateStr)
-          .limit(Number(topN))
-          .get();
-
-        if (legacySnap.empty) {
-          return fail(res, 404, "NOT_FOUND", "해당 날짜에 생성된 GitHub 이슈가 없습니다. (먼저 이슈를 생성하세요)");
-        }
-        
-        // Legacy doc 중에서 pilot-gate로 간주 (또는 id가 gateKey로 시작하는지 체크)
-        const validDocs = legacySnap.docs.filter(d => d.id.startsWith(`${gateKey}:`));
-        if (validDocs.length === 0) {
-           return fail(res, 404, "NOT_FOUND", "해당 날짜에 생성된 GitHub 이슈가 없습니다. (먼저 이슈를 생성하세요)");
-        }
-        issues = validDocs.map(d => ({ dedupeKey: d.id, ...d.data() })) as any[];
-      } else {
-        issues = snap.docs.map(d => ({ dedupeKey: d.id, ...d.data() })) as any[];
-      }
-
-      const configDoc = await adminApp.firestore().collection("ops_github_project_config").doc(gateKey).get();
-      if (!configDoc.exists) {
-        return fail(res, 400, "INVALID_ARGUMENT", "Project 설정이 없습니다. 먼저 Discover API를 실행하세요.");
-      }
-      
-      const config = configDoc.data() as any;
-      const githubConfig = config.github || {};
-      const { owner, repo, projectId, tokenRef } = githubConfig;
-      
-      const GITHUB_TOKEN = process.env[tokenRef || "GITHUB_TOKEN_BACKLOG_BOT"] || "";
-      if (!owner || !repo || !projectId || !GITHUB_TOKEN) {
-        return fail(res, 400, "INVALID_ARGUMENT", "GitHub 연동 설정이나 토큰이 누락되었습니다.");
-      }
-      
-      await checkCircuitBreaker(adminApp, gateKey);
-
-      const added = [];
-      const skipped = [];
-      const failed = [];
-
-      for (const issue of issues) {
-        if (!issue.issueNumber) {
-          skipped.push({ projectDedupeKey: issue.dedupeKey + ":project", reason: "이슈 번호가 없습니다." });
-          continue;
-        }
-
-        const projectDedupeKey = `${issue.dedupeKey}:project`;
-        const linkRef = adminApp.firestore().collection("ops_backlog_issue_project_links").doc(projectDedupeKey);
-
-        try {
-          if (!dryRun) {
-            await linkRef.create({
-              date: targetDateStr,
-              slotId: issue.slotId,
-              issueUrl: issue.issueUrl || "",
-              issueNumber: issue.issueNumber,
-              status: "pending",
-              createdAt: adminApp.firestore.FieldValue.serverTimestamp()
-            });
-          }
-
-          // 2. GraphQL API로 Project에 Add
-          let projectItemId = "dry-run-item-id";
-
-          if (!dryRun) {
-            // Step A: Issue의 Node ID 획득 (GraphQL에 필요)
-            const issueRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issue.issueNumber}`, {
-              headers: {
-                "Accept": "application/vnd.github+json",
-                "Authorization": `Bearer ${GITHUB_TOKEN}`
-              }
-            });
-            if (!issueRes.ok) {
-              const errText = await issueRes.text();
-              const errorMsg = `Issue fetch failed: ${issueRes.status} ${errText}`;
-              const { category } = categorizeError(errorMsg);
-              await recordCircuitBreakerFail(adminApp, gateKey, category, errorMsg);
-              throw new Error(errorMsg);
-            }
-            await recordCircuitBreakerSuccess(adminApp, gateKey);
-            const issueData = await issueRes.json();
-            const issueNodeId = issueData.node_id;
-
-            // Step B: Project에 추가
-            const addMutation = `
-              mutation {
-                addProjectV2ItemById(input: {projectId: "${projectId}", contentId: "${issueNodeId}"}) {
-                  item { id }
-                }
-              }
-            `;
-            
-            const addRes = await fetch("https://api.github.com/graphql", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${GITHUB_TOKEN}`,
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({ query: addMutation })
-            });
-            
-            const addData = await addRes.json();
-            if (addData.errors) {
-               const errorMsg = `GraphQL Error (add): ${JSON.stringify(addData.errors)}`;
-               await recordCircuitBreakerFail(adminApp, gateKey, "UNKNOWN", errorMsg);
-               throw new Error(errorMsg);
-            }
-            await recordCircuitBreakerSuccess(adminApp, gateKey);
-            
-            projectItemId = addData.data.addProjectV2ItemById.item.id;
-
-            // Step C: 필드 업데이트 (Status, Priority 매핑)
-            const sevNum = parseInt(issue.severity.replace("Sev", ""), 10) || 3;
-            const rules = config.rules || {};
-            const sevToPriority = rules.sevToPriority || { "1": "p0", "2": "p1", "3": "p2" };
-            const sevToStatus = rules.sevToStatus || { "1": "todo", "2": "todo", "3": "todo" };
-
-            const priorityValue = sevToPriority[String(sevNum)] || "p2";
-            const statusValue = sevToStatus[String(sevNum)] || "todo";
-
-            const resolved = config.resolved || {};
-            const STATUS_FIELD_ID = resolved.statusFieldId || "";
-            const PRIORITY_FIELD_ID = resolved.priorityFieldId || "";
-            const statusOptionId = resolved.statusOptionIds?.[statusValue];
-            const priorityOptionId = resolved.priorityOptionIds?.[priorityValue];
-
-            const missingForThisIssue = [];
-            if (!STATUS_FIELD_ID) missingForThisIssue.push("statusFieldId");
-            if (!statusOptionId) missingForThisIssue.push(`status.${statusValue}`);
-            if (!PRIORITY_FIELD_ID) missingForThisIssue.push("priorityFieldId");
-            if (!priorityOptionId) missingForThisIssue.push(`priority.${priorityValue}`);
-
-            if (missingForThisIssue.length > 0) {
-               throw new Error(`MISSING_MAPPING: ${missingForThisIssue.join(", ")}`);
-            }
-
-            if (STATUS_FIELD_ID && statusOptionId) {
-              const updateStatusMutation = `
-                mutation {
-                  updateProjectV2ItemFieldValue(
-                    input: {
-                      projectId: "${projectId}"
-                      itemId: "${projectItemId}"
-                      fieldId: "${STATUS_FIELD_ID}"
-                      value: { singleSelectOptionId: "${statusOptionId}" }
-                    }
-                  ) { projectV2Item { id } }
-                }
-              `;
-              await fetch("https://api.github.com/graphql", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${GITHUB_TOKEN}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ query: updateStatusMutation })
-              });
-            }
-
-            if (PRIORITY_FIELD_ID && priorityOptionId) {
-              const updatePriorityMutation = `
-                mutation {
-                  updateProjectV2ItemFieldValue(
-                    input: {
-                      projectId: "${projectId}"
-                      itemId: "${projectItemId}"
-                      fieldId: "${PRIORITY_FIELD_ID}"
-                      value: { singleSelectOptionId: "${priorityOptionId}" }
-                    }
-                  ) { projectV2Item { id } }
-                }
-              `;
-              await fetch("https://api.github.com/graphql", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${GITHUB_TOKEN}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ query: updatePriorityMutation })
-              });
-            }
-
-            await linkRef.update({
-              projectItemId,
-              status: "added",
-              updatedAt: adminApp.firestore.FieldValue.serverTimestamp()
-            });
-          }
-
-          added.push({ projectDedupeKey, projectItemId, issueUrl: issue.issueUrl });
-        } catch (e: any) {
-          const isAlreadyExists = 
-            e.code === 6 || 
-            e.status === "ALREADY_EXISTS" ||
-            (e.message && e.message.includes("ALREADY_EXISTS")) ||
-            (e.details && e.details.includes("ALREADY_EXISTS"));
-            
-          if (isAlreadyExists) {
-            skipped.push({ projectDedupeKey, reason: "ALREADY_EXISTS" });
-          } else {
-            console.error(`[project add error] key=${projectDedupeKey}`, e);
-            let reason = e.message || "ERROR";
-            let missing = [];
-            let hint = "";
-            
-            if (reason.startsWith("MISSING_MAPPING: ")) {
-              missing = reason.replace("MISSING_MAPPING: ", "").split(", ");
-              reason = "MISSING_MAPPING";
-              hint = "discover를 다시 실행하거나 alias를 추가하세요";
-            }
-
-            failed.push({ projectDedupeKey, reason, missing, hint, issueUrl: issue.issueUrl });
-            if (!dryRun && !isAlreadyExists) {
-               await linkRef.delete().catch(() => {});
-            }
-          }
-        }
-      }
+      const result = await addBacklogIssuesToProjectAction(adminApp, gateKey, targetDateStr, Number(topN), Boolean(dryRun));
 
       await logOpsEvent(adminApp, {
         gateKey,
         action: "project.add",
-        status: failed.length > 0 ? "fail" : "success",
+        status: result.failed.length > 0 ? "fail" : "success",
         actorUid: auth.uid,
         requestId: req.headers["x-request-id"] as string || "N/A",
         target: { date: targetDateStr },
-        summary: `이슈 프로젝트 투입 완료 (투입: ${added.length}, 스킵: ${skipped.length - failed.length}, 실패: ${failed.length})`
+        summary: `이슈 프로젝트 투입 완료 (투입: ${result.added.length}, 스킵: ${result.skipped.length - result.failed.length}, 실패: ${result.failed.length})`
       });
 
       return res.status(200).json({
         ok: true,
-        data: { added, skipped, failed }
+        data: result
       });
     } catch (err: any) {
       logError({ endpoint: "/v1/ops/reports/pilot-gate/backlog/issues/project/add", code: "INTERNAL", messageKo: "프로젝트 투입 중 오류가 발생했습니다.", err });
@@ -2530,7 +2176,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
         summary: "이슈 프로젝트 투입 중 오류 발생",
         error: { message: err.message }
       });
-      return fail(res, 500, "INTERNAL", "프로젝트 투입 중 오류가 발생했습니다.");
+      return fail(res, 500, "INTERNAL", err.message || "프로젝트 투입 중 오류가 발생했습니다.");
     }
   });
 

@@ -2,11 +2,11 @@ import * as admin from "firebase-admin";
 import * as express from "express";
 import { fail } from "./http";
 
-export const requireAuth = async (
+async function verifyAuthToken(
   adminApp: typeof admin,
   req: express.Request,
   res: express.Response
-): Promise<admin.auth.DecodedIdToken | null> => {
+): Promise<admin.auth.DecodedIdToken | null> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     fail(res, 401, "UNAUTHENTICATED", "인증 토큰이 필요합니다.");
@@ -22,7 +22,46 @@ export const requireAuth = async (
     fail(res, 401, "UNAUTHENTICATED", "유효하지 않은 인증 토큰입니다.");
     return null;
   }
-};
+}
+
+function attachUser(req: express.Request, decoded: admin.auth.DecodedIdToken): void {
+  (req as any).user = {
+    ...decoded,
+    uid: decoded.uid,
+    isOps: isOps(decoded),
+    partnerId: partnerIdOf(decoded),
+  };
+}
+
+export function requireAuth(
+  adminApp: typeof admin,
+  req: express.Request,
+  res: express.Response
+): Promise<admin.auth.DecodedIdToken | null>;
+export function requireAuth(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+): Promise<void>;
+export async function requireAuth(
+  first: typeof admin | express.Request,
+  second: express.Request | express.Response,
+  third: express.Response | express.NextFunction
+): Promise<admin.auth.DecodedIdToken | null | void> {
+  if (typeof (first as typeof admin).auth === "function") {
+    const decoded = await verifyAuthToken(first as typeof admin, second as express.Request, third as express.Response);
+    if (decoded) attachUser(second as express.Request, decoded);
+    return decoded;
+  }
+
+  const req = first as express.Request;
+  const res = second as express.Response;
+  const next = third as express.NextFunction;
+  const decoded = await verifyAuthToken(admin, req, res);
+  if (!decoded) return;
+  attachUser(req, decoded);
+  next();
+}
 
 export const isOps = (auth: admin.auth.DecodedIdToken): boolean => {
   if (process.env.OPS_ALLOW_ALL === "1") return true;

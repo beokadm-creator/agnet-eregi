@@ -1,7 +1,17 @@
 import * as admin from "firebase-admin";
-import * as crypto from "crypto";
-
 import { logOpsEvent } from "./ops_audit";
+import { NotificationJob } from "./notify_models";
+import { NotificationProviderFactory } from "./providers/notification_provider";
+import { WebhookProvider } from "./providers/webhook_provider";
+import { SlackProvider } from "./providers/slack_provider";
+import { KakaoProvider } from "./providers/kakao_provider";
+import { SmsProvider } from "./providers/sms_provider";
+
+// 시스템 시작 시 Provider 초기 등록
+NotificationProviderFactory.register("webhook", new WebhookProvider());
+NotificationProviderFactory.register("slack", new SlackProvider());
+NotificationProviderFactory.register("kakao", new KakaoProvider());
+NotificationProviderFactory.register("sms", new SmsProvider());
 
 export async function processNotificationJobs(adminApp: typeof admin) {
   const db = adminApp.firestore();
@@ -16,57 +26,28 @@ export async function processNotificationJobs(adminApp: typeof admin) {
   if (snap.empty) return;
 
   for (const doc of snap.docs) {
-    const job = doc.data();
+    const job = doc.data() as NotificationJob;
     const jobId = doc.id;
 
     try {
-      await doc.ref.update({ status: "sending", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-
-      const webhookConfig = job.payload.webhookConfig;
-      if (!webhookConfig || !webhookConfig.url) {
-        throw new Error("Webhook URL이 없습니다.");
-      }
-
-      const body = JSON.stringify({
-        event: job.event,
-        target: job.target,
-        payload: job.payload,
-        timestamp: new Date().toISOString()
+      await doc.ref.update({ 
+        status: "sending", 
+        updatedAt: admin.firestore.FieldValue.serverTimestamp() 
       });
 
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json"
-      };
-
-      if (webhookConfig.secret) {
-        // 실제 운영에선 HMAC-SHA256을 쓰지만, 프롬프트 지시에 따라 sha256 hex 사용하거나 createHmac 사용
-        const hmac = crypto.createHmac("sha256", webhookConfig.secret).update(body).digest("hex");
-        headers["X-Signature"] = `sha256=${hmac}`;
-      }
-
-      const res = await fetch(webhookConfig.url, {
-        method: "POST",
-        headers,
-        body
-      });
-
-      if (!res.ok) {
-        throw new Error(`Webhook failed with status ${res.status}`);
-      }
+      // 팩토리를 통해 적절한 Provider 가져오기
+      const provider = NotificationProviderFactory.getProvider(job.channel || "webhook");
+      
+      // Provider를 통한 실제 전송 처리
+      await provider.send(job);
 
       await doc.ref.update({
         status: "sent",
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      await logOpsEvent(adminApp, {
-        gateKey: "system",
-        action: "ops_notification.sent",
-        status: "success",
-        actorUid: "system",
-        requestId: `notify_${jobId}`,
-        summary: `Notification sent for event ${job.event}`,
-        target: { jobId, url: webhookConfig.url }
+      await logOpsEvent(db, "ops_notification.sent", "SUCCESS", "system", `notify_${jobId}`, "system", {
+        jobId, channel: job.channel 
       });
 
     } catch (error: any) {
@@ -83,14 +64,8 @@ export async function processNotificationJobs(adminApp: typeof admin) {
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        await logOpsEvent(adminApp, {
-          gateKey: "system",
-          action: "ops_notification.failed",
-          status: "fail",
-          actorUid: "system",
-          requestId: `notify_${jobId}`,
-          summary: `Notification failed permanently for event ${job.event}`,
-          error: { message: error.message }
+        await logOpsEvent(db, "ops_notification.failed", "FAIL", "system", `notify_${jobId}`, "system", {
+          error: error.message 
         });
       } else {
         // Backoff: 1m, 5m, 15m, 60m

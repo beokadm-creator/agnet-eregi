@@ -36,6 +36,15 @@ import { registerStripeWebhookRoutes } from "./routes/v1/stripe_webhooks";
 import { registerOpsSettingsRoutes } from "./routes/v1/ops_settings";
 import { registerMonitoringWebhookRoutes } from "./routes/v1/monitoring_webhooks";
 import { registerTossPaymentsWebhookRoutes } from "./routes/v1/tosspayments_webhooks";
+import { registerAdRoutes } from "./routes/v1/ads";
+import { registerSubscriptionRoutes } from "./routes/v1/subscriptions";
+import { registerCasePackRoutes } from "./routes/v1/case_packs";
+import { registerOpsCasePackRoutes } from "./routes/v1/ops_case_packs";
+import { registerPartnerTeamRoutes } from "./routes/v1/partner_team";
+import { registerOpsRiskRoutes } from "./routes/v1/ops_risk";
+import { registerChatbotRoutes } from "./routes/v1/chatbot";
+import { registerOpsPredictionRoutes } from "./routes/v1/ops_prediction";
+
 import { processRetryJobs } from "./lib/ops_retry_worker";
 import { processOpsAlertJobs } from "./lib/ops_alert_worker";
 import { processOpsIncidents, generateWeeklyIncidentSummary } from "./lib/ops_incident_worker";
@@ -50,6 +59,23 @@ import { processPackageBuilds } from "./lib/partner_package_worker";
 import { processUserSubmissions } from "./lib/user_submission_worker";
 import { processEvidenceValidation } from "./lib/partner_evidence_worker";
 import { processNotificationJobs } from "./lib/notify_worker";
+
+import { executeAdBillingDailyBatch } from "./lib/ad_billing_worker";
+import { executeSettlementBatch } from "./lib/settlement_batch_worker";
+import { executeSubscriptionBillingBatch } from "./lib/subscription_worker";
+import { processOpsTickets } from "./lib/ops_ticket_worker";
+import { processPartnerRankings } from "./lib/ops_ranking_worker";
+import { processDocumentAI } from "./lib/document_ai_worker";
+import { processOpsPrediction } from "./lib/ops_prediction_worker";
+import { processDropoffReminders } from "./lib/ops_dropoff_worker";
+import { registerAuthRoutes } from "./routes/v1/auth_routes";
+import { registerB2gRoutes } from "./routes/v1/b2g";
+import { registerB2bRoutes } from "./routes/v1/b2b";
+import { registerTranslationRoutes } from "./routes/v1/translation";
+import { registerApostilleRoutes } from "./routes/v1/apostille";
+import { processB2gJobs } from "./lib/b2g_worker";
+import { processB2gFeeParsing, processB2gFeePayments } from "./lib/b2g_fee_worker";
+import { processB2bWebhooks } from "./lib/b2b_webhook_worker";
 
 admin.initializeApp();
 
@@ -105,6 +131,19 @@ registerStripeWebhookRoutes(app, admin);
 registerTossPaymentsWebhookRoutes(app, admin);
 registerOpsSettingsRoutes(app, admin);
 registerMonitoringWebhookRoutes(app, admin);
+registerAdRoutes(app, admin);
+registerSubscriptionRoutes(app, admin);
+registerCasePackRoutes(app, admin);
+registerOpsCasePackRoutes(app, admin);
+registerPartnerTeamRoutes(app, admin);
+registerOpsRiskRoutes(app, admin);
+registerChatbotRoutes(app, admin);
+registerOpsPredictionRoutes(app, admin);
+registerAuthRoutes(app, admin);
+registerB2gRoutes(app, admin);
+registerB2bRoutes(app, admin);
+registerTranslationRoutes(app, admin);
+registerApostilleRoutes(app, admin);
 
 app.get("/health", async (_req, res) => ok(res, { status: "ok" }));
 app.use((_req, res) => fail(res, 404, "NOT_FOUND", "존재하지 않는 엔드포인트입니다."));
@@ -167,6 +206,46 @@ export const opsMetricsWorker = functions
       await processOpsMetricsDaily(admin);
     } catch (e) {
       console.error("[OpsMetricsWorker] Fatal error:", e);
+    }
+  });
+
+export const adBillingBatchWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("10 0 * * *") // 매일 00:10
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    try {
+      const today = new Date();
+      today.setDate(today.getDate() - 1);
+      const targetDateStr = today.toISOString().split("T")[0];
+      await executeAdBillingDailyBatch(admin.firestore(), targetDateStr, "system_worker");
+    } catch (e) {
+      console.error("[AdBillingWorker] Fatal error:", e);
+    }
+  });
+
+export const subscriptionBatchWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("0 1 * * *") // 매일 01:00
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    try {
+      await executeSubscriptionBillingBatch(admin.firestore(), new Date());
+    } catch (e) {
+      console.error("[SubscriptionWorker] Fatal error:", e);
+    }
+  });
+
+export const settlementBatchWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("0 3 1 * *") // 매월 1일 03:00
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    try {
+      const periodEnd = new Date(); // roughly now
+      await executeSettlementBatch(admin.firestore(), periodEnd, "system_worker");
+    } catch (e) {
+      console.error("[SettlementWorker] Fatal error:", e);
     }
   });
 
@@ -271,5 +350,99 @@ export const notifyWorker = functions
       await processNotificationJobs(admin);
     } catch (e) {
       console.error("[NotifyWorker] Fatal error:", e);
+    }
+  });
+
+export const opsTicketWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 5 minutes")
+  .onRun(async () => {
+    try {
+      await processOpsTickets(admin);
+    } catch (e) {
+      console.error("[OpsTicketWorker] Fatal error:", e);
+    }
+  });
+
+export const opsRankingWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 1 hours")
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    try {
+      await processPartnerRankings(admin);
+    } catch (e) {
+      console.error("[OpsRankingWorker] Fatal error:", e);
+    }
+  });
+
+// 스토리지 파일 업로드 완료 시 Document AI 워커 실행 (onFinalize)
+export const documentAiStorageTrigger = functions
+  .region("asia-northeast3")
+  .storage.object()
+  .onFinalize(async (object) => {
+    try {
+      await processDocumentAI(admin, object);
+    } catch (e) {
+      console.error("[DocumentAIStorageTrigger] Fatal error:", e);
+    }
+  });
+
+export const opsPredictionBatchWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("0 4 * * *") // 매일 새벽 4시
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    try {
+      await processOpsPrediction(admin);
+    } catch (e) {
+      console.error("[OpsPredictionWorker] Fatal error:", e);
+    }
+  });
+
+export const opsDropoffWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("0 * * * *") // 매시 정각에 실행
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    try {
+      await processDropoffReminders(admin);
+    } catch (e) {
+      console.error("[OpsDropoffWorker] Fatal error:", e);
+    }
+  });
+
+export const b2gSubmissionWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 5 minutes") // 5분 주기
+  .onRun(async () => {
+    try {
+      await processB2gJobs(admin);
+    } catch (e) {
+      console.error("[B2GWorker] Fatal error:", e);
+    }
+  });
+
+export const b2gFeeWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 3 minutes") // 3분 주기
+  .onRun(async () => {
+    try {
+      await processB2gFeeParsing(admin);
+      await processB2gFeePayments(admin);
+    } catch (e) {
+      console.error("[B2GFeeWorker] Fatal error:", e);
+    }
+  });
+
+// EP-14: B2B Open API Webhook 전송 워커
+export const b2bWebhookWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 1 minutes")
+  .onRun(async () => {
+    try {
+      await processB2bWebhooks(admin);
+    } catch (e) {
+      console.error("[B2bWebhookWorker] Fatal error:", e);
     }
   });

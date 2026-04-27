@@ -99,3 +99,41 @@ export const tossCancelPayment = async (params: {
   return JSON.parse(text);
 };
 
+export const tossBillingPayment = async (params: {
+  secretKey: string;
+  billingKey: string;
+  customerKey: string;
+  orderId: string;
+  orderName: string;
+  amount: number;
+  idempotencyKey: string;
+}) => {
+  const res = await fetch(`${TOSS_API_BASE}/v1/billing/${encodeURIComponent(params.billingKey)}`, {
+    method: "POST",
+    headers: {
+      Authorization: toBasicAuthHeader(params.secretKey),
+      "Content-Type": "application/json",
+      "Idempotency-Key": params.idempotencyKey
+    },
+    body: JSON.stringify({
+      customerKey: params.customerKey,
+      orderId: params.orderId,
+      orderName: params.orderName,
+      amount: params.amount,
+      taxFreeAmount: 0 // 면세 금액 (기본 0)
+    })
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    let parsedErr;
+    try {
+      parsedErr = JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Toss billing failed (${res.status}): ${text}`);
+    }
+    throw new Error(parsedErr.message || `Toss billing failed (${res.status})`);
+  }
+  return JSON.parse(text);
+};
+
