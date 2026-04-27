@@ -589,4 +589,182 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
       return fail(res, 500, "INTERNAL", "케이스 멤버 할당에 실패했습니다.", { error: error.message, requestId });
     }
   });
+
+  // 13. 파트너 템플릿 생성 (POST /v1/partner/templates)
+  app.post("/v1/partner/templates", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+    const { name, schema, uiSchema, description } = req.body;
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    if (!name || !schema) {
+      return fail(res, 400, "INVALID_ARGUMENT", "템플릿 이름(name)과 스키마(schema)가 필요합니다.", { requestId });
+    }
+
+    try {
+      const docRef = db.collection("partner_templates").doc();
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      await docRef.set({
+        partnerId,
+        name,
+        description: description || "",
+        schema,
+        uiSchema: uiSchema || {},
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      return ok(res, { id: docRef.id, name, description, schema, uiSchema }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "POST /v1/partner/templates", code: "INTERNAL", messageKo: "템플릿 생성 실패", err: error });
+      return fail(res, 500, "INTERNAL", "템플릿 생성에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  // 14. 파트너 템플릿 목록 조회 (GET /v1/partner/templates)
+  app.get("/v1/partner/templates", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      const snap = await db.collection("partner_templates")
+        .where("partnerId", "==", partnerId)
+        .orderBy("createdAt", "desc")
+        .limit(50)
+        .get();
+
+      const items = snap.docs.map(d => {
+        const data = d.data() as any;
+        return {
+          id: d.id,
+          name: data.name,
+          description: data.description,
+          schema: data.schema,
+          uiSchema: data.uiSchema,
+          createdAt: data.createdAt || null,
+          updatedAt: data.updatedAt || null,
+        };
+      });
+
+      return ok(res, { items }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "GET /v1/partner/templates", code: "INTERNAL", messageKo: "템플릿 목록 조회 실패", err: error });
+      return fail(res, 500, "INTERNAL", "템플릿 목록 조회에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  // 15. 파트너 템플릿 단건 조회 (GET /v1/partner/templates/:templateId)
+  app.get("/v1/partner/templates/:templateId", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+    const templateId = String(req.params.templateId);
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      const docRef = db.collection("partner_templates").doc(templateId);
+      const snap = await docRef.get();
+
+      if (!snap.exists) {
+        return fail(res, 404, "NOT_FOUND", "템플릿을 찾을 수 없습니다.", { requestId });
+      }
+
+      const data = snap.data() as any;
+      if (data.partnerId !== partnerId) {
+        return fail(res, 403, "FORBIDDEN", "템플릿 접근 권한이 없습니다.", { requestId });
+      }
+
+      return ok(res, {
+        id: snap.id,
+        name: data.name,
+        description: data.description,
+        schema: data.schema,
+        uiSchema: data.uiSchema,
+        createdAt: data.createdAt || null,
+        updatedAt: data.updatedAt || null,
+      }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "GET /v1/partner/templates/:templateId", code: "INTERNAL", messageKo: "템플릿 조회 실패", err: error });
+      return fail(res, 500, "INTERNAL", "템플릿 조회에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  // 16. 파트너 템플릿 수정 (PUT /v1/partner/templates/:templateId)
+  app.put("/v1/partner/templates/:templateId", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+    const templateId = String(req.params.templateId);
+    const { name, schema, uiSchema, description } = req.body;
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      const ref = db.collection("partner_templates").doc(templateId);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        return fail(res, 404, "NOT_FOUND", "템플릿을 찾을 수 없습니다.", { requestId });
+      }
+      const data = snap.data() as any;
+      if (data.partnerId !== partnerId) {
+        return fail(res, 403, "FORBIDDEN", "템플릿 접근 권한이 없습니다.", { requestId });
+      }
+
+      const updates: any = {
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      
+      if (name) updates.name = name;
+      if (schema) updates.schema = schema;
+      if (uiSchema) updates.uiSchema = uiSchema;
+      if (description !== undefined) updates.description = description;
+
+      await ref.update(updates);
+
+      return ok(res, { templateId, ...updates, updatedAt: undefined }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "PUT /v1/partner/templates/:templateId", code: "INTERNAL", messageKo: "템플릿 수정 실패", err: error });
+      return fail(res, 500, "INTERNAL", "템플릿 수정에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  // 17. 파트너 템플릿 삭제 (DELETE /v1/partner/templates/:templateId)
+  app.delete("/v1/partner/templates/:templateId", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+    const templateId = String(req.params.templateId);
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      const ref = db.collection("partner_templates").doc(templateId);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        return fail(res, 404, "NOT_FOUND", "템플릿을 찾을 수 없습니다.", { requestId });
+      }
+      const data = snap.data() as any;
+      if (data.partnerId !== partnerId) {
+        return fail(res, 403, "FORBIDDEN", "템플릿 접근 권한이 없습니다.", { requestId });
+      }
+
+      await ref.delete();
+
+      return ok(res, { templateId, deleted: true }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "DELETE /v1/partner/templates/:templateId", code: "INTERNAL", messageKo: "템플릿 삭제 실패", err: error });
+      return fail(res, 500, "INTERNAL", "템플릿 삭제에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
 }

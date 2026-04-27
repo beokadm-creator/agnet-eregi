@@ -9,6 +9,7 @@ import TeamMembers from "../LeftSidebar/TeamMembers";
 import SecuritySettings from "../LeftSidebar/SecuritySettings";
 import DeveloperSettings from "../LeftSidebar/DeveloperSettings";
 import OrganizationSettings from "../LeftSidebar/OrganizationSettings";
+import TemplateManager from "../LeftSidebar/TemplateManager";
 
 export default function LeftSidebar() {
   return (
@@ -23,6 +24,7 @@ export default function LeftSidebar() {
       <TeamMembers />
       <SecuritySettings />
       <DeveloperSettings />
+      <TemplateManager />
     </div>
   );
 }
