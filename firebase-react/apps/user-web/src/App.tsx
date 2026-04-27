@@ -589,18 +589,38 @@ function App() {
           </button>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center my-10">
-          <h2 className="text-2xl font-bold text-slate-800 mb-4">에이전트레지(AgentRegi)에 오신 것을 환영합니다!</h2>
-          <p className="text-slate-600 mb-8 max-w-md leading-relaxed">
-            전문 행정/법률 대행 서비스를 가장 빠르고 쉽게 만나보세요. 아래 버튼을 눌러 게스트로 바로 시작하실 수 있습니다.
+        <div className="flex flex-col items-center justify-center bg-white p-12 rounded-2xl border border-slate-200 shadow-xl text-center my-10 overflow-hidden relative">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+          
+          <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+            <svg className="w-10 h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          
+          <h2 className="text-3xl font-extrabold text-slate-800 mb-4 tracking-tight">AgentRegi에 오신 것을 환영합니다</h2>
+          <p className="text-slate-500 mb-10 max-w-md leading-relaxed text-lg">
+            복잡한 행정/법률 대행 서비스를 가장 빠르고 쉽게 만나보세요. 별도의 가입 없이 즉시 경험해 볼 수 있습니다.
           </p>
-          <button 
-            onClick={handleGuestLogin} 
-            disabled={busy} 
-            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold rounded-xl transition-colors shadow-md text-lg"
-          >
-            게스트로 시작하기 (Start as Guest)
-          </button>
+          
+          <div className="flex flex-col gap-4 w-full max-w-sm">
+            <button 
+              onClick={handleGuestLogin} 
+              disabled={busy} 
+              className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all shadow-md overflow-hidden"
+            >
+              <span className="absolute left-0 inset-y-0 flex items-center pl-3">
+                <svg className="h-5 w-5 text-indigo-500 group-hover:text-indigo-400 transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                </svg>
+              </span>
+              {busy ? "로그인 중..." : "게스트로 바로 시작하기"}
+            </button>
+            
+            <p className="text-xs text-slate-400 mt-4">
+              게스트 로그인은 테스트용 세션이며, 브라우저 종료 시 초기화될 수 있습니다.
+            </p>
+          </div>
         </div>
       )}
 
