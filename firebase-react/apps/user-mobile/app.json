@@ -3,6 +3,7 @@
     "name": "user-mobile",
     "slug": "user-mobile",
     "version": "1.0.0",
+    "scheme": "agentregi",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -28,6 +29,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
