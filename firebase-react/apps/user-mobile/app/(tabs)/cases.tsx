@@ -47,8 +47,8 @@ export default function CasesScreen() {
         {selectedImage ? (
           <Image source={{ uri: selectedImage }} style={styles.previewImage} />
         ) : (
-          <View style={styles.placeholderBox}>
-            <Text style={styles.placeholderText}>이미지가 없습니다.</Text>
+          <View style={styles.emptyImageBox}>
+            <Text style={styles.emptyImageText}>이미지가 없습니다.</Text>
           </View>
         )}
         <View style={styles.buttonRow}>
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: '#1e293b'
   },
-  placeholderBox: {
+  emptyImageBox: {
     height: 200,
     backgroundColor: '#e2e8f0',
     borderRadius: 8,
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
   },
-  placeholderText: {
+  emptyImageText: {
     color: '#64748b',
   },
   previewImage: {
