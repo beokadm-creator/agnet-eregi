@@ -20,8 +20,8 @@ jest.mock("firebase-admin", () => {
 
   const mockFirestore = jest.fn(() => ({
     collection: mockCollection
-  }));
-  (mockFirestore as any).FieldValue = {
+  })) as any;
+  mockFirestore.FieldValue = {
     serverTimestamp: jest.fn(() => "MOCK_TIMESTAMP")
   };
 

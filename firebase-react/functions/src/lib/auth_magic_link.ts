@@ -1,11 +1,10 @@
-import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 
 /**
  * 보안 딥링크(Magic Link) 생성 유틸리티 [EP-10-03]
  * 사용자가 로그인 없이 링크 클릭만으로 워크스페이스에 즉시 진입할 수 있는 1회용 토큰 생성
  */
-export async function createMagicLink(adminApp: typeof admin, targetUid: string, redirectUrl: string): Promise<string> {
+export async function createMagicLink(adminApp: any, targetUid: string, redirectUrl: string): Promise<string> {
   const db = adminApp.firestore();
   
   // 1. 암호학적으로 안전한 랜덤 토큰 생성
@@ -19,8 +18,8 @@ export async function createMagicLink(adminApp: typeof admin, targetUid: string,
     targetUid,
     redirectUrl,
     used: false,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+    createdAt: adminApp.firestore.FieldValue.serverTimestamp(),
+    expiresAt: adminApp.firestore.Timestamp.fromDate(expiresAt),
   });
 
   // 4. API 서버 호스트 조립
