@@ -1,11 +1,16 @@
 import { validateDocument, extractTextFromImage } from "../../lib/vision";
 import { ImageAnnotatorClient } from "@google-cloud/vision";
+import { checkAndRecordUsage } from "../../lib/quota";
 
 // Mock Google Cloud Vision
 jest.mock("@google-cloud/vision");
+jest.mock("../../lib/quota", () => ({
+  checkAndRecordUsage: jest.fn()
+}));
 
 describe("vision", () => {
   describe("extractTextFromImage", () => {
+    const partnerId = "partner_1";
     let mockTextDetection: jest.Mock;
 
     beforeAll(() => {
@@ -24,28 +29,39 @@ describe("vision", () => {
     });
 
     it("should extract text successfully", async () => {
+      (checkAndRecordUsage as jest.Mock).mockResolvedValueOnce(true);
       mockTextDetection.mockResolvedValue([
         { textAnnotations: [{ description: "테스트 문서 텍스트" }] }
       ]);
 
-      const text = await extractTextFromImage("gs://bucket/test.jpg");
+      const text = await extractTextFromImage(partnerId, "gs://bucket/test.jpg");
       expect(text).toBe("테스트 문서 텍스트");
+      expect(checkAndRecordUsage).toHaveBeenCalledWith(partnerId, "ocr", 500);
       expect(mockTextDetection).toHaveBeenCalledWith("gs://bucket/test.jpg");
     });
 
     it("should return empty string if no annotations", async () => {
+      (checkAndRecordUsage as jest.Mock).mockResolvedValueOnce(true);
       mockTextDetection.mockResolvedValue([
         { textAnnotations: [] }
       ]);
 
-      const text = await extractTextFromImage("gs://bucket/test.jpg");
+      const text = await extractTextFromImage(partnerId, "gs://bucket/test.jpg");
       expect(text).toBe("");
     });
 
     it("should throw error on API failure", async () => {
+      (checkAndRecordUsage as jest.Mock).mockResolvedValueOnce(true);
       mockTextDetection.mockRejectedValue(new Error("API Error"));
 
-      await expect(extractTextFromImage("gs://bucket/test.jpg")).rejects.toThrow("OCR 추출에 실패했습니다.");
+      await expect(extractTextFromImage(partnerId, "gs://bucket/test.jpg")).rejects.toThrow("OCR 추출에 실패했습니다.");
+    });
+
+    it("should block extraction when quota is exceeded", async () => {
+      (checkAndRecordUsage as jest.Mock).mockResolvedValueOnce(false);
+
+      await expect(extractTextFromImage(partnerId, "gs://bucket/test.jpg")).rejects.toThrow("OCR 추출 할당량을 초과했습니다.");
+      expect(mockTextDetection).not.toHaveBeenCalled();
     });
   });
 

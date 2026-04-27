@@ -1,4 +1,5 @@
 import { ImageAnnotatorClient } from "@google-cloud/vision";
+import { checkAndRecordUsage } from "./quota";
 
 let visionClient: ImageAnnotatorClient | null = null;
 
@@ -11,10 +12,19 @@ function getVisionClient(): ImageAnnotatorClient {
 
 /**
  * Google Cloud Storage에 있는 이미지 파일의 텍스트를 추출 (OCR)
+ * @param partnerId The partner ID for quota tracking.
  * @param gsUri gs://bucket_name/path/to/image.jpg
  * @returns 추출된 전체 텍스트
  */
-export async function extractTextFromImage(gsUri: string): Promise<string> {
+export async function extractTextFromImage(partnerId: string, gsUri: string): Promise<string> {
+  const quotaLimit = 500; // Example quota limit for OCR
+  const isAllowed = await checkAndRecordUsage(partnerId, "ocr", quotaLimit);
+
+  if (!isAllowed) {
+    console.error(`[Vision API] Quota exceeded for partner ${partnerId}`);
+    throw new Error("OCR 추출 할당량을 초과했습니다.");
+  }
+
   try {
     const client = getVisionClient();
     const [result] = await client.textDetection(gsUri);

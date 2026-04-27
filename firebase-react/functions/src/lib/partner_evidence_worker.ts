@@ -62,7 +62,7 @@ export async function processEvidenceValidation(adminApp: typeof admin) {
       if (contentType.startsWith("image/")) {
         const gsUri = `gs://${bucket.name}/${ev.storagePath}`;
         try {
-          extractedText = await extractTextFromImage(gsUri);
+          extractedText = await extractTextFromImage(ev.partnerId, gsUri);
           // ev.itemCode를 기반으로 문서 타입 추론 (예: BUSINESS_LICENSE 등)
           const aiResult = validateDocument(extractedText, ev.itemCode || "");
           isValidAI = aiResult.isValid;

@@ -1,5 +1,6 @@
 import axios from "axios";
 import * as crypto from "crypto";
+import { checkAndRecordUsage } from "./quota";
 
 export interface WebhookPayload {
   eventId: string;
@@ -30,12 +31,28 @@ export function computeSignature(payload: string, secret: string): string {
  * Dispatches a webhook to the specified URL.
  * It computes an HMAC signature and includes it in the `X-AgentRegi-Signature` header.
  * 
+ * @param partnerId The partner ID for quota tracking.
  * @param url The webhook endpoint URL.
  * @param secret The webhook secret for computing the signature.
  * @param payload The webhook payload.
  * @returns The result of the webhook delivery.
  */
-export async function dispatchWebhook(url: string, secret: string, payload: WebhookPayload): Promise<WebhookResult> {
+export async function dispatchWebhook(
+  partnerId: string,
+  url: string,
+  secret: string,
+  payload: WebhookPayload
+): Promise<WebhookResult> {
+  const quotaLimit = 1000; // Example quota limit
+  const isAllowed = await checkAndRecordUsage(partnerId, "webhook", quotaLimit);
+  
+  if (!isAllowed) {
+    return {
+      success: false,
+      error: "Quota exceeded for webhook delivery",
+    };
+  }
+
   const bodyString = JSON.stringify(payload);
   const signature = computeSignature(bodyString, secret);
 
