@@ -7,6 +7,7 @@ import { requireAuth, partnerIdOf } from "../../lib/auth";
 import { fail, ok, logError } from "../../lib/http";
 import { PartnerCase, CaseEvidence, CasePackage, EvidenceRequest } from "../../lib/partner_models";
 import { enqueueNotification } from "../../lib/notify_trigger";
+import { dispatchCustomerNotification } from "../../lib/notifications";
 
 export function registerPartnerCaseRoutes(app: express.Application, adminApp: typeof admin) {
 
@@ -732,6 +733,7 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
       await enqueueNotification(adminApp, { partnerId }, "case.completed", {
         caseId: cId
       });
+      await dispatchCustomerNotification(adminApp, cId, "case.status_changed.completed");
 
       return ok(res, { message: "케이스가 마감되었습니다." });
     } catch (err: any) {
