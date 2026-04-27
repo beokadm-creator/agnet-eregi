@@ -2,11 +2,37 @@ import * as admin from "firebase-admin";
 import * as express from "express";
 import { fail } from "./http";
 
+async function verifyAppCheckToken(
+  adminApp: typeof admin,
+  req: express.Request,
+  res: express.Response
+): Promise<boolean> {
+  if (process.env.ENFORCE_APP_CHECK !== "1") return true;
+
+  const appCheckToken = req.header("X-Firebase-AppCheck");
+  if (!appCheckToken) {
+    fail(res, 401, "UNAUTHENTICATED", "App Check 토큰이 필요합니다.");
+    return false;
+  }
+
+  try {
+    await adminApp.appCheck().verifyToken(appCheckToken);
+    return true;
+  } catch (err: any) {
+    console.error("[requireAuth] App Check verification failed:", err);
+    fail(res, 401, "UNAUTHENTICATED", "유효하지 않은 App Check 토큰입니다.");
+    return false;
+  }
+}
+
 async function verifyAuthToken(
   adminApp: typeof admin,
   req: express.Request,
   res: express.Response
 ): Promise<admin.auth.DecodedIdToken | null> {
+  const appCheckValid = await verifyAppCheckToken(adminApp, req, res);
+  if (!appCheckValid) return null;
+
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     fail(res, 401, "UNAUTHENTICATED", "인증 토큰이 필요합니다.");

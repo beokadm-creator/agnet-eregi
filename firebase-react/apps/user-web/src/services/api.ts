@@ -4,7 +4,8 @@ export class ApiService {
   private get headers() {
     return {
       Authorization: `Bearer ${this.getToken()}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "X-Firebase-AppCheck": "demo-app-check-token"
     };
   }
 
