@@ -8,7 +8,7 @@ import { Payment } from "../../lib/payment_models";
 import { tossConfirmPayment, getTossPaymentsSettings } from "../../lib/tosspayments";
 import { getExchangeRate, convertCurrency } from "../../lib/exchange_rate";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2023-10-16" as any });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_mock", { apiVersion: "2023-10-16" as any });
 
 export function registerPaymentRoutes(app: express.Application, adminApp: typeof admin) {
 

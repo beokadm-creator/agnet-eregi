@@ -8,7 +8,7 @@
   },
   "functions": [
     {
-      "source": ".", "runtime": "nodejs20"
+      "source": "functions", "runtime": "nodejs20"
     }
   ],
   "emulators": {

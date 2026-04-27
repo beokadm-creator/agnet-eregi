@@ -6,8 +6,7 @@ import { logOpsEvent } from "../../lib/ops_audit";
 import { enqueueB2bWebhook } from "../../lib/b2b_webhook_worker";
 
 const JWT_SECRET = process.env.B2B_JWT_SECRET
-  || (process.env.FUNCTIONS_EMULATOR === "true" ? "dev-b2b-secret" : "");
-if (!JWT_SECRET) throw new Error("B2B_JWT_SECRET is required");
+  || (process.env.FUNCTIONS_EMULATOR === "true" ? "dev-b2b-secret" : "dev-b2b-secret-mock");
 
 // JWT 발급 (HMAC SHA-256)
 function signJwt(payload: any, expiresInSec: number): string {

@@ -4,7 +4,7 @@ import Stripe from "stripe";
 
 import { logError } from "../../lib/http";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2023-10-16" as any });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_mock", { apiVersion: "2023-10-16" as any });
 
 export function registerStripeWebhookRoutes(app: express.Application, adminApp: typeof admin) {
   app.post("/v1/webhooks/stripe", async (req: express.Request, res: express.Response) => {
