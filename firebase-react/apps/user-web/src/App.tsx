@@ -1,6 +1,9 @@
 import React, { useState, useEffect, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 
+import { auth } from "@rp/firebase";
+import { signInAnonymously, onAuthStateChanged, signOut } from "firebase/auth";
+
 const FloatingChatWidget = lazy(() => import("./components/FloatingChatWidget"));
 const TossPaymentModal = lazy(() => import("./components/TossPaymentModal"));
 
@@ -67,7 +70,42 @@ function App() {
   useEffect(() => {
     const t = localStorage.getItem("user_token");
     if (t) setToken(t);
+
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          const idToken = await currentUser.getIdToken(true);
+          setToken(idToken);
+          localStorage.setItem("user_token", idToken);
+          setLog("자동 로그인되었습니다.");
+        } catch (e) {
+          console.error("Token fetch error", e);
+        }
+      } else {
+        setToken("");
+        localStorage.removeItem("user_token");
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
+
+  async function handleGuestLogin() {
+    setBusy(true);
+    setLog("게스트 로그인 중...");
+    try {
+      await signInAnonymously(auth);
+    } catch (e: any) {
+      setLog(`[Error] 로그인 실패: ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleLogout() {
+    await signOut(auth);
+    setLog("로그아웃 되었습니다.");
+  }
 
   useEffect(() => {
     // 쿼리 파라미터 확인하여 토스 결제 완료/실패 처리
@@ -536,18 +574,35 @@ function App() {
         </div>
       </div>
       
-      <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <label className="font-semibold text-slate-700 whitespace-nowrap">User Token:</label>
-        <input 
-          value={token} 
-          onChange={e => handleSaveToken(e.target.value)} 
-          className="flex-1 w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow" 
-          placeholder="Firebase Auth Token" 
-        />
-        <button onClick={loadSubmissions} disabled={busy || !token} className="w-full sm:w-auto px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-medium rounded-lg transition-colors shadow-sm whitespace-nowrap">
-          {t('auth_load')}
-        </button>
-      </div>
+      {token ? (
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <span className="font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-sm">
+              로그인 상태
+            </span>
+            <button onClick={loadSubmissions} disabled={busy || !token} className="w-full sm:w-auto px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-medium rounded-lg transition-colors shadow-sm whitespace-nowrap">
+              {t('auth_load')}
+            </button>
+          </div>
+          <button onClick={handleLogout} className="text-slate-500 hover:text-slate-700 text-sm font-medium underline decoration-slate-300 underline-offset-4">
+            로그아웃
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center my-10">
+          <h2 className="text-2xl font-bold text-slate-800 mb-4">에이전트레지(AgentRegi)에 오신 것을 환영합니다!</h2>
+          <p className="text-slate-600 mb-8 max-w-md leading-relaxed">
+            전문 행정/법률 대행 서비스를 가장 빠르고 쉽게 만나보세요. 아래 버튼을 눌러 게스트로 바로 시작하실 수 있습니다.
+          </p>
+          <button 
+            onClick={handleGuestLogin} 
+            disabled={busy} 
+            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold rounded-xl transition-colors shadow-md text-lg"
+          >
+            게스트로 시작하기 (Start as Guest)
+          </button>
+        </div>
+      )}
 
       {log && (
         <div className="bg-indigo-50 text-indigo-900 px-4 py-3 rounded-xl border border-indigo-100 text-sm font-medium shadow-sm">

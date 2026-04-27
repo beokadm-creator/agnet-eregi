@@ -7,13 +7,13 @@
     "agent-eregi": {
       "hosting": {
         "ops-console": [
-          "agent-eregi"
+          "agentregi-ops-console"
         ],
         "partner-console": [
-          "partner-console-eregi"
+          "agentregi-partner-console"
         ],
         "user-web": [
-          "user-web-eregi"
+          "agentregi-user-web"
         ]
       }
     }
