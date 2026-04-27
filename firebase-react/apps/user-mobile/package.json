@@ -1,0 +1,28 @@
+{
+  "name": "user-mobile",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build": "echo 'Skip build for mobile'",
+    "test": "echo 'Skip test for mobile'",
+    "test:e2e": "echo 'Skip e2e test for mobile'"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^1.24.0",
+    "expo": "~54.0.33",
+    "expo-local-authentication": "^55.0.13",
+    "expo-status-bar": "~3.0.9",
+    "firebase": "^12.12.1",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}

@@ -86,12 +86,19 @@
 - [x] **EP-28 엔터프라이즈 SLA 및 리포팅 대시보드**: 팀원별 퍼포먼스, CSAT, 매출 분석 통계 차트 및 데이터 내보내기.
 - [x] [상세 스펙: phase-11-roadmap.md](./phase-11-roadmap.md)
 
-### ✅ Phase 11까지의 성과 요약 (Summary of Achievements up to Phase 11)
+### Phase 12 — 모바일 앱 확장 (Mobile App Expansion)
+- **EP-29 React Native/Expo 기반 모바일 앱 구축**: iOS/Android 통합 코드베이스 및 모바일 최적화 UI/UX 적용.
+- **EP-30 모바일 네이티브 기능 연동**: 카메라 문서 스캔, 기기 푸시 알림, 생체 인증(Biometrics) 통합.
+- **EP-31 앱 배포 및 CI/CD 자동화**: Expo EAS(Build/Submit/Update) 기반의 앱스토어 자동 배포 및 OTA 파이프라인.
+- [상세 스펙: phase-12-roadmap.md](./phase-12-roadmap.md)
+
+### ✅ Phase 12까지의 성과 요약 (Summary of Achievements up to Phase 12)
 - **Phase 0~4 (MVP & 운영 기반)**: 이벤트 기반 아키텍처, 권한(RBAC/RLS), 결제/정산/환불 시스템 및 수동 검토 안전밸브 구축 완료.
 - **Phase 5~6 (지능화 & B2G 자동화)**: Document AI(OCR), 옴니채널 알림, B2G 자동 전송(E-Filing) 및 공과금 연동 등 핵심 스케일업 기능 완료.
 - **Phase 7~9 (B2B, 글로벌, 고도화)**: B2B Open API, 글로벌 다국어/다중 통화, 파트너 SaaS 구독, AI 기반 1차 판독 등 생태계 확장 완료.
-- **Phase 10~11 (플랫폼 제품화 & 엔터프라이즈)**: Partner Auth/Webhook 서비스화, Metering/Quota, Observability 고도화, 그리고 엔터프라이즈 조직/팀 워크스페이스(Advanced RBAC), 커스텀 템플릿 및 리포팅 대시보드 등 대규모 엔터프라이즈 SaaS 환경 구축 완료.
-- **결과적으로**: B2C(사용자), B2B(파트너/엔터프라이즈), B2G(관공서)를 아우르는 End-to-End 자동화 및 협업 플랫폼 완성을 이루었습니다.
+- **Phase 10~11 (플랫폼 제품화 & 엔터프라이즈)**: Partner Auth/Webhook 서비스화, Metering/Quota, Observability 고도화, 그리고 엔터프라이즈 조직/팀 워크스페이스 구축 완료.
+- **Phase 12 (모바일 앱 확장)**: React Native와 Expo를 활용하여 사용자 및 파트너를 위한 iOS/Android 네이티브 모바일 앱 경험 구축 및 자동 배포 파이프라인(EAS) 완성.
+- **결과적으로**: B2C(사용자), B2B(파트너/엔터프라이즈), B2G(관공서)를 아우르는 End-to-End 플랫폼이 웹과 모바일을 넘나드는 옴니채널 생태계로 완성되었습니다.
 
 > 참고: “MVP를 안 한다”는 의미는 Phase 1~3을 모두 하겠다는 것으로 해석하되, **릴리즈 순서/의존성 관리**는 여전히 필요합니다.
 
@@ -176,6 +183,21 @@
 - EP-15-01: 다국어(i18n) 번역 및 메타데이터 파이프라인
 - EP-15-02: 글로벌 결제(Stripe) 및 실시간 환율 기반 견적
 - EP-15-03: 아포스티유(Apostille) 문서 AI 자동 판독 및 매뉴얼 리뷰
+
+### EP-29 React Native/Expo 기반 모바일 앱 구축 (Mobile Foundation)
+- EP-29-01: Expo 환경 설정 및 라우팅(Expo Router) 적용
+- EP-29-02: 기존 웹 UI의 모바일 네이티브 최적화 (모바일 컴포넌트 라이브러리 도입)
+- EP-29-03: Firebase Native SDK 연동 및 소셜 로그인(Apple/Google) 통합
+
+### EP-30 모바일 네이티브 기능 연동 (Native Features)
+- EP-30-01: 카메라 기반 문서 스캔 및 자동 크롭/업로드 기능 연동
+- EP-30-02: 기기 네이티브 푸시 알림(FCM/APNs) 수신 및 딥링크(Universal Links) 처리
+- EP-30-03: 생체 인증(Face ID/Touch ID)을 활용한 빠른 로그인 및 결제/서명 승인
+
+### EP-31 앱 배포 및 CI/CD 자동화 (App Distribution & CI/CD)
+- EP-31-01: Expo EAS Build를 활용한 iOS/Android 클라우드 빌드 파이프라인 구축
+- EP-31-02: EAS Submit을 통한 App Store 및 Google Play Store 자동 제출
+- EP-31-03: EAS Update를 활용한 긴급 버그 패치 및 OTA(Over-The-Air) 업데이트 적용
 
 ---
 
