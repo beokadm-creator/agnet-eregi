@@ -1,4 +1,3 @@
-import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 
 // 실제 연동 시에는 SDK(예: @sendgrid/mail, twilio)를 설치하여 사용합니다.
