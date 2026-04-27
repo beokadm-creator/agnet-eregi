@@ -10,17 +10,23 @@ function PartnerConsoleContent() {
   const { token } = useAppContext();
 
   return (
-    <div style={{ fontFamily: "sans-serif", padding: 20, maxWidth: 1200, margin: "0 auto", background: "#fafafa", minHeight: "100vh" }}>
-      <Header />
-      <TokenInput />
-      <LogViewer />
-      
-      {token && (
-        <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
-          <LeftSidebar />
-          <RightPanel />
-        </div>
-      )}
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
+        <Header />
+        <TokenInput />
+        <LogViewer />
+        
+        {token && (
+          <div className="flex flex-col lg:flex-row gap-6 items-start mt-4">
+            <div className="w-full lg:w-1/4 shrink-0">
+              <LeftSidebar />
+            </div>
+            <div className="w-full lg:w-3/4">
+              <RightPanel />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
