@@ -562,6 +562,74 @@ function App() {
     }
   }
 
+  if (!token) {
+    return (
+      <div className="min-h-screen w-full bg-[#0a0a0a] text-[#f5f5f5] flex flex-col font-sans relative overflow-hidden selection:bg-white/20">
+        {/* Abstract Background Elements */}
+        <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-white/5 blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/10 blur-[150px] pointer-events-none"></div>
+        
+        {/* Header */}
+        <header className="w-full px-8 py-6 flex justify-between items-center border-b border-white/10 z-10">
+          <div className="text-xl font-bold tracking-widest uppercase text-white">AgentRegi</div>
+          <div className="flex gap-6 text-xs font-medium tracking-widest uppercase">
+            <button onClick={() => i18n.changeLanguage('ko')} className={`transition-colors ${i18n.language?.startsWith('ko') ? 'text-white' : 'text-white/40 hover:text-white'}`}>KR</button>
+            <button onClick={() => i18n.changeLanguage('en')} className={`transition-colors ${i18n.language?.startsWith('en') ? 'text-white' : 'text-white/40 hover:text-white'}`}>EN</button>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col lg:flex-row items-center justify-center px-8 lg:px-24 z-10 relative">
+          <div className="w-full lg:w-1/2 flex flex-col items-start gap-8 z-20">
+            <div className="inline-block px-4 py-1.5 border border-white/20 rounded-full text-xs uppercase tracking-widest text-white/70 mb-2 backdrop-blur-md">
+              Premium Agency Service
+            </div>
+            <h1 className="text-5xl lg:text-7xl font-light leading-tight tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+              Complex paperwork,<br/>
+              <span className="font-serif italic text-white/40">simplified.</span>
+            </h1>
+            <p className="text-lg lg:text-xl text-white/50 max-w-lg font-light leading-relaxed">
+              가장 전문적이고 신속한 행정/법률 대행 경험을 제공합니다.<br/>
+              복잡한 절차는 저희에게 맡기고, 비즈니스에 집중하세요.
+            </p>
+            
+            <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <button 
+                onClick={handleGuestLogin} 
+                disabled={busy} 
+                className="group relative px-8 py-4 bg-white text-black font-bold text-sm uppercase tracking-widest overflow-hidden transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <div className="absolute inset-0 bg-neutral-200 transform scale-x-0 origin-left group-hover:scale-x-100 transition-transform duration-500 ease-out z-0"></div>
+                <span className="relative z-10 flex items-center justify-center gap-3">
+                  {busy ? "Processing..." : "Start as Guest"}
+                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="square" strokeLinejoin="miter" strokeWidth="2" d="M5 12h14M12 5l7 7-7 7"></path></svg>
+                </span>
+              </button>
+            </div>
+          </div>
+          
+          <div className="w-full lg:w-1/2 mt-16 lg:mt-0 flex justify-center lg:justify-end relative z-10">
+            {/* Decorative architectural element */}
+            <div className="w-full max-w-md aspect-[3/4] border border-white/10 relative p-6 flex flex-col justify-between overflow-hidden group bg-white/[0.01] backdrop-blur-sm transition-colors hover:bg-white/[0.03]">
+              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+              <div className="absolute -right-24 -top-24 w-64 h-64 border border-white/5 rounded-full group-hover:scale-110 transition-transform duration-1000"></div>
+              <div className="absolute -left-12 -bottom-12 w-40 h-40 border border-white/5 rounded-full group-hover:scale-110 transition-transform duration-1000"></div>
+              
+              <div className="flex justify-between items-start text-white/40 text-[10px] font-mono tracking-widest uppercase">
+                <span>SEC.01</span>
+                <span>SYSTEM.READY</span>
+              </div>
+              <div className="text-right">
+                <div className="text-6xl font-serif italic text-white/20 font-light tracking-tighter group-hover:text-white/30 transition-colors duration-700">Seamless</div>
+                <div className="text-[10px] font-mono text-white/40 mt-3 tracking-widest uppercase">v2.0.4 - Production</div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 pb-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
@@ -574,55 +642,19 @@ function App() {
         </div>
       </div>
       
-      {token ? (
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-4 w-full sm:w-auto">
-            <span className="font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-sm">
-              로그인 상태
-            </span>
-            <button onClick={loadSubmissions} disabled={busy || !token} className="w-full sm:w-auto px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-medium rounded-lg transition-colors shadow-sm whitespace-nowrap">
-              {t('auth_load')}
-            </button>
-          </div>
-          <button onClick={handleLogout} className="text-slate-500 hover:text-slate-700 text-sm font-medium underline decoration-slate-300 underline-offset-4">
-            로그아웃
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <span className="font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-sm">
+            로그인 상태
+          </span>
+          <button onClick={loadSubmissions} disabled={busy || !token} className="w-full sm:w-auto px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-medium rounded-lg transition-colors shadow-sm whitespace-nowrap">
+            {t('auth_load')}
           </button>
         </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center bg-white p-12 rounded-2xl border border-slate-200 shadow-xl text-center my-10 overflow-hidden relative">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
-          
-          <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
-            <svg className="w-10 h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-          </div>
-          
-          <h2 className="text-3xl font-extrabold text-slate-800 mb-4 tracking-tight">AgentRegi에 오신 것을 환영합니다</h2>
-          <p className="text-slate-500 mb-10 max-w-md leading-relaxed text-lg">
-            복잡한 행정/법률 대행 서비스를 가장 빠르고 쉽게 만나보세요. 별도의 가입 없이 즉시 경험해 볼 수 있습니다.
-          </p>
-          
-          <div className="flex flex-col gap-4 w-full max-w-sm">
-            <button 
-              onClick={handleGuestLogin} 
-              disabled={busy} 
-              className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all shadow-md overflow-hidden"
-            >
-              <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-                <svg className="h-5 w-5 text-indigo-500 group-hover:text-indigo-400 transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
-              </span>
-              {busy ? "로그인 중..." : "게스트로 바로 시작하기"}
-            </button>
-            
-            <p className="text-xs text-slate-400 mt-4">
-              게스트 로그인은 테스트용 세션이며, 브라우저 종료 시 초기화될 수 있습니다.
-            </p>
-          </div>
-        </div>
-      )}
+        <button onClick={handleLogout} className="text-slate-500 hover:text-slate-700 text-sm font-medium underline decoration-slate-300 underline-offset-4">
+          로그아웃
+        </button>
+      </div>
 
       {log && (
         <div className="bg-indigo-50 text-indigo-900 px-4 py-3 rounded-xl border border-indigo-100 text-sm font-medium shadow-sm">
