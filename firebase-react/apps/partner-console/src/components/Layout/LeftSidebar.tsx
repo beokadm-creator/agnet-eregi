@@ -10,11 +10,13 @@ import SecuritySettings from "../LeftSidebar/SecuritySettings";
 import DeveloperSettings from "../LeftSidebar/DeveloperSettings";
 import OrganizationSettings from "../LeftSidebar/OrganizationSettings";
 import TemplateManager from "../LeftSidebar/TemplateManager";
+import { EnterpriseAnalytics } from "../LeftSidebar/EnterpriseAnalytics";
 
 export default function LeftSidebar() {
   return (
     <div style={{ flex: 1, background: "#fff", padding: 16, borderRadius: 8, border: "1px solid #ddd" }}>
       <OrganizationSettings />
+      <EnterpriseAnalytics />
       <QualityTier />
       <CaseList />
       <NotificationSettings />

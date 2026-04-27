@@ -767,4 +767,47 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
       return fail(res, 500, "INTERNAL", "템플릿 삭제에 실패했습니다.", { error: error.message, requestId });
     }
   });
+
+  // 18. 파트너 통계 조회 (GET /v1/partner/analytics)
+  app.get("/v1/partner/analytics", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      // MVP 용 가짜 데이터 생성 (향후 실제 케이스 데이터 집계로 교체)
+      const today = new Date();
+      const dailyStats = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        dailyStats.push({
+          date: d.toISOString().split("T")[0],
+          casesCompleted: Math.floor(Math.random() * 10) + 1,
+          revenue: Math.floor(Math.random() * 500000) + 100000,
+          slaViolations: Math.floor(Math.random() * 2)
+        });
+      }
+
+      const weeklyStats = [];
+      for (let i = 3; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i * 7);
+        weeklyStats.push({
+          week: `Week of ${d.toISOString().split("T")[0]}`,
+          casesCompleted: Math.floor(Math.random() * 50) + 10,
+          revenue: Math.floor(Math.random() * 3000000) + 500000,
+          slaViolations: Math.floor(Math.random() * 5)
+        });
+      }
+
+      return ok(res, { daily: dailyStats, weekly: weeklyStats }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "GET /v1/partner/analytics", code: "INTERNAL", messageKo: "파트너 통계 조회 실패", err: error });
+      return fail(res, 500, "INTERNAL", "파트너 통계 조회에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
 }
