@@ -7,6 +7,7 @@ import SettlementsAndAds from "../LeftSidebar/SettlementsAndAds";
 import Subscriptions from "../LeftSidebar/Subscriptions";
 import TeamMembers from "../LeftSidebar/TeamMembers";
 import SecuritySettings from "../LeftSidebar/SecuritySettings";
+import DeveloperSettings from "../LeftSidebar/DeveloperSettings";
 
 export default function LeftSidebar() {
   return (
@@ -19,6 +20,7 @@ export default function LeftSidebar() {
       <Subscriptions />
       <TeamMembers />
       <SecuritySettings />
+      <DeveloperSettings />
     </div>
   );
 }

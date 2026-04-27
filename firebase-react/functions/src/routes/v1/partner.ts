@@ -1,5 +1,6 @@
 import { Express } from "express";
 import * as admin from "firebase-admin";
+import * as crypto from "crypto";
 import { requireAuth } from "../../lib/auth";
 import { ok, fail, logError } from "../../lib/http";
 import { logOpsEvent } from "../../lib/ops_audit";
@@ -213,6 +214,31 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
     } catch (error: any) {
       logError({ endpoint: "GET /v1/partner/profile", code: "INTERNAL", messageKo: "파트너 프로필 조회 실패", err: error });
       return fail(res, 500, "INTERNAL", "파트너 프로필 조회에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  // 5. 파트너 API 키 생성 (POST /v1/partner/api-keys)
+  app.post("/v1/partner/api-keys", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const partnerId = (req as any).user.partnerId;
+
+    if (!partnerId) {
+      return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
+    }
+
+    try {
+      const apiKey = crypto.randomBytes(32).toString("hex");
+
+      await db.collection("api_keys").doc(apiKey).set({
+        partnerId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: "active",
+      });
+
+      return ok(res, { apiKey }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "POST /v1/partner/api-keys", code: "INTERNAL", messageKo: "API 키 생성 실패", err: error });
+      return fail(res, 500, "INTERNAL", "API 키 생성에 실패했습니다.", { error: error.message, requestId });
     }
   });
 }
