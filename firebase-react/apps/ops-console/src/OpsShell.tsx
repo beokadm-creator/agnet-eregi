@@ -40,7 +40,8 @@ function OpsShell() {
       setToken(nextToken);
       const tokenResult = await u.getIdTokenResult();
       const opsRole = tokenResult.claims?.opsRole ? String(tokenResult.claims.opsRole) : "";
-      const isSuperAdmin = u.uid === "sOhR3HDAitbyX2izUyge61W3gQr2" || u.email === "aaron@beoksolution.com";
+      // SECURITY: 이메일 스푸핑 방지를 위해 고유 식별자인 UID만으로 검증
+      const isSuperAdmin = u.uid === "sOhR3HDAitbyX2izUyge61W3gQr2";
       setAccessDenied(!isSuperAdmin && !["ops_admin", "ops_operator", "ops_viewer"].includes(opsRole));
     });
     return () => unsubscribe();
