@@ -14,12 +14,16 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "bundleIdentifier": "com.agentregi.user",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": true,
       "infoPlist": {
         "NSFaceIDUsageDescription": "안전한 앱 로그인을 위해 Face ID를 사용합니다."
       }
     },
     "android": {
+      "package": "com.agentregi.user",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -32,6 +36,7 @@
     },
     "plugins": [
       "expo-router",
+      "@react-native-firebase/app",
       [
         "expo-image-picker",
         {

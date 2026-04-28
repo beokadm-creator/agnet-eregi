@@ -30,7 +30,7 @@ export function usePushNotifications() {
     });
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Notification response received:', response);
+      setNotification(response.notification);
     });
 
     return () => {
@@ -62,21 +62,16 @@ async function registerForPushNotificationsAsync() {
       finalStatus = status;
     }
     if (finalStatus !== 'granted') {
-      console.log('Failed to get push token for push notification!');
       return;
     }
     const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-    if (!projectId) {
-      console.log('Project ID not found. Ensure you have eas.json and expo-constants installed.');
-    }
     try {
-      const pushTokenString = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+      const pushTokenString = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : (undefined as any))).data;
       token = pushTokenString;
     } catch (e: any) {
       token = `${e}`;
     }
   } else {
-    console.log('Must use physical device for Push Notifications');
   }
 
   return token;

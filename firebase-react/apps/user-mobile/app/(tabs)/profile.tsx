@@ -1,16 +1,17 @@
-import { View, Text, Button, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, Button, StyleSheet } from "react-native";
+import { router } from "expo-router";
+import auth from "@react-native-firebase/auth";
 
 export default function ProfileScreen() {
-  const handleLogout = () => {
-    // 로그아웃 시 초기 인증 화면으로 돌아감
+  const handleLogout = async () => {
+    await auth().signOut();
     router.replace('/');
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>내 프로필</Text>
-      <Text style={styles.description}>홍길동 님</Text>
+      <Text style={styles.description}>{auth().currentUser?.email || auth().currentUser?.uid}</Text>
       
       <View style={styles.buttonContainer}>
         <Button title="로그아웃" onPress={handleLogout} color="#ef4444" />

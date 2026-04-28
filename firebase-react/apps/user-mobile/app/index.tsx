@@ -1,64 +1,169 @@
-import { View, Text, Button, StyleSheet, Alert } from 'react-native';
-import * as LocalAuthentication from 'expo-local-authentication';
-import { useState, useEffect } from 'react';
-import { router } from 'expo-router';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { router } from "expo-router";
+import auth from "@react-native-firebase/auth";
+import * as GoogleSignIn from "@react-native-google-signin/google-signin";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
 
-export default function AuthScreen() {
-  const [isBiometricSupported, setIsBiometricSupported] = useState(false);
+export default function Index() {
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const compatible = await LocalAuthentication.hasHardwareAsync();
-      setIsBiometricSupported(compatible);
-    })();
+    const unsub = auth().onAuthStateChanged((u: any) => {
+      if (u) {
+        router.replace("/(tabs)/home");
+        return;
+      }
+      setReady(true);
+    });
+    return () => unsub();
   }, []);
 
-  const handleAuth = async () => {
+  async function signInWithGoogle() {
+    setBusy(true);
     try {
-      const biometricAuth = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'AgentRegi 생체 인증',
-        disableDeviceFallback: false,
-      });
-      if (biometricAuth.success) {
-        // 인증 성공 시 탭 기반 메인 화면으로 이동
-        router.replace('/(tabs)/home');
-      } else {
-        Alert.alert('실패', '인증이 취소되었거나 실패했습니다.');
-      }
-    } catch (error) {
-      Alert.alert('에러', '인증 중 문제가 발생했습니다.');
+      const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+      if (!webClientId) throw new Error("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID 환경변수가 필요합니다.");
+      GoogleSignIn.GoogleSignin.configure({ webClientId });
+
+      await GoogleSignIn.GoogleSignin.hasPlayServices();
+      await GoogleSignIn.GoogleSignin.signIn();
+      const tokens = await GoogleSignIn.GoogleSignin.getTokens();
+      const idToken = (tokens as any)?.idToken;
+      if (!idToken) throw new Error("Google idToken을 가져오지 못했습니다.");
+
+      const credential = auth.GoogleAuthProvider.credential(idToken);
+      await auth().signInWithCredential(credential);
+      router.replace("/(tabs)/home");
+    } catch (e: any) {
+      Alert.alert("로그인 실패", e?.message || "Unknown failure");
+    } finally {
+      setBusy(false);
     }
-  };
+  }
+
+  async function signInWithApple() {
+    setBusy(true);
+    try {
+      const bytes = await Crypto.getRandomBytesAsync(16);
+      const rawNonce = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: hashedNonce,
+      });
+      if (!credential.identityToken) throw new Error("Apple identityToken을 가져오지 못했습니다.");
+      const appleCredential = auth.AppleAuthProvider.credential(credential.identityToken, rawNonce);
+      await auth().signInWithCredential(appleCredential);
+      router.replace("/(tabs)/home");
+    } catch (e: any) {
+      if (e?.code === "ERR_REQUEST_CANCELED") return;
+      Alert.alert("로그인 실패", e?.message || "Unknown failure");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signInAsGuest() {
+    setBusy(true);
+    try {
+      await auth().signInAnonymously();
+      router.replace("/(tabs)/home");
+    } catch (e: any) {
+      Alert.alert("로그인 실패", e?.message || "Unknown failure");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!ready) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>AgentRegi Mobile</Text>
-      <Text style={styles.subtitle}>안전한 환경을 위해 인증해주세요.</Text>
-      <Button 
-        title={isBiometricSupported ? '생체 인증으로 로그인' : '로그인'} 
-        onPress={handleAuth} 
+      <Text style={styles.title}>AgentRegi</Text>
+      <Text style={styles.subtitle}>로그인 후 내 사건을 확인하세요.</Text>
+
+      <Pressable style={[styles.button, busy && styles.buttonDisabled]} onPress={signInWithGoogle} disabled={busy}>
+        <Text style={styles.buttonText}>Google 로그인</Text>
+      </Pressable>
+
+      <AppleAuthentication.AppleAuthenticationButton
+        buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+        cornerRadius={8}
+        style={{ width: "100%", height: 48, marginTop: 12 }}
+        onPress={busy ? () => {} : signInWithApple}
       />
+
+      <Pressable style={[styles.buttonSecondary, busy && styles.buttonDisabled]} onPress={signInAsGuest} disabled={busy}>
+        <Text style={styles.buttonTextSecondary}>게스트로 시작</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#fff', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    padding: 20 
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
   },
-  title: { 
-    fontSize: 28, 
-    fontWeight: 'bold', 
+  title: {
+    fontSize: 28,
+    fontWeight: "700",
     marginBottom: 10,
-    color: '#1e293b'
+    color: "#0f172a",
   },
-  subtitle: { 
-    fontSize: 16, 
-    marginBottom: 30, 
-    color: '#64748b' 
+  subtitle: {
+    fontSize: 16,
+    marginBottom: 24,
+    color: "#475569",
+    textAlign: "center",
+  },
+  button: {
+    width: "100%",
+    height: 48,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#2563eb",
+  },
+  buttonSecondary: {
+    width: "100%",
+    height: 48,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f1f5f9",
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  buttonTextSecondary: {
+    color: "#0f172a",
+    fontWeight: "700",
+    fontSize: 16,
   },
 });

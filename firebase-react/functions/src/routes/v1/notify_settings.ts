@@ -1,5 +1,6 @@
 import * as express from "express";
 import * as admin from "firebase-admin";
+import * as crypto from "crypto";
 
 import { requireAuth, partnerIdOf } from "../../lib/auth";
 import { fail, ok, logError } from "../../lib/http";
@@ -106,6 +107,62 @@ export function registerNotificationSettingsRoutes(app: express.Application, adm
       return ok(res, { settings });
     } catch (err: any) {
       logError({ endpoint: "user/notification-settings/put", code: "INTERNAL", messageKo: "알림 설정 업데이트 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  app.get("/v1/user/push-tokens", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const db = adminApp.firestore();
+      const snap = await db.collection("user_push_tokens").where("userId", "==", auth.uid).limit(50).get();
+      const items = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      return ok(res, { items });
+    } catch (err: any) {
+      logError({ endpoint: "user/push-tokens/get", code: "INTERNAL", messageKo: "푸시 토큰 조회 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  app.put("/v1/user/push-tokens", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const { token, platform } = req.body || {};
+      if (!token || typeof token !== "string" || token.length > 512) {
+        return fail(res, 400, "INVALID_ARGUMENT", "token 파라미터가 필요합니다.");
+      }
+
+      const db = adminApp.firestore();
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex").slice(0, 16);
+      const docId = `${auth.uid}_${tokenHash}`;
+      const ref = db.collection("user_push_tokens").doc(docId);
+      const now = admin.firestore.FieldValue.serverTimestamp();
+
+      const payload = {
+        userId: auth.uid,
+        provider: "expo",
+        platform: platform ? String(platform) : null,
+        token,
+        updatedAt: now,
+        createdAt: now
+      };
+
+      await db.runTransaction(async (t) => {
+        const snap = await t.get(ref);
+        if (snap.exists) {
+          t.update(ref, { token, platform: payload.platform, updatedAt: now });
+          return;
+        }
+        t.set(ref, payload);
+      });
+
+      return ok(res, { id: docId });
+    } catch (err: any) {
+      logError({ endpoint: "user/push-tokens/put", code: "INTERNAL", messageKo: "푸시 토큰 등록 실패", err });
       return fail(res, 500, "INTERNAL", err.message);
     }
   });

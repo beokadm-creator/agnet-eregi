@@ -19,6 +19,7 @@ export default function TabLayout() {
         name="cases" 
         options={{ 
           title: '내 사건',
+          headerShown: false,
           tabBarIcon: ({ color }) => <MaterialIcons name="folder" size={24} color={color} />
         }} 
       />

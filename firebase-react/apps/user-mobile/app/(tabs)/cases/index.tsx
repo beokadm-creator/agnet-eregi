@@ -1,11 +1,10 @@
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useEffect, useMemo } from "react";
 import { router } from "expo-router";
-import { useApi } from "../../hooks/useApi";
+import { useApi } from "../../../hooks/useApi";
 
-export default function HomeScreen() {
+export default function CasesIndex() {
   const { busy, data, error, callApi } = useApi();
-
   const items: any[] = data?.items || data?.submissions || [];
 
   useEffect(() => {
@@ -39,27 +38,17 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>내 사건 현황</Text>
-      <Text style={styles.description}>최근 제출 목록을 확인하세요.</Text>
-
-      <View style={{ marginTop: 16 }}>
-        {busy && items.length === 0 && <ActivityIndicator />}
-        {!busy && error ? (
-          <Text style={{ color: "#b91c1c" }}>{error}</Text>
-        ) : (
-          <FlatList
-            data={items}
-            keyExtractor={(it) => String(it.id)}
-            renderItem={renderItem}
-            contentContainerStyle={{ gap: 10, paddingBottom: 12 }}
-          />
-        )}
-      </View>
-      
-      <View style={styles.tokenContainer}>
-        <Text style={styles.tokenTitle}>푸시 알림</Text>
-        <Text style={styles.tokenText}>활성화됨</Text>
-      </View>
+      {busy && items.length === 0 && <ActivityIndicator />}
+      {!busy && error ? (
+        <Text style={{ color: "#b91c1c" }}>{error}</Text>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(it) => String(it.id)}
+          renderItem={renderItem}
+          contentContainerStyle={{ gap: 10, paddingBottom: 12 }}
+        />
+      )}
     </View>
   );
 }
@@ -68,32 +57,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f8fafc',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 16,
-    color: '#475569',
-  },
-  tokenContainer: {
-    marginTop: 40,
-    padding: 16,
-    backgroundColor: '#e0e7ff',
-    borderRadius: 8,
-  },
-  tokenTitle: {
-    fontWeight: 'bold',
-    color: '#3730a3',
-    marginBottom: 4,
-  },
-  tokenText: {
-    fontSize: 12,
-    color: '#4338ca',
+    backgroundColor: "#f8fafc",
   },
   card: {
     backgroundColor: "#fff",
@@ -139,3 +103,4 @@ const styles = StyleSheet.create({
     color: "#0f172a",
   },
 });
+
