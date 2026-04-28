@@ -1,4 +1,8 @@
-import React from "react";
+const fs = require('fs');
+const path = require('path');
+const srcDir = './firebase-react/apps/ops-console/src';
+
+const appTsxCode = `import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "@rp/firebase";
@@ -67,3 +71,5 @@ export default function App() {
     </AuthProvider>
   );
 }
+`;
+fs.writeFileSync(path.join(srcDir, 'OpsShell.tsx'), appTsxCode);
