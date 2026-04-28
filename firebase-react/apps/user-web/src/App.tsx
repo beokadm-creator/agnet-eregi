@@ -5,13 +5,14 @@ import { auth } from "@rp/firebase";
 import { signInAnonymously, onAuthStateChanged, signOut } from "firebase/auth";
 import { getApiBaseUrl } from "./apiBase";
 
+import WelcomeScreen from "./components/WelcomeScreen";
+
 const FloatingChatWidget = lazy(() => import("./components/FloatingChatWidget"));
 const TossPaymentModal = lazy(() => import("./components/TossPaymentModal"));
 
 function App() {
   const { t, i18n } = useTranslation();
   const [token, setToken] = useState("");
-  const [manualToken, setManualToken] = useState("");
   const [showTossModal, setShowTossModal] = useState(false);
   const [log, setLog] = useState("");
   const [busy, setBusy] = useState(false);
@@ -566,55 +567,12 @@ function App() {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 pb-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-3xl font-extrabold text-indigo-700 tracking-tight">{t('title')}</h1>
-            <div className="flex gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
-              <button onClick={() => i18n.changeLanguage('ko')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${i18n.language?.startsWith('ko') ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>KO</button>
-              <button onClick={() => i18n.changeLanguage('en')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${i18n.language?.startsWith('en') ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>EN</button>
-            </div>
-          </div>
-          
-          <div className="flex flex-col items-center justify-center bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center my-10">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">AgentRegi 로그인</h2>
-            <p className="text-slate-600 mb-8 max-w-md leading-relaxed">
-              서비스를 이용하려면 로그인이 필요합니다.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-center w-full">
-              <button 
-                onClick={handleGuestLogin} 
-                disabled={busy} 
-                className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold rounded-xl transition-colors shadow-md text-lg w-full sm:w-auto"
-              >
-                게스트로 시작하기
-              </button>
-            </div>
-            
-            <div className="mt-8 flex flex-col sm:flex-row gap-2 items-center justify-center w-full max-w-md">
-              <input 
-                value={manualToken} 
-                onChange={e => setManualToken(e.target.value)} 
-                className="flex-1 w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                placeholder="또는 기존 토큰 입력" 
-              />
-              <button 
-                onClick={() => handleSaveToken(manualToken)} 
-                disabled={busy || !manualToken} 
-                className="w-full sm:w-auto px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-lg transition-colors whitespace-nowrap"
-              >
-                토큰 적용
-              </button>
-            </div>
-            
-            {log && (
-              <div className="mt-4 max-w-md w-full rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                {log}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <WelcomeScreen
+        busy={busy}
+        log={log}
+        onGuestLogin={handleGuestLogin}
+        onTokenLogin={handleSaveToken}
+      />
     );
   }
 

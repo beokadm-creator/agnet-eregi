@@ -2,11 +2,228 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Base Styles */
+:root {
+  --brand:          oklch(36% 0.092 155);
+  --brand-hover:    oklch(32% 0.088 155);
+  --brand-faint:    oklch(95% 0.018 155);
+  --bg:             oklch(97.5% 0.007 88);
+  --surface:        oklch(99% 0.004 88);
+  --text-primary:   oklch(16% 0.012 230);
+  --text-secondary: oklch(48% 0.014 230);
+  --text-tertiary:  oklch(68% 0.010 230);
+  --border:         oklch(87% 0.010 88);
+  --border-strong:  oklch(77% 0.012 88);
+  --error:          oklch(42% 0.14 25);
+  --error-light:    oklch(94% 0.038 25);
+}
+
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
-  background-color: #f8f9fa;
-  color: #333;
+  font-family: 'Gothic A1', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-primary);
+}
+
+@layer components {
+  .wc-root {
+    position: relative;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg);
+    padding: 2rem 1.5rem;
+  }
+
+  .wc-lang {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .wc-lang-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Gothic A1', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    padding: 0.25rem 0.375rem;
+    transition: color 0.15s ease;
+  }
+
+  .wc-lang-btn:hover {
+    color: var(--text-secondary);
+  }
+
+  .wc-lang-btn--active {
+    color: var(--brand);
+    font-weight: 600;
+  }
+
+  .wc-lang-sep {
+    color: var(--border-strong);
+    font-size: 0.75rem;
+    user-select: none;
+  }
+
+  .wc-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    max-width: 440px;
+  }
+
+  .wc-wordmark {
+    font-family: 'Hahmlet', Georgia, serif;
+    font-size: 0.9375rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    color: var(--brand);
+    margin: 0 0 2.5rem;
+    text-transform: uppercase;
+  }
+
+  .wc-headline {
+    font-family: 'Hahmlet', Georgia, serif;
+    font-size: clamp(1.875rem, 5vw, 2.5rem);
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-primary);
+    margin: 0 0 2.75rem;
+    max-width: 22ch;
+    word-break: keep-all;
+  }
+
+  .wc-cta {
+    width: 100%;
+    height: 52px;
+    background-color: var(--brand);
+    color: oklch(98% 0.005 88);
+    border: none;
+    border-radius: 5px;
+    font-family: 'Gothic A1', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  .wc-cta:hover:not(:disabled) {
+    background-color: var(--brand-hover);
+  }
+
+  .wc-cta:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .wc-reassurance {
+    font-family: 'Gothic A1', sans-serif;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin: 0.875rem 0 0;
+    line-height: 1.6;
+  }
+
+  .wc-log {
+    margin-top: 1.25rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    text-align: left;
+  }
+
+  .wc-log--error {
+    background-color: var(--error-light);
+    color: var(--error);
+  }
+
+  .wc-log--neutral {
+    background-color: var(--brand-faint);
+    color: var(--text-secondary);
+  }
+
+  .wc-token-link {
+    margin-top: 1.75rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Gothic A1', sans-serif;
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    padding: 0;
+    transition: color 0.15s ease;
+  }
+
+  .wc-token-link:hover {
+    color: var(--text-secondary);
+  }
+
+  .wc-token-form {
+    margin-top: 1.75rem;
+    width: 100%;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .wc-token-input {
+    flex: 1;
+    height: 44px;
+    padding: 0 0.875rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    background-color: var(--surface);
+    color: var(--text-primary);
+    font-family: 'Gothic A1', sans-serif;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.15s ease;
+    min-width: 0;
+  }
+
+  .wc-token-input:focus {
+    border-color: var(--brand);
+  }
+
+  .wc-token-input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .wc-token-submit {
+    height: 44px;
+    padding: 0 1rem;
+    background-color: oklch(90% 0.008 88);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-family: 'Gothic A1', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s ease;
+  }
+
+  .wc-token-submit:hover:not(:disabled) {
+    background-color: oklch(84% 0.010 88);
+  }
+
+  .wc-token-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
