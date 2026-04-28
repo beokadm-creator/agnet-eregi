@@ -9,9 +9,8 @@ export function registerDevRoutes(app: Express, adminApp: typeof admin) {
   app.post("/v1/dev/seed", async (req, res) => {
     const requestId = (req as any).requestId || "req-unknown";
     
-    // 환경 변수 체크: 프로덕션 환경에서는 절대 실행되지 않도록 방어
-    const env = process.env.NODE_ENV || "development";
-    if (env === "production" || process.env.GCLOUD_PROJECT?.includes("prod")) {
+    const devSeedEnabled = process.env.FUNCTIONS_EMULATOR === "true" || process.env.ALLOW_DEV_SEED === "1";
+    if (!devSeedEnabled) {
       return fail(res, 403, "PERMISSION_DENIED", "프로덕션 환경에서는 사용할 수 없는 엔드포인트입니다.", { requestId });
     }
 

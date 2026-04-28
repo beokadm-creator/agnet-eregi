@@ -2,10 +2,11 @@ import { useMemo, useState } from "react";
 import { Button, Input } from "@agentregi/ui-components";
 import { auth } from "@rp/firebase";
 import { signInAnonymously } from "firebase/auth";
+import { getApiBaseUrl } from "./apiBase";
 import "./App.css";
 
 function OpsShell() {
-  const apiBase = useMemo(() => import.meta.env.VITE_API_URL || "", []);
+  const apiBase = useMemo(() => getApiBaseUrl(), []);
   const [token, setToken] = useState("");
   const [gateKey, setGateKey] = useState("pilot-gate");
   const [caseId, setCaseId] = useState("");

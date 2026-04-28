@@ -12,9 +12,11 @@
   },
   "dependencies": {
     "@agentregi/ui-components": "^1.0.0",
+    "@rp/firebase": "file:../../packages/firebase",
     "@tailwindcss/postcss": "^4.2.4",
     "@tosspayments/payment-widget-sdk": "^0.12.1",
     "@vitejs/plugin-react": "^5.1.2",
+    "firebase": "^12.12.1",
     "i18next": "^26.0.8",
     "i18next-browser-languagedetector": "^8.2.1",
     "i18next-http-backend": "^3.0.6",

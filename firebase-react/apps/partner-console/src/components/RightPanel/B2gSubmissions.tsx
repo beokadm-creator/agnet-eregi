@@ -1,4 +1,3 @@
-import React from "react";
 import { useAppContext } from "../../context/AppContext";
 
 export default function B2gSubmissions() {
@@ -23,7 +22,7 @@ export default function B2gSubmissions() {
           <tbody>
             {b2gSubmissions.map((s: any) => (
               <tr key={s.id}>
-                <td style={{ padding: 8, borderBottom: "1px solid #eee", fontWeight: "bold" }}>{s.agencyCode}</td>
+                <td style={{ padding: 8, borderBottom: "1px solid #eee", fontWeight: "bold" }}>{s.agency || s.agencyType || "-"}</td>
                 <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>{s.receiptNumber || "-"}</td>
                 <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>{s.status}</td>
               </tr>

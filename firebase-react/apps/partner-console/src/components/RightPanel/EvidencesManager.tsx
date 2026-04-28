@@ -9,10 +9,6 @@ export default function EvidencesManager() {
   const [newEvidenceType, setNewEvidenceType] = useState("");
   const [newEvidenceFile, setNewEvidenceFile] = useState<File | null>(null);
 
-  const [newReqMessage, setNewReqMessage] = useState("");
-  const [newReqItemCode, setNewReqItemCode] = useState("");
-  const [newReqItemTitle, setNewReqItemTitle] = useState("");
-
   if (!selectedCase) return null;
 
   async function addEvidence() {
@@ -20,23 +16,28 @@ export default function EvidencesManager() {
     setBusy(true);
     setLog("증거물 업로드 중...");
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        await getApi().post(`/v1/partner/cases/${selectedCase.id}/evidences`, {
-          type: newEvidenceType,
-          filename: newEvidenceFile.name,
-          contentType: newEvidenceFile.type,
-          base64
-        });
-        setLog("증거물 업로드 완료");
-        setNewEvidenceType("");
-        setNewEvidenceFile(null);
-        await loadCaseDetail(selectedCase.id);
-      };
-      reader.readAsDataURL(newEvidenceFile);
+      const { uploadUrl, evidenceId } = await getApi().post(`/v1/partner/cases/${selectedCase.id}/evidences/upload-url`, {
+        type: newEvidenceType,
+        filename: newEvidenceFile.name,
+        contentType: newEvidenceFile.type,
+        sizeBytes: newEvidenceFile.size
+      });
+
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": newEvidenceFile.type },
+        body: newEvidenceFile
+      });
+      if (!uploadRes.ok) throw new Error("Storage 업로드에 실패했습니다.");
+
+      await getApi().post(`/v1/partner/cases/${selectedCase.id}/evidences/${evidenceId}/complete`, {});
+      setLog("증거물 업로드 완료");
+      setNewEvidenceType("");
+      setNewEvidenceFile(null);
+      await loadCaseDetail(selectedCase.id);
     } catch (e: any) {
       setLog(`[Error] ${e.message}`);
+    } finally {
       setBusy(false);
     }
   }
@@ -46,8 +47,8 @@ export default function EvidencesManager() {
     setBusy(true);
     setLog(`증거물 다운로드 링크 생성 중...`);
     try {
-      const res = await getApi().get(`/v1/partner/cases/${selectedCase.id}/evidences/${evidenceId}/download`);
-      window.open(res.url, "_blank");
+      const res = await getApi().post(`/v1/partner/cases/${selectedCase.id}/evidences/${evidenceId}/download-url`, {});
+      window.open(res.downloadUrl, "_blank");
       setLog("다운로드 창을 열었습니다.");
     } catch (e: any) {
       setLog(`[Error] ${e.message}`);

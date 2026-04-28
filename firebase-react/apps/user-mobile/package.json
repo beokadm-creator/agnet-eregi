@@ -7,8 +7,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build": "echo 'Skip build for mobile'",
-    "test": "echo 'Skip test for mobile'",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json --noEmit",
     "test:e2e": "echo 'Skip e2e test for mobile'"
   },
   "dependencies": {

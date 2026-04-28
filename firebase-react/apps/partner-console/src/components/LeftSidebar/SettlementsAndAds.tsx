@@ -1,4 +1,3 @@
-import React from "react";
 import { Button } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";

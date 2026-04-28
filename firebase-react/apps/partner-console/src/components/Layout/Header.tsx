@@ -1,7 +1,5 @@
-import React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@agentregi/ui-components";
-import { useAppContext } from "../../context/AppContext";
 
 export default function Header() {
   const { t, i18n } = useTranslation();

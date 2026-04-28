@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
@@ -7,19 +7,21 @@ export default function B2gCredentials() {
   const { b2gCredentials, loadCases, busy, setBusy, setLog } = useAppContext();
   const [newB2gAgency, setNewB2gAgency] = useState("IROS");
   const [newB2gPassword, setNewB2gPassword] = useState("");
+  const [newB2gCertData, setNewB2gCertData] = useState("");
 
   async function registerB2gCredential() {
-    if (!newB2gPassword) return;
+    if (!newB2gPassword || !newB2gCertData.trim()) return;
     setBusy(true);
     setLog(`공동인증서 연동 준비 중 (${newB2gAgency})...`);
     try {
       const res = await getApi().post("/v1/partners/credentials", {
-        agencyCode: newB2gAgency,
+        agencyType: newB2gAgency,
         certPassword: newB2gPassword,
-        certData: "dummy_pfx_data_for_demo"
+        certData: newB2gCertData.trim()
       });
-      setLog(`인증서 연동 완료: ${res.credential.id}`);
+      setLog(`인증서 연동 완료: ${res.credentialId}`);
       setNewB2gPassword("");
+      setNewB2gCertData("");
       await loadCases();
     } catch (e: any) {
       setLog(`[Error] ${e.message}`);
@@ -42,7 +44,8 @@ export default function B2gCredentials() {
           <option value="GOV24">정부24 (GOV24)</option>
         </select>
         <Input type="password" placeholder="인증서 비밀번호" value={newB2gPassword} onChange={e => setNewB2gPassword(e.target.value)} style={{ padding: 6, flex: 1 }} />
-        <Button onClick={registerB2gCredential} disabled={busy || !newB2gPassword} style={{ padding: "6px 12px", background: "#1565c0", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+        <Input placeholder="PFX/PKCS#12 base64" value={newB2gCertData} onChange={e => setNewB2gCertData(e.target.value)} style={{ padding: 6, flex: 2 }} />
+        <Button onClick={registerB2gCredential} disabled={busy || !newB2gPassword || !newB2gCertData.trim()} style={{ padding: "6px 12px", background: "#1565c0", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
           인증서 등록
         </Button>
       </div>

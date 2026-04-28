@@ -1,16 +1,17 @@
+import { getApiBaseUrl } from "../apiBase";
+
 export class ApiService {
   constructor(private getToken: () => string) {}
 
   private get headers() {
     return {
       Authorization: `Bearer ${this.getToken()}`,
-      "Content-Type": "application/json",
-      "X-Firebase-AppCheck": "demo-app-check-token"
+      "Content-Type": "application/json"
     };
   }
 
   private getBaseUrl() {
-    return import.meta.env.VITE_API_URL || "";
+    return getApiBaseUrl();
   }
 
   async get(path: string) {

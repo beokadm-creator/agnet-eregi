@@ -7,32 +7,17 @@ test.describe('User Web Funnel E2E', () => {
   });
 
   test('should display the home page with title', async ({ page }) => {
-    // 1. 헤더 또는 타이틀 확인 (실제 렌더링되는 텍스트로 수정)
-    await expect(page.locator('h1')).toContainText('학술대회 운영을');
+    await expect(page.getByText('AgentRegi').first()).toBeVisible();
+    await expect(page.locator('h1')).toContainText('복잡한 행정·법률 업무');
+    await expect(page.getByRole('button', { name: /게스트로 바로 체험하기/ })).toBeVisible();
   });
 
-  test('should open diagnostic modal via get started button', async ({ page }) => {
-    // 1. 시작하기 버튼 찾아서 클릭 (모달 띄우기)
-    const startButton = page.locator('button', { hasText: '시작하기' }).first();
-    await startButton.waitFor({ state: 'visible', timeout: 10000 });
-    await startButton.click();
+  test('should render the authenticated funnel shell when token is provided', async ({ page }) => {
+    await page.getByPlaceholder('Firebase Auth Token').fill('mock-user-token');
+    await page.getByRole('button', { name: '토큰으로 진입' }).click();
 
-    // 2. 모달 내 입력창에 의도 입력 (placeholder는 번역에 따라 다를 수 있으므로 input tag 사용)
-    const intentInput = page.locator('input').first();
-    await intentInput.waitFor({ state: 'visible', timeout: 10000 });
-    await intentInput.fill('법인 설립하고 싶습니다');
-    
-    // 버튼을 클릭해서 메시지 전송
-    const sendButton = page.locator('button', { hasText: 'Send' }).or(page.locator('button', { hasText: '전송' })).first();
-    if (await sendButton.isVisible()) {
-      await sendButton.click();
-    } else {
-      await intentInput.press('Enter');
-    }
-
-    // 3. 로딩 후 채팅 인터페이스에 사용자가 보낸 메시지 혹은 봇의 응답이 나타나는지 확인
-    // 타이밍 이슈 방지를 위해 텍스트 대신 채팅 메시지 버블 자체가 렌더링되었는지 확인
-    const chatBubble = page.locator('.bg-blue-600').or(page.locator('.bg-gray-100')).first();
-    await expect(chatBubble).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /AgentRegi 사용자 콘솔|AgentRegi User Console/ })).toBeVisible();
+    await expect(page.getByPlaceholder(/임원 변경 등기|register a change/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /인증 및 데이터 로드|Auth & Load Data/ })).toBeVisible();
   });
 });

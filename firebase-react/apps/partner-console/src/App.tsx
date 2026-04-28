@@ -1,4 +1,3 @@
-import React from "react";
 import { AppProvider, useAppContext } from "./context/AppContext";
 import Header from "./components/Layout/Header";
 import TokenInput from "./components/Layout/TokenInput";

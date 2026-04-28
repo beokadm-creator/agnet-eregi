@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { auth } from "@rp/firebase";
 import { signInAnonymously, onAuthStateChanged, signOut } from "firebase/auth";
+import { getApiBaseUrl } from "./apiBase";
 
 const FloatingChatWidget = lazy(() => import("./components/FloatingChatWidget"));
 const TossPaymentModal = lazy(() => import("./components/TossPaymentModal"));
@@ -10,6 +11,7 @@ const TossPaymentModal = lazy(() => import("./components/TossPaymentModal"));
 function App() {
   const { t, i18n } = useTranslation();
   const [token, setToken] = useState("");
+  const [manualToken, setManualToken] = useState("");
   const [showTossModal, setShowTossModal] = useState(false);
   const [log, setLog] = useState("");
   const [busy, setBusy] = useState(false);
@@ -123,7 +125,7 @@ function App() {
       
       const doConfirm = async () => {
         try {
-          const apiUrl = import.meta.env.VITE_API_URL || "";
+          const apiUrl = getApiBaseUrl();
           const res = await fetch(`${apiUrl}/v1/user/payments/${paymentId}/confirm`, {
             method: "POST",
             headers: { 
@@ -171,7 +173,7 @@ function App() {
   }
 
   async function apiGet(path: string) {
-    const apiUrl = import.meta.env.VITE_API_URL || "";
+    const apiUrl = getApiBaseUrl();
     const res = await fetch(`${apiUrl}${path}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -181,7 +183,7 @@ function App() {
   }
 
   async function apiPost(path: string, body: any) {
-    const apiUrl = import.meta.env.VITE_API_URL || "";
+    const apiUrl = getApiBaseUrl();
     const res = await fetch(`${apiUrl}${path}`, {
       method: "POST",
       headers: { 
@@ -523,7 +525,7 @@ function App() {
     setBusy(true);
     setLog("견적 동의 중...");
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "";
+      const apiUrl = getApiBaseUrl();
       const idempotencyKey = `quote_${quoteId}_${Date.now()}`;
       await fetch(`${apiUrl}/v1/user/cases/${selectedSub.id}/quotes/${quoteId}/accept`, {
         method: "POST",
@@ -627,6 +629,28 @@ function App() {
               )}
             </button>
           </div>
+
+          <div className="mt-5 flex flex-col sm:flex-row items-stretch gap-2 w-full max-w-2xl">
+            <input
+              value={manualToken}
+              onChange={(event) => setManualToken(event.target.value)}
+              placeholder="Firebase Auth Token"
+              className="flex-1 min-w-0 px-4 py-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={() => handleSaveToken(manualToken.trim())}
+              disabled={!manualToken.trim()}
+              className="px-5 py-3 rounded-lg bg-blue-600 text-white text-sm font-bold disabled:bg-slate-300"
+            >
+              토큰으로 진입
+            </button>
+          </div>
+
+          {log && (
+            <div className="mt-4 max-w-2xl rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {log}
+            </div>
+          )}
 
           <div className="mt-12 flex flex-wrap justify-center gap-6 sm:gap-8 text-sm font-semibold text-slate-500">
             <div className="flex items-center gap-2">
@@ -1370,7 +1394,7 @@ function App() {
                   <div className="text-slate-400 text-sm bg-slate-50 p-6 rounded-xl border border-dashed border-slate-200 text-center">기록된 이벤트가 없습니다.</div>
                 ) : (
                   <div className="relative pl-6 border-l-2 border-slate-200 ml-3 py-2 space-y-6">
-                    {events.map((ev, i) => (
+                    {events.map((ev) => (
                       <div key={ev.id} className="relative">
                         {/* 타임라인 노드 마커 */}
                         <div className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${

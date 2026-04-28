@@ -1,4 +1,3 @@
-import React from "react";
 import { useAppContext } from "../../context/AppContext";
 import QuotesManager from "../RightPanel/QuotesManager";
 import EvidencesManager from "../RightPanel/EvidencesManager";

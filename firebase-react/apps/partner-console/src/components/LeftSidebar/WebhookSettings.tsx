@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Input } from "@agentregi/ui-components";
 import { getAuth } from "firebase/auth";
 import { useAppContext } from "../../context/AppContext";

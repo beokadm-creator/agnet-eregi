@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getApiBaseUrl } from '../apiBase';
 
 export interface Message {
   id: string;
@@ -33,7 +34,7 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
   }, [isOpen, token, sessionId]);
 
   const apiFetch = async (path: string, method: string = 'GET', body?: any) => {
-    const apiUrl = import.meta.env.VITE_API_URL || '';
+    const apiUrl = getApiBaseUrl();
     const res = await fetch(`${apiUrl}${path}`, {
       method,
       headers: {

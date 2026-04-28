@@ -1,9 +1,8 @@
-import React from "react";
 import CompletionPanel from "../CaseWorkboard/CompletionPanel";
 import { useAppContext } from "../../context/AppContext";
 
 export default function CaseWorkboardWrapper() {
-  const { selectedCase, loadCaseDetail, setLog, busy } = useAppContext();
+  const { selectedCase, setLog, busy } = useAppContext();
 
   if (!selectedCase) return null;
 

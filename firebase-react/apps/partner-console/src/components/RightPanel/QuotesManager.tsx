@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
@@ -19,7 +19,7 @@ export default function QuotesManager() {
     setBusy(true);
     setLog("견적 제안(Draft) 생성 중...");
     try {
-      const res = await getApi().post(`/v1/cases/${selectedCase.id}/quotes`, {
+      const res = await getApi().post(`/v1/partner/cases/${selectedCase.id}/quotes/draft`, {
         priceMin: newQuotePriceMin,
         priceMax: newQuotePriceMax,
         etaMinHours: newQuoteEtaMin,
@@ -42,7 +42,7 @@ export default function QuotesManager() {
     setLog("견적 최종 확정 중...");
     try {
       const assumptions = finalizeQuoteAssumptions.split(",").map(s => s.trim()).filter(Boolean);
-      await getApi().post(`/v1/cases/${selectedCase.id}/quotes/${quoteId}/finalize`, {
+      await getApi().post(`/v1/partner/cases/${selectedCase.id}/quotes/${quoteId}/finalize`, {
         finalPrice: finalizeQuotePrice,
         assumptionsKo: assumptions
       });

@@ -47,9 +47,9 @@ app.post("/v1/partners/credentials", async (req: express.Request, res: express.R
       }
 
       // 실제 운영 환경: GCP Secret Manager와 연동하여 암호화 저장소에 보관
-      let certId = `sm_cert_mock_${Date.now()}`; // fallback
+      let certId = "";
       try {
-        const projectId = process.env.GOOGLE_CLOUD_PROJECT || "demo-rp";
+        const projectId = process.env.GOOGLE_CLOUD_PROJECT || "agent-eregi";
         const secretId = `b2g_cert_${partnerId}_${agencyType}_${Date.now()}`;
         
         const [secret] = await secretManagerClient.createSecret({
@@ -66,7 +66,13 @@ app.post("/v1/partners/credentials", async (req: express.Request, res: express.R
           certId = secret.name;
         }
       } catch (err: any) {
-        console.warn("Secret Manager API 호출 실패 (GCP 환경이 아닐 수 있음). Mock ID 사용.", err.message);
+        if (process.env.FUNCTIONS_EMULATOR === "true") {
+          certId = `emulator_cert_${Date.now()}`;
+          console.warn("Secret Manager API 호출 실패. Emulator fallback ID 사용.", err.message);
+        } else {
+          console.error("Secret Manager API 호출 실패.", err.message);
+          return fail(res, 500, "INTERNAL", "인증서 보관소 저장에 실패했습니다.");
+        }
       }
 
       // Firestore에 메타데이터만 저장 (민감 정보 제외)

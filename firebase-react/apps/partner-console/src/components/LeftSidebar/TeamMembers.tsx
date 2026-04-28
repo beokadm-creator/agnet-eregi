@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
@@ -22,7 +22,7 @@ export default function TeamMembers() {
     setBusy(true);
     setLog(`팀원 초대 중: ${newInviteEmail}`);
     try {
-      await getApi().post("/v1/partner/team/invites", { email: newInviteEmail, role: newInviteRole });
+      await getApi().post("/v1/partner/team/invitations", { email: newInviteEmail, role: newInviteRole });
       setLog(`초대 완료: ${newInviteEmail}`);
       setNewInviteEmail("");
       await loadTeamMembers();

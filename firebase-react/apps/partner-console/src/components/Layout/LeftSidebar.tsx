@@ -1,4 +1,3 @@
-import React from "react";
 import QualityTier from "../LeftSidebar/QualityTier";
 import CaseList from "../LeftSidebar/CaseList";
 import NotificationSettings from "../LeftSidebar/NotificationSettings";

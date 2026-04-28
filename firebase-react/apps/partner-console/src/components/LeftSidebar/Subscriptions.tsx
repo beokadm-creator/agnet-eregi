@@ -1,4 +1,3 @@
-import React from "react";
 import { Button } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
@@ -10,7 +9,7 @@ export default function Subscriptions() {
     setBusy(true);
     setLog(`플랜(${planId}) 구독 진행 중...`);
     try {
-      const res = await getApi().post("/v1/subscriptions", { planId });
+      const res = await getApi().post("/v1/partner/subscription/subscribe", { planId });
       setLog(`구독 완료: ${res.subscription.id}`);
       await loadCases();
     } catch (e: any) {
@@ -25,7 +24,7 @@ export default function Subscriptions() {
     setBusy(true);
     setLog(`구독(${subscription.id}) 해지 예약 중...`);
     try {
-      await getApi().post(`/v1/subscriptions/${subscription.id}/cancel`, {});
+      await getApi().post("/v1/partner/subscription/cancel", {});
       setLog(`구독 해지 예약 완료 (주기 만료 후 해지됨)`);
       await loadCases();
     } catch (e: any) {
