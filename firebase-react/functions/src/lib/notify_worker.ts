@@ -6,12 +6,14 @@ import { WebhookProvider } from "./providers/webhook_provider";
 import { SlackProvider } from "./providers/slack_provider";
 import { KakaoProvider } from "./providers/kakao_provider";
 import { SmsProvider } from "./providers/sms_provider";
+import { ExpoProvider } from "./providers/expo_provider";
 
 // 시스템 시작 시 Provider 초기 등록
 NotificationProviderFactory.register("webhook", new WebhookProvider());
 NotificationProviderFactory.register("slack", new SlackProvider());
 NotificationProviderFactory.register("kakao", new KakaoProvider());
 NotificationProviderFactory.register("sms", new SmsProvider());
+NotificationProviderFactory.register("expo", new ExpoProvider());
 
 export async function processNotificationJobs(adminApp: typeof admin) {
   const db = adminApp.firestore();

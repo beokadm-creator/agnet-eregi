@@ -22,6 +22,16 @@ export async function enqueueNotification(
   const enrichedPayload = { ...payload, magicLink };
   const template = getNotificationTemplate(event, enrichedPayload);
   enrichedPayload._template = template;
+  if (target.userId) {
+    const subId = payload?.submissionId ? String(payload.submissionId) : "";
+    const reqId = payload?.requestId ? String(payload.requestId) : "";
+    const route = reqId && subId
+      ? `/(tabs)/cases/${subId}/requests/${reqId}`
+      : subId
+        ? `/(tabs)/cases/${subId}`
+        : "";
+    if (route) enrichedPayload.route = route;
+  }
 
   // 채널별 Job 생성 헬퍼
   const processChannels = (channels: any, targetData: any, fallbackWebhooks?: any[]) => {
@@ -116,19 +126,36 @@ export async function enqueueNotification(
 
   if (target.userId) {
     const uSnap = await db.collection("user_notification_settings").doc(target.userId).get();
-    if (uSnap.exists) {
-      const settings = uSnap.data() as UserNotificationSettings;
-      const events = settings?.events || {};
+    const settings = uSnap.exists ? (uSnap.data() as UserNotificationSettings) : null;
+    const events = (settings?.events || {}) as UserNotificationSettings["events"];
 
-      let shouldSend = false;
-      if (event === "submission.completed" && events.submissionCompleted) shouldSend = true;
-      if (event === "submission.failed" && events.submissionFailed) shouldSend = true;
-      if (event === "evidence.requested" && events.evidenceRequested !== false) shouldSend = true;
-      if (event === "funnel.dropoff" || event === "submission.dropoff") shouldSend = true; // 강제 발송 (마케팅 동의 확인은 별도 로직 필요)
-      if (event === "b2g.action_required" || event === "b2g.completed" || event === "b2g.fee_payment_failed") shouldSend = true;
+    let shouldSend = false;
+    if (event === "submission.completed") shouldSend = settings ? !!events.submissionCompleted : true;
+    if (event === "submission.failed") shouldSend = settings ? !!events.submissionFailed : true;
+    if (event === "evidence.requested") shouldSend = settings ? events.evidenceRequested !== false : true;
+    if (event === "funnel.dropoff" || event === "submission.dropoff") shouldSend = true;
+    if (event === "b2g.action_required" || event === "b2g.completed" || event === "b2g.fee_payment_failed") shouldSend = true;
 
-      if (shouldSend) {
-        processChannels(settings.channels, { userId: target.userId }, settings.webhooks);
+    if (shouldSend) {
+      processChannels(settings?.channels, { userId: target.userId }, settings?.webhooks);
+
+      const tokenSnap = await db.collection("user_push_tokens")
+        .where("userId", "==", target.userId)
+        .limit(20)
+        .get();
+      for (const doc of tokenSnap.docs) {
+        const tok = doc.data();
+        if (tok?.provider !== "expo") continue;
+        const token = tok?.token;
+        if (!token || typeof token !== "string") continue;
+        jobs.push({
+          channel: "expo",
+          target: { userId: target.userId, address: token },
+          event,
+          payload: enrichedPayload,
+          status: "queued",
+          attempts: 0
+        });
       }
     }
   }

@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 
-export type NotificationChannel = "webhook" | "email" | "sms" | "slack" | "kakao";
+export type NotificationChannel = "webhook" | "email" | "sms" | "slack" | "kakao" | "expo";
 
 export interface WebhookConfig {
   url: string;
