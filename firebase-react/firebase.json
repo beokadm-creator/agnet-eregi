@@ -24,7 +24,7 @@
       "public": "apps/user-web/dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [
-        { "source": "/v1/**", "function": "api" },
+        { "source": "/v1/**", "function": "api", "region": "asia-northeast3" },
         { "source": "**", "destination": "/index.html" }
       ]
     },
@@ -33,7 +33,7 @@
       "public": "apps/partner-console/dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [
-        { "source": "/v1/**", "function": "api" },
+        { "source": "/v1/**", "function": "api", "region": "asia-northeast3" },
         { "source": "**", "destination": "/index.html" }
       ]
     },
@@ -42,7 +42,7 @@
       "public": "apps/ops-console/dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [
-        { "source": "/v1/**", "function": "api" },
+        { "source": "/v1/**", "function": "api", "region": "asia-northeast3" },
         { "source": "**", "destination": "/index.html" }
       ]
     }
