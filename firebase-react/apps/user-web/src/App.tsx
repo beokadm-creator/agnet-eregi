@@ -564,54 +564,84 @@ function App() {
 
   if (!token) {
     return (
-      <div className="min-h-screen w-full bg-[#fdfbf7] text-[#2d2c2a] flex flex-col font-sans relative overflow-hidden selection:bg-[#2d2c2a] selection:text-[#fdfbf7]">
-        {/* Soft Organic Background */}
-        <div className="absolute top-[-10%] right-[-5%] w-[50%] h-[50%] rounded-full bg-[#f4eadd]/40 blur-[100px] pointer-events-none"></div>
-        <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] rounded-full bg-[#e3e7dd]/50 blur-[120px] pointer-events-none"></div>
-        
-        {/* Subtle Noise Texture */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-multiply" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }}></div>
+      <div className="min-h-screen w-full bg-white text-slate-900 flex flex-col font-sans relative selection:bg-blue-100 selection:text-blue-900 overflow-hidden">
+        {/* Subtle Grid Background for Tech/SaaS feel */}
+        <div className="absolute inset-0 pointer-events-none" style={{ 
+          backgroundImage: 'radial-gradient(#e2e8f0 1px, transparent 1px)', 
+          backgroundSize: '24px 24px',
+          opacity: 0.5 
+        }}></div>
 
-        {/* Minimal Header */}
-        <header className="w-full px-8 py-8 flex justify-between items-center z-10">
-          <div className="text-xl font-bold tracking-tight text-[#2d2c2a]" style={{ fontFamily: '"Playfair Display", serif' }}>AgentRegi.</div>
-          <div className="flex gap-4 text-xs font-semibold tracking-wider">
-            <button onClick={() => i18n.changeLanguage('ko')} className={`transition-colors ${i18n.language?.startsWith('ko') ? 'text-[#2d2c2a] border-b border-[#2d2c2a]' : 'text-[#8c8b89] hover:text-[#2d2c2a]'}`}>KO</button>
-            <button onClick={() => i18n.changeLanguage('en')} className={`transition-colors ${i18n.language?.startsWith('en') ? 'text-[#2d2c2a] border-b border-[#2d2c2a]' : 'text-[#8c8b89] hover:text-[#2d2c2a]'}`}>EN</button>
+        {/* Top Navigation */}
+        <header className="w-full px-6 py-5 max-w-7xl mx-auto flex justify-between items-center z-10">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            </div>
+            <span className="text-xl font-extrabold tracking-tight text-slate-900">AgentRegi</span>
+          </div>
+          <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-md backdrop-blur-sm border border-slate-200/50">
+            <button onClick={() => i18n.changeLanguage('ko')} className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${i18n.language?.startsWith('ko') ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>KO</button>
+            <button onClick={() => i18n.changeLanguage('en')} className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${i18n.language?.startsWith('en') ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>EN</button>
           </div>
         </header>
 
-        {/* Main Content - Soft & Editorial */}
-        <main className="flex-1 flex flex-col items-center justify-center px-6 lg:px-24 z-10 relative text-center mt-[-5vh]">
+        {/* Hero Section */}
+        <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 z-10 text-center pb-20">
           
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/60 border border-[#e8e6e1] rounded-full text-xs font-medium tracking-wide text-[#73716e] mb-8 backdrop-blur-md shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-[#8c9c81]"></span>
-            Now Available for Everyone
-          </div>
-          
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-[#2d2c2a] leading-[1.1] tracking-tight mb-6 max-w-4xl" style={{ fontFamily: '"Playfair Display", serif' }}>
-            행정과 법률의 벽을 허무는 <br/>
-            <span className="text-[#8c9c81] italic font-normal">가장 우아한 방법.</span>
-          </h1>
-          
-          <p className="text-lg md:text-xl text-[#5e5c59] max-w-2xl font-light leading-relaxed mb-12">
-            복잡한 서류 작업과 낯선 절차에 더 이상 지치지 마세요. 전문 파트너가 당신의 비즈니스를 위한 모든 과정을 매끄럽게 대행합니다.
-          </p>
-          
-          <button 
-            onClick={handleGuestLogin} 
-            disabled={busy} 
-            className="group relative px-10 py-4 bg-[#2d2c2a] text-[#fdfbf7] font-semibold text-sm tracking-wide rounded-2xl overflow-hidden transition-all hover:bg-[#1a1918] hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:shadow-md"
-          >
-            <span className="relative z-10 flex items-center justify-center gap-3">
-              {busy ? "연결 중..." : "게스트로 경험해보기"}
-              <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold tracking-wide mb-8 shadow-sm">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
             </span>
-          </button>
-          
-          <p className="text-xs text-[#a3a19e] mt-6 font-medium">
-            가입 없이 즉시 대시보드를 확인하실 수 있습니다.
+            신규 서비스 오픈
+          </span>
+
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-6 max-w-4xl">
+            복잡한 행정·법률 업무,<br className="hidden sm:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              가장 쉽고 완벽하게.
+            </span>
+          </h1>
+
+          <p className="text-lg sm:text-xl text-slate-500 font-medium max-w-2xl leading-relaxed mb-10">
+            법인 설립, 인허가, 각종 서류 대행까지. 검증된 파트너가 당신의 비즈니스를 위한 모든 과정을 매끄럽게 처리해 드립니다.
           </p>
+
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+            <button 
+              onClick={handleGuestLogin} 
+              disabled={busy} 
+              className="w-full sm:w-auto px-8 py-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white text-base font-bold rounded-xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2"
+            >
+              {busy ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <span>처리 중...</span>
+                </>
+              ) : (
+                <>
+                  게스트로 바로 체험하기
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="mt-12 flex flex-wrap justify-center gap-6 sm:gap-8 text-sm font-semibold text-slate-500">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+              <span>회원가입 없음</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+              <span>100% 비대면 진행</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+              <span>실시간 현황 추적</span>
+            </div>
+          </div>
         </main>
       </div>
     );
