@@ -1,13 +1,22 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import auth from "@react-native-firebase/auth";
+import { useApi } from "../../hooks/useApi";
+import { usePushNotifications } from "../../hooks/usePushNotifications";
 
 export default function SettingsIndex() {
+  const { busy, callApi } = useApi();
+  const { expoPushToken } = usePushNotifications();
+
   return (
     <View style={styles.container}>
       <View style={styles.group}>
         <Pressable style={styles.row} onPress={() => router.push("/settings/notifications")}>
           <Text style={styles.label}>알림 설정</Text>
+          <Text style={styles.value}>열기</Text>
+        </Pressable>
+        <Pressable style={styles.row} onPress={() => router.push("/settings/devices")}>
+          <Text style={styles.label}>기기 관리</Text>
           <Text style={styles.value}>열기</Text>
         </Pressable>
         <Pressable style={styles.row} onPress={() => router.push("/settings/account")}>
@@ -22,14 +31,20 @@ export default function SettingsIndex() {
 
       <View style={styles.group}>
         <Pressable
-          style={[styles.row, styles.dangerRow]}
+          disabled={busy}
+          style={[styles.row, styles.dangerRow, busy && styles.rowDisabled]}
           onPress={async () => {
+            try {
+              if (expoPushToken && expoPushToken.includes("PushToken[")) {
+                await callApi("/v1/user/push-tokens", { method: "DELETE", body: JSON.stringify({ token: expoPushToken }) });
+              }
+            } catch {}
             await auth().signOut();
             router.replace("/");
           }}
         >
           <Text style={[styles.label, styles.dangerText]}>로그아웃</Text>
-          <Text style={[styles.value, styles.dangerText]}>실행</Text>
+          {busy ? <ActivityIndicator /> : <Text style={[styles.value, styles.dangerText]}>실행</Text>}
         </Pressable>
       </View>
     </View>
@@ -56,6 +71,9 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
     backgroundColor: "#fff",
     borderRadius: 12,
+  },
+  rowDisabled: {
+    opacity: 0.5,
   },
   label: {
     fontSize: 14,

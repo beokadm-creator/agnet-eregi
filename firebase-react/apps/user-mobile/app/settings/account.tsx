@@ -1,8 +1,31 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 import auth from "@react-native-firebase/auth";
+import { useApi } from "../../hooks/useApi";
 
 export default function AccountSettingsScreen() {
+  const { busy, error, callApi } = useApi();
   const user = auth().currentUser;
+
+  async function deleteAccount() {
+    Alert.alert("계정 삭제", "계정과 관련된 푸시 토큰/설정이 삭제되고, 로그인도 해제됩니다.", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await callApi("/v1/user/account", { method: "DELETE" });
+          } catch {}
+          try {
+            await auth().signOut();
+          } catch {}
+          router.replace("/");
+        }
+      }
+    ]);
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.panel}>
@@ -12,6 +35,12 @@ export default function AccountSettingsScreen() {
         <Text style={styles.row}>Anonymous: {user?.isAnonymous ? "YES" : "NO"}</Text>
         <Text style={styles.row}>Provider: {user?.providerData?.map((p) => p.providerId).filter(Boolean).join(", ") || "-"}</Text>
       </View>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <Pressable disabled={busy} style={[styles.dangerButton, busy && styles.disabled]} onPress={deleteAccount}>
+        <Text style={styles.dangerText}>계정 삭제</Text>
+      </Pressable>
     </View>
   );
 }
@@ -40,5 +69,25 @@ const styles = StyleSheet.create({
     color: "#334155",
     marginTop: 6,
   },
+  error: {
+    color: "#b91c1c",
+    marginTop: 12,
+  },
+  dangerButton: {
+    marginTop: 16,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    backgroundColor: "#fff1f2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dangerText: {
+    color: "#b91c1c",
+    fontWeight: "800",
+  },
+  disabled: {
+    opacity: 0.5,
+  },
 });
-

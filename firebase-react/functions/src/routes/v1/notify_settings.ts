@@ -169,4 +169,66 @@ export function registerNotificationSettingsRoutes(app: express.Application, adm
     }
   });
 
+  app.delete("/v1/user/push-tokens", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const { token } = req.body || {};
+      if (!token || typeof token !== "string" || token.length > 512) {
+        return fail(res, 400, "INVALID_ARGUMENT", "token 파라미터가 필요합니다.");
+      }
+
+      const db = adminApp.firestore();
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex").slice(0, 16);
+      const docId = `${auth.uid}_${tokenHash}`;
+      await db.collection("user_push_tokens").doc(docId).delete();
+      return ok(res, { id: docId });
+    } catch (err: any) {
+      logError({ endpoint: "user/push-tokens/delete", code: "INTERNAL", messageKo: "푸시 토큰 삭제 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  app.delete("/v1/user/push-tokens/:tokenId", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const tokenId = String(req.params.tokenId);
+      const db = adminApp.firestore();
+      const ref = db.collection("user_push_tokens").doc(tokenId);
+      const snap = await ref.get();
+      if (!snap.exists) return ok(res, { deleted: false });
+      if (snap.data()?.userId !== auth.uid) return fail(res, 403, "FORBIDDEN", "삭제 권한이 없습니다.");
+      await ref.delete();
+      return ok(res, { deleted: true });
+    } catch (err: any) {
+      logError({ endpoint: "user/push-tokens/deleteById", code: "INTERNAL", messageKo: "푸시 토큰 삭제 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  app.delete("/v1/user/account", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const db = adminApp.firestore();
+      const uid = auth.uid;
+
+      const tokenSnap = await db.collection("user_push_tokens").where("userId", "==", uid).limit(200).get();
+      const batch = db.batch();
+      for (const doc of tokenSnap.docs) batch.delete(doc.ref);
+      batch.delete(db.collection("user_notification_settings").doc(uid));
+      await batch.commit();
+
+      await adminApp.auth().deleteUser(uid);
+      return ok(res, { deleted: true });
+    } catch (err: any) {
+      logError({ endpoint: "user/account/delete", code: "INTERNAL", messageKo: "계정 삭제 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
 }
