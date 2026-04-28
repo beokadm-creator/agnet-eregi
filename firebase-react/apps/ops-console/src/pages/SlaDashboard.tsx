@@ -3,7 +3,9 @@ import { Button } from "@agentregi/ui-components";
 import { useOpsApi } from "../hooks";
 
 export default function SlaDashboard() {
-  const { busy, log, callApi } = useOpsApi();
+  const { busy, data, error, callApi } = useOpsApi();
+
+  const items: any[] = data?.items || [];
 
   return (
     <div className="im-panel">
@@ -11,10 +13,67 @@ export default function SlaDashboard() {
       <p className="im-lede">케이스 처리 기한 및 지연 경고 현황입니다.</p>
       
       <div className="im-actions">
-        <Button disabled={busy} variant="secondary" onClick={() => callApi(`/v1/ops/sla/breaches`)}>SLA 초과 조회 (개발중)</Button>
+        <Button disabled={busy} variant="secondary" onClick={() => callApi(`/v1/ops/sla/breaches?limit=100`)}>
+          새로고침
+        </Button>
       </div>
 
-      {log && <pre className="im-log" style={{ marginTop: '2rem' }}>{log}</pre>}
+      {error && (
+        <div className="im-log" style={{ marginTop: "2rem", background: "var(--error-light)", color: "var(--error)" }}>
+          {error}
+        </div>
+      )}
+
+      {!error && data && (
+        <div style={{ marginTop: "2rem" }}>
+          {items.length === 0 ? (
+            <div style={{ color: "var(--text-tertiary)", fontSize: "0.875rem" }}>현재 감지된 Breach가 없습니다.</div>
+          ) : (
+            <div style={{ display: "grid", gap: "0.75rem" }}>
+              {items.map((it) => (
+                <div key={it.id} style={{ border: "1px solid var(--border)", background: "var(--bg)", padding: "1rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+                    <div style={{ fontWeight: 600 }}>{it.gateKey || "unknown"}</div>
+                    <div style={{ color: "var(--text-tertiary)", fontSize: "0.8125rem" }}>
+                      burn {typeof it.burnRate === "number" ? `${it.burnRate.toFixed(1)}%` : "-"}
+                    </div>
+                  </div>
+                  <div style={{ marginTop: "0.5rem", display: "flex", gap: "1.25rem", flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        SLI
+                      </div>
+                      <div style={{ fontSize: "0.95rem", color: "var(--text-primary)" }}>
+                        {typeof it.sliPercentage === "number" ? `${it.sliPercentage.toFixed(2)}%` : "-"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Target
+                      </div>
+                      <div style={{ fontSize: "0.95rem", color: "var(--text-primary)" }}>
+                        {typeof it.targetPercentage === "number" ? `${it.targetPercentage.toFixed(2)}%` : "-"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Window
+                      </div>
+                      <div style={{ fontSize: "0.95rem", color: "var(--text-primary)" }}>{it.budgetDays || "-"}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Fails
+                      </div>
+                      <div style={{ fontSize: "0.95rem", color: "var(--text-primary)" }}>{it.totalFails ?? "-"}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

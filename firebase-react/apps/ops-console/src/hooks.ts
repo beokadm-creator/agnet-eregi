@@ -6,10 +6,12 @@ export function useOpsApi() {
   const { token } = useAuth();
   const apiBase = useMemo(() => getApiBaseUrl(), []);
   const [busy, setBusy] = useState(false);
-  const [log, setLog] = useState("");
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string>("");
 
   async function callApi(path: string, init: RequestInit = {}) {
     setBusy(true);
+    setError("");
     try {
       if (!token) throw new Error("인증이 필요합니다.");
       const res = await fetch(`${apiBase}${path}`, {
@@ -18,13 +20,14 @@ export function useOpsApi() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || json?.ok === false) throw new Error(json?.error?.messageKo || json?.error?.code || `HTTP ${res.status}`);
-      setLog(JSON.stringify(json?.data || json, null, 2));
+      setData(json?.data ?? json);
     } catch (error) {
-      setLog(error instanceof Error ? `[Error] ${error.message}` : "[Error] Unknown failure");
+      setData(null);
+      setError(error instanceof Error ? error.message : "Unknown failure");
     } finally {
       setBusy(false);
     }
   }
 
-  return { busy, log, setLog, callApi };
+  return { busy, data, error, callApi };
 }

@@ -3,7 +3,7 @@ import { Button, Input } from "@agentregi/ui-components";
 import { useOpsApi } from "../hooks";
 
 export default function CasePacks() {
-  const { busy, log, callApi } = useOpsApi();
+  const { busy, data, error, callApi } = useOpsApi();
   const [casePackId, setCasePackId] = useState("");
   const [casePackName, setCasePackName] = useState("");
   const [casePackSchema, setCasePackSchema] = useState('{\n  "type": "object",\n  "properties": {}\n}');
@@ -51,7 +51,8 @@ export default function CasePacks() {
         >수정</Button>
       </div>
 
-      {log && <pre className="im-log" style={{ marginTop: '2rem' }}>{log}</pre>}
+      {error && <pre className="im-log" style={{ marginTop: "2rem", background: "var(--error-light)", color: "var(--error)" }}>{error}</pre>}
+      {!error && data && <pre className="im-log" style={{ marginTop: "2rem" }}>{JSON.stringify(data, null, 2)}</pre>}
     </div>
   );
 }

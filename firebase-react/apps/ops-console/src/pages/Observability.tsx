@@ -3,7 +3,7 @@ import { Button } from "@agentregi/ui-components";
 import { useOpsApi } from "../hooks";
 
 export default function Observability() {
-  const { busy, log, callApi } = useOpsApi();
+  const { busy, data, error, callApi } = useOpsApi();
 
   return (
     <div className="im-panel">
@@ -16,7 +16,8 @@ export default function Observability() {
         <Button disabled={busy} variant="secondary" onClick={() => callApi(`/v1/ops/metrics/daily`)}>일일 시스템 메트릭 조회</Button>
       </div>
 
-      {log && <pre className="im-log" style={{ marginTop: '2rem' }}>{log}</pre>}
+      {error && <pre className="im-log" style={{ marginTop: "2rem", background: "var(--error-light)", color: "var(--error)" }}>{error}</pre>}
+      {!error && data && <pre className="im-log" style={{ marginTop: "2rem" }}>{JSON.stringify(data, null, 2)}</pre>}
     </div>
   );
 }

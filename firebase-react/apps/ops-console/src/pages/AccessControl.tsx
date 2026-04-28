@@ -3,7 +3,7 @@ import { Button, Input } from "@agentregi/ui-components";
 import { useOpsApi } from "../hooks";
 
 export default function AccessControl() {
-  const { busy, log, callApi } = useOpsApi();
+  const { busy, data, error, callApi } = useOpsApi();
   const [accessTargetUid, setAccessTargetUid] = useState("");
   const [accessRole, setAccessRole] = useState("ops_operator");
   const [accessReason, setAccessReason] = useState("");
@@ -25,7 +25,8 @@ export default function AccessControl() {
         <Button disabled={busy || !accessTargetUid} variant="danger" onClick={() => callApi(`/v1/ops/access/revoke`, { method: "POST", body: JSON.stringify({ targetUid: accessTargetUid, reason: accessReason }) })}>권한 회수</Button>
       </div>
 
-      {log && <pre className="im-log" style={{ marginTop: '2rem' }}>{log}</pre>}
+      {error && <pre className="im-log" style={{ marginTop: "2rem", background: "var(--error-light)", color: "var(--error)" }}>{error}</pre>}
+      {!error && data && <pre className="im-log" style={{ marginTop: "2rem" }}>{JSON.stringify(data, null, 2)}</pre>}
     </div>
   );
 }

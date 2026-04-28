@@ -3,7 +3,7 @@ import { Button, Input } from "@agentregi/ui-components";
 import { useOpsApi } from "../hooks";
 
 export default function Dashboard() {
-  const { busy, log, callApi } = useOpsApi();
+  const { busy, data, error, callApi } = useOpsApi();
   const [gateKey, setGateKey] = useState("pilot-gate");
   const [summaryDate, setSummaryDate] = useState(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()));
   const [caseId, setCaseId] = useState("");
@@ -30,7 +30,8 @@ export default function Dashboard() {
         <Button disabled={busy} variant="danger" onClick={() => callApi(`/v1/ops/risk/${gateKey}/mitigate`, { method: "POST", body: JSON.stringify({ actionKey: "circuit_breaker_reset" }) })}>리스크 완화 실행</Button>
       </div>
 
-      {log && <pre className="im-log" style={{ marginTop: '2rem' }}>{log}</pre>}
+      {error && <pre className="im-log" style={{ marginTop: "2rem", background: "var(--error-light)", color: "var(--error)" }}>{error}</pre>}
+      {!error && data && <pre className="im-log" style={{ marginTop: "2rem" }}>{JSON.stringify(data, null, 2)}</pre>}
     </div>
   );
 }
