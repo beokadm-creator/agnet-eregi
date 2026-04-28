@@ -216,15 +216,18 @@ export function registerNotificationSettingsRoutes(app: express.Application, adm
 
       const db = adminApp.firestore();
       const uid = auth.uid;
+      const deletedUserId = `deleted_${crypto.createHash("sha256").update(uid).digest("hex").slice(0, 16)}`;
+      const jobRef = db.collection("user_deletion_jobs").doc(uid);
+      await jobRef.set({
+        userId: uid,
+        deletedUserId,
+        status: "queued",
+        progress: {},
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
 
-      const tokenSnap = await db.collection("user_push_tokens").where("userId", "==", uid).limit(200).get();
-      const batch = db.batch();
-      for (const doc of tokenSnap.docs) batch.delete(doc.ref);
-      batch.delete(db.collection("user_notification_settings").doc(uid));
-      await batch.commit();
-
-      await adminApp.auth().deleteUser(uid);
-      return ok(res, { deleted: true });
+      return ok(res, { queued: true, jobId: jobRef.id });
     } catch (err: any) {
       logError({ endpoint: "user/account/delete", code: "INTERNAL", messageKo: "계정 삭제 실패", err });
       return fail(res, 500, "INTERNAL", err.message);

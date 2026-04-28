@@ -79,6 +79,7 @@ import { registerApostilleRoutes } from "./routes/v1/apostille";
 import { processB2gJobs } from "./lib/b2g_worker";
 import { processB2gFeeParsing, processB2gFeePayments } from "./lib/b2g_fee_worker";
 import { processB2bWebhooks } from "./lib/b2b_webhook_worker";
+import { processUserDeletionJobs } from "./lib/user_deletion_worker";
 
 admin.initializeApp();
 
@@ -469,5 +470,16 @@ export const b2bWebhookWorker = functions
       await processB2bWebhooks(admin);
     } catch (e) {
       console.error("[B2bWebhookWorker] Fatal error:", e);
+    }
+  });
+
+export const userDeletionWorker = functions
+  .region("asia-northeast3")
+  .pubsub.schedule("every 5 minutes")
+  .onRun(async () => {
+    try {
+      await processUserDeletionJobs(admin);
+    } catch (e) {
+      console.error("[UserDeletionWorker] Fatal error:", e);
     }
   });
