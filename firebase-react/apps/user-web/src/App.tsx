@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { signOut } from "firebase/auth";
+import { GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
 import { auth } from "@rp/firebase";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -21,14 +21,60 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 function LoginRoute() {
   const { token, isReady } = useAuth();
+  const [busy, setBusy] = React.useState(false);
+  const [log, setLog] = React.useState("");
+
   if (!isReady) return <div className="wc-root">Loading...</div>;
   if (token) return <Navigate to="/" replace />;
-  return <WelcomeScreen 
-    busy={false} log="" 
-    onGoogleLogin={() => {}} 
-    onEmailLogin={() => {}} 
-    onEmailSignUp={() => {}} 
-  />;
+
+  async function handleGoogleLogin() {
+    setBusy(true);
+    setLog("");
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      setLog("로그인 완료");
+    } catch (e: any) {
+      setLog(`[Error] ${e?.message || "로그인 실패"}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEmailLogin(email: string, password: string) {
+    setBusy(true);
+    setLog("");
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      setLog("로그인 완료");
+    } catch (e: any) {
+      setLog(`[Error] ${e?.message || "로그인 실패"}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEmailSignUp(email: string, password: string) {
+    setBusy(true);
+    setLog("");
+    try {
+      await createUserWithEmailAndPassword(auth, email.trim(), password);
+      setLog("가입 완료");
+    } catch (e: any) {
+      setLog(`[Error] ${e?.message || "가입 실패"}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <WelcomeScreen
+      busy={busy}
+      log={log}
+      onGoogleLogin={handleGoogleLogin}
+      onEmailLogin={handleEmailLogin}
+      onEmailSignUp={handleEmailSignUp}
+    />
+  );
 }
 
 export default function App() {
