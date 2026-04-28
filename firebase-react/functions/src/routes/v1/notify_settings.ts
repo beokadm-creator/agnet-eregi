@@ -257,6 +257,8 @@ export function registerNotificationSettingsRoutes(app: express.Application, adm
         userId: uid,
         deletedUserId,
         status: "queued",
+        attempts: 0,
+        nextRunAt: admin.firestore.FieldValue.serverTimestamp(),
         progress: {},
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),

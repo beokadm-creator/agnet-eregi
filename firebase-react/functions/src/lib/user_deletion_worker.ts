@@ -7,6 +7,8 @@ interface UserDeletionJob {
   userId: string;
   deletedUserId: string;
   status: UserDeletionStatus;
+  attempts?: number;
+  nextRunAt?: admin.firestore.Timestamp;
   progress?: {
     submissionsUpdated?: number;
     submissionEventsUpdated?: number;
@@ -35,18 +37,25 @@ async function deleteDocsByIds(db: FirebaseFirestore.Firestore, col: string, ids
 
 export async function processUserDeletionJobs(adminApp: typeof admin) {
   const db = adminApp.firestore();
+  const now = admin.firestore.Timestamp.now();
 
-  const jobSnap = await db.collection("user_deletion_jobs").where("status", "==", "queued").limit(1).get();
+  const jobSnap = await db.collection("user_deletion_jobs")
+    .where("status", "==", "queued")
+    .where("nextRunAt", "<=", now)
+    .limit(1)
+    .get();
   if (jobSnap.empty) return;
 
   const jobDoc = jobSnap.docs[0];
   const job = jobDoc.data() as UserDeletionJob;
   const uid = job.userId;
   const deletedUserId = job.deletedUserId || deletedUserIdOf(uid);
+  const attempts = job.attempts || 0;
 
   await jobDoc.ref.update({
     status: "processing",
     deletedUserId,
+    attempts,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
 
@@ -143,12 +152,18 @@ export async function processUserDeletionJobs(adminApp: typeof admin) {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   } catch (e: any) {
+    const nextAttempts = attempts + 1;
+    const maxAttempts = 5;
+    const backoffMinutes = [1, 5, 15, 60][nextAttempts - 1] || 60;
+    const nextRunAt = admin.firestore.Timestamp.fromMillis(Date.now() + backoffMinutes * 60 * 1000);
+
     await jobDoc.ref.update({
-      status: "failed",
+      status: nextAttempts >= maxAttempts ? "failed" : "queued",
       progress,
       lastError: e?.message || String(e),
+      attempts: nextAttempts,
+      nextRunAt,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   }
 }
-
