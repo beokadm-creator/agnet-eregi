@@ -126,36 +126,43 @@ export async function enqueueNotification(
 
   if (target.userId) {
     const uSnap = await db.collection("user_notification_settings").doc(target.userId).get();
-    const settings = uSnap.exists ? (uSnap.data() as UserNotificationSettings) : null;
-    const events = (settings?.events || {}) as UserNotificationSettings["events"];
+    if (!uSnap.exists) {
+      return;
+    }
+
+    const settings = uSnap.data() as UserNotificationSettings;
+    const events = (settings.events || {}) as UserNotificationSettings["events"];
+    const expoEnabled = settings.channels?.expo?.enabled === true;
 
     let shouldSend = false;
-    if (event === "submission.completed") shouldSend = settings ? !!events.submissionCompleted : true;
-    if (event === "submission.failed") shouldSend = settings ? !!events.submissionFailed : true;
-    if (event === "evidence.requested") shouldSend = settings ? events.evidenceRequested !== false : true;
+    if (event === "submission.completed" && events.submissionCompleted) shouldSend = true;
+    if (event === "submission.failed" && events.submissionFailed) shouldSend = true;
+    if (event === "evidence.requested" && events.evidenceRequested !== false) shouldSend = true;
     if (event === "funnel.dropoff" || event === "submission.dropoff") shouldSend = true;
     if (event === "b2g.action_required" || event === "b2g.completed" || event === "b2g.fee_payment_failed") shouldSend = true;
 
     if (shouldSend) {
-      processChannels(settings?.channels, { userId: target.userId }, settings?.webhooks);
+      processChannels(settings.channels, { userId: target.userId }, settings.webhooks);
 
-      const tokenSnap = await db.collection("user_push_tokens")
-        .where("userId", "==", target.userId)
-        .limit(20)
-        .get();
-      for (const doc of tokenSnap.docs) {
-        const tok = doc.data();
-        if (tok?.provider !== "expo") continue;
-        const token = tok?.token;
-        if (!token || typeof token !== "string") continue;
-        jobs.push({
-          channel: "expo",
-          target: { userId: target.userId, address: token },
-          event,
-          payload: enrichedPayload,
-          status: "queued",
-          attempts: 0
-        });
+      if (expoEnabled) {
+        const tokenSnap = await db.collection("user_push_tokens")
+          .where("userId", "==", target.userId)
+          .limit(20)
+          .get();
+        for (const doc of tokenSnap.docs) {
+          const tok = doc.data();
+          if (tok?.provider !== "expo") continue;
+          const token = tok?.token;
+          if (!token || typeof token !== "string") continue;
+          jobs.push({
+            channel: "expo",
+            target: { userId: target.userId, address: token },
+            event,
+            payload: enrichedPayload,
+            status: "queued",
+            attempts: 0
+          });
+        }
       }
     }
   }

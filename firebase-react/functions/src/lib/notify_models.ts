@@ -18,6 +18,10 @@ export interface SmsConfig {
   enabled: boolean;
 }
 
+export interface ExpoConfig {
+  enabled: boolean;
+}
+
 export interface PartnerNotificationSettings {
   partnerId: string;
   webhooks?: WebhookConfig[]; // 기존 하위 호환성 유지
@@ -46,6 +50,7 @@ export interface UserNotificationSettings {
     sms?: SmsConfig[];
     slack?: WebhookConfig[];
     kakao?: SmsConfig[];
+    expo?: ExpoConfig;
   };
   events: {
     submissionCompleted: boolean;

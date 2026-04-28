@@ -72,7 +72,8 @@ export function registerNotificationSettingsRoutes(app: express.Application, adm
       
       const defaultSettings = {
         webhooks: [],
-        events: { submissionCompleted: false, submissionFailed: false }
+        channels: { expo: { enabled: false } },
+        events: { submissionCompleted: false, submissionFailed: false, evidenceRequested: true }
       };
 
       if (!snap.exists) {
@@ -92,13 +93,14 @@ export function registerNotificationSettingsRoutes(app: express.Application, adm
       if (!auth) return;
       const userId = auth.uid;
 
-      const { webhooks, events } = req.body;
+      const { webhooks, events, channels } = req.body;
       const db = adminApp.firestore();
       
       const settings = {
         userId,
         webhooks: webhooks || [],
-        events: events || { submissionCompleted: false, submissionFailed: false },
+        channels: channels || { expo: { enabled: false } },
+        events: events || { submissionCompleted: false, submissionFailed: false, evidenceRequested: true },
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       };
 
