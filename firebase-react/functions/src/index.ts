@@ -95,6 +95,8 @@ app.use(cors({
     if (!origin) return callback(null, true);
     if (corsAllowAny) return callback(null, true);
     if (corsAllowlist.includes(origin)) return callback(null, true);
+    if (origin.endsWith('.web.app') || origin.endsWith('.firebaseapp.com')) return callback(null, true);
+    if (origin.startsWith('http://localhost:')) return callback(null, true);
     return callback(null, false);
   }
 }));

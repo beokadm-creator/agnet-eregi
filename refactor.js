@@ -1,30 +1,45 @@
 const fs = require('fs');
-let content = fs.readFileSync('firebase-react/functions/src/routes/v1/reports.ts', 'utf8');
+const path = './firebase-react/apps/user-web/src/App.tsx';
+let code = fs.readFileSync(path, 'utf8');
 
-content = content.replace(/"\/v1\/ops\/reports\/pilot-gate\//g, '"/v1/ops/reports/:gateKey/');
-content = content.replace(/"pilot_gate_evidence"/g, '`${gateKey.replace(/-/g, "_")}_evidence`');
-content = content.replace(/"ops_github_project_config"\)\.doc\("pilot-gate"\)/g, '"ops_github_project_config").doc(gateKey)');
-content = content.replace(/dedupeKey = `pilot-gate:\$\{targetDateStr\}/g, 'dedupeKey = `${gateKey}:${targetDateStr}');
-content = content.replace(/\.collection\("ops_daily_logs"\)\.doc\(targetDateStr\)/g, '.collection("ops_daily_logs").doc(gateKey === "pilot-gate" ? targetDateStr : `${gateKey}:${targetDateStr}`)');
+// Backgrounds
+code = code.replace(/bg-slate-50/g, 'bg-[var(--bg)]');
+code = code.replace(/bg-white/g, 'bg-[var(--surface)]');
 
-const routeRegex = /(app\.(get|post|patch)\(".*?\/v1\/ops\/reports\/:gateKey\/.*?",\s*async\s*\(req,\s*res\)\s*=>\s*\{\s*try\s*\{)/g;
+// Text Colors
+code = code.replace(/text-slate-900|text-slate-800/g, 'text-[var(--text-primary)]');
+code = code.replace(/text-slate-700|text-slate-600/g, 'text-[var(--text-secondary)]');
+code = code.replace(/text-slate-500|text-slate-400/g, 'text-[var(--text-tertiary)]');
 
-content = content.replace(routeRegex, `$1
-      const gateKey = req.params.gateKey;
-      if (!/^[a-z0-9-]+$/.test(gateKey)) {
-        return fail(res, 400, "INVALID_ARGUMENT", "유효하지 않은 gateKey입니다.");
-      }
-`);
+// Brand Colors
+code = code.replace(/bg-indigo-600/g, 'bg-[var(--brand)]');
+code = code.replace(/hover:bg-indigo-700/g, 'hover:opacity-90');
+code = code.replace(/text-indigo-700|text-indigo-900|text-indigo-800/g, 'text-[var(--brand)]');
+code = code.replace(/text-indigo-600/g, 'text-[var(--brand)]');
+code = code.replace(/border-indigo-500|border-indigo-600|border-indigo-200|border-indigo-100/g, 'border-[var(--brand)]');
+code = code.replace(/bg-indigo-50|bg-indigo-100/g, 'bg-[var(--brand)]/10');
+code = code.replace(/focus:ring-indigo-500/g, 'focus:ring-[var(--brand)]');
+code = code.replace(/selection:bg-indigo-100/g, 'selection:bg-[var(--brand)]/20');
+code = code.replace(/selection:text-indigo-900/g, 'selection:text-[var(--brand)]');
 
-content = content.replace(/const startStr = formatKstYmd\(d\);([\s\S]*?)const snap = await adminApp\.firestore\(\)\s*\.collection\("ops_daily_logs"\)\s*\.where\(adminApp\.firestore\.FieldPath\.documentId\(\), ">=", startStr\)\s*\.where\(adminApp\.firestore\.FieldPath\.documentId\(\), "<=", endStr\)/, 
-`const startStr = formatKstYmd(d);
-      const startDocId = gateKey === "pilot-gate" ? startStr : \`\${gateKey}:\${startStr}\`;
-      const endDocId = gateKey === "pilot-gate" ? endStr : \`\${gateKey}:\${endStr}\`;$1const snap = await adminApp.firestore()
-        .collection("ops_daily_logs")
-        .where(adminApp.firestore.FieldPath.documentId(), ">=", startDocId)
-        .where(adminApp.firestore.FieldPath.documentId(), "<=", endDocId)`);
+// Borders
+code = code.replace(/border-slate-200|border-slate-100/g, 'border-[var(--border)]');
+code = code.replace(/border-slate-300/g, 'border-[var(--border-strong)]');
 
-content = content.replace(/date: doc\.id,/g, `date: gateKey === "pilot-gate" ? doc.id : doc.id.split(":")[1],`);
+// Rounding - make it more elegant/sharp
+code = code.replace(/rounded-2xl|rounded-xl/g, 'rounded-sm');
+code = code.replace(/rounded-lg/g, 'rounded-sm');
 
-fs.writeFileSync('firebase-react/functions/src/routes/v1/reports.ts', content);
-console.log("Refactoring reports.ts complete");
+// Shadows - flatter, more editorial
+code = code.replace(/shadow-sm|shadow-md/g, 'shadow-none');
+
+// Fonts
+code = code.replace(/font-sans/g, 'font-[\'Gothic_A1\']');
+// Add Hahmlet to h1, h2, h3
+code = code.replace(/<h([1-3])(.*?)className="(.*?)"/g, '<h$1$2className="$3 font-[\'Hahmlet\']"');
+
+// Fix button text colors
+code = code.replace(/text-white/g, 'text-[var(--bg)]');
+
+fs.writeFileSync(path, code);
+console.log('Refactoring complete');
