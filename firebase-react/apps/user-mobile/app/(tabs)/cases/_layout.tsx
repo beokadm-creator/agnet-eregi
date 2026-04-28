@@ -1,14 +1,15 @@
 import { Stack, router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Pressable } from "react-native";
+import { T, S } from '../../../lib/tokens';
 
 export default function CasesLayout() {
   return (
     <Stack
       screenOptions={{
         headerRight: () => (
-          <Pressable onPress={() => router.push("/settings")} style={{ paddingHorizontal: 12 }}>
-            <MaterialIcons name="settings" size={22} color="#0f172a" />
+          <Pressable onPress={() => router.push("/settings")} style={{ paddingHorizontal: S.md }}>
+            <MaterialIcons name="settings" size={22} color={T.ink} />
           </Pressable>
         )
       }}

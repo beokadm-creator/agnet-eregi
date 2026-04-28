@@ -129,34 +129,34 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
   if (!token) return null;
 
   return (
-    <div style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, fontFamily: 'sans-serif' }}>
+    <div style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, fontFamily: 'var(--ar-font-ui)' }}>
       {isOpen ? (
         <div style={{
           width: 350,
           height: 500,
-          backgroundColor: '#fff',
-          borderRadius: 12,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+          backgroundColor: 'var(--ar-canvas)',
+          borderRadius: 'var(--ar-r3, 20px)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          border: '1px solid #e0e0e0'
+          border: '1px solid var(--ar-hairline)'
         }}>
           <div style={{
-            backgroundColor: '#3f51b5',
-            color: '#fff',
+            backgroundColor: 'var(--ar-accent)',
+            color: 'var(--ar-canvas)',
             padding: '16px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <h3 style={{ margin: 0, fontSize: '1.1em' }}>AI 챗봇 어시스턴트</h3>
-            <button 
+            <h3 style={{ margin: 0, fontSize: '1.1em', fontWeight: 700 }}>AI 챗봇 어시스턴트</h3>
+            <button
               onClick={() => setIsOpen(false)}
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#fff',
+                color: 'var(--ar-canvas)',
                 cursor: 'pointer',
                 fontSize: '1.2em'
               }}
@@ -172,17 +172,17 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
             display: 'flex',
             flexDirection: 'column',
             gap: '12px',
-            backgroundColor: '#f9f9f9'
+            backgroundColor: 'var(--ar-paper-alt)'
           }}>
             {messages.map((msg) => (
               <div key={msg.id} style={{
                 alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
                 maxWidth: '80%',
-                backgroundColor: msg.role === 'user' ? '#3f51b5' : (msg.role === 'system' ? '#ffebee' : '#fff'),
-                color: msg.role === 'user' ? '#fff' : (msg.role === 'system' ? '#c62828' : '#333'),
+                backgroundColor: msg.role === 'user' ? 'var(--ar-accent)' : (msg.role === 'system' ? 'var(--ar-danger-soft)' : 'var(--ar-canvas)'),
+                color: msg.role === 'user' ? 'var(--ar-canvas)' : (msg.role === 'system' ? 'var(--ar-danger)' : 'var(--ar-ink)'),
                 padding: '10px 14px',
-                borderRadius: '12px',
-                border: msg.role === 'model' ? '1px solid #e0e0e0' : 'none',
+                borderRadius: 'var(--ar-r2, 12px)',
+                border: msg.role === 'model' ? '1px solid var(--ar-hairline)' : 'none',
                 fontSize: '0.9em',
                 lineHeight: '1.4',
                 wordBreak: 'break-word',
@@ -194,12 +194,12 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
             {isLoading && (
               <div style={{
                 alignSelf: 'flex-start',
-                backgroundColor: '#fff',
+                backgroundColor: 'var(--ar-canvas)',
                 padding: '10px 14px',
-                borderRadius: '12px',
-                border: '1px solid #e0e0e0',
+                borderRadius: 'var(--ar-r2, 12px)',
+                border: '1px solid var(--ar-hairline)',
                 fontSize: '0.9em',
-                color: '#666'
+                color: 'var(--ar-slate)'
               }}>
                 입력 중...
               </div>
@@ -209,10 +209,10 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
 
           <div style={{
             padding: '12px',
-            borderTop: '1px solid #eee',
+            borderTop: '1px solid var(--ar-hairline)',
             display: 'flex',
             gap: '8px',
-            backgroundColor: '#fff'
+            backgroundColor: 'var(--ar-canvas)'
           }}>
             <Input
               type="text"
@@ -225,7 +225,7 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
                 flex: 1,
                 padding: '10px',
                 borderRadius: '20px',
-                border: '1px solid #ccc',
+                border: '1px solid var(--ar-hairline-strong)',
                 outline: 'none',
                 fontSize: '0.9em'
               }}
@@ -234,13 +234,13 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
               onClick={handleSendMessage}
               disabled={isLoading || !inputValue.trim()}
               style={{
-                backgroundColor: inputValue.trim() && !isLoading ? '#3f51b5' : '#ccc',
-                color: '#fff',
+                backgroundColor: inputValue.trim() && !isLoading ? 'var(--ar-accent)' : 'var(--ar-fog)',
+                color: 'var(--ar-canvas)',
                 border: 'none',
                 borderRadius: '20px',
                 padding: '0 16px',
                 cursor: inputValue.trim() && !isLoading ? 'pointer' : 'not-allowed',
-                fontWeight: 'bold'
+                fontWeight: 700
               }}
             >
               전송
@@ -254,10 +254,10 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
             width: 60,
             height: 60,
             borderRadius: '30px',
-            backgroundColor: '#3f51b5',
-            color: '#fff',
+            backgroundColor: 'var(--ar-accent)',
+            color: 'var(--ar-canvas)',
             border: 'none',
-            boxShadow: '0 4px 12px rgba(63, 81, 181, 0.4)',
+            boxShadow: '0 4px 12px rgba(216, 114, 66, 0.35)',
             cursor: 'pointer',
             display: 'flex',
             justifyContent: 'center',

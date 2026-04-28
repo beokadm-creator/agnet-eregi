@@ -16,13 +16,13 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    "inline-flex items-center justify-center font-medium tracking-wide transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg)] rounded-[2px]";
+    "inline-flex items-center justify-center font-medium tracking-wide transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--ar-paper)] rounded-lg";
   
   const variants = {
-    primary: "bg-[var(--brand)] text-[oklch(98%_0.005_88)] hover:bg-[var(--brand-hover)] focus:ring-[var(--brand)]",
+    primary: "bg-[var(--ar-accent)] text-[var(--ar-canvas)] hover:bg-[var(--ar-accent-hover)] focus:ring-[var(--ar-accent)]",
     secondary:
-      "bg-transparent text-[var(--text-primary)] border border-[var(--border-strong)] hover:bg-[var(--surface)] focus:ring-[var(--brand)]",
-    danger: "bg-[var(--error)] text-[oklch(98%_0.005_88)] hover:opacity-90 focus:ring-[var(--error)]"
+      "bg-transparent text-[var(--ar-ink)] border border-[var(--ar-hairline-strong)] hover:bg-[var(--ar-canvas)] focus:ring-[var(--ar-accent)]",
+    danger: "bg-[var(--ar-danger)] text-[var(--ar-canvas)] hover:opacity-90 focus:ring-[var(--ar-danger)]"
   };
 
   const sizes = {

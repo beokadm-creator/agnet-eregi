@@ -2,6 +2,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "
 import { useEffect, useMemo } from "react";
 import { router } from "expo-router";
 import { useApi } from "../../../hooks/useApi";
+import { T, R, S, FS, FW } from '../../../lib/tokens';
 
 export default function CasesIndex() {
   const { busy, data, error, callApi } = useApi();
@@ -40,7 +41,7 @@ export default function CasesIndex() {
     <View style={styles.container}>
       {busy && items.length === 0 && <ActivityIndicator />}
       {!busy && error ? (
-        <Text style={{ color: "#b91c1c" }}>{error}</Text>
+        <Text style={{ color: T.danger }}>{error}</Text>
       ) : (
         <FlatList
           data={items}
@@ -56,51 +57,51 @@ export default function CasesIndex() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#f8fafc",
+    padding: S.lg,
+    backgroundColor: T.paper,
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: T.canvas,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 10,
-    padding: 12,
+    borderColor: T.hairline,
+    borderRadius: R.r2,
+    padding: S.md,
   },
   cardRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
+    gap: S.sm + 2,
   },
   cardTitle: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#0f172a",
+    fontSize: FS.md,
+    fontWeight: FW.bold,
+    color: T.ink,
   },
   cardMeta: {
-    marginTop: 6,
-    fontSize: 12,
-    color: "#64748b",
+    marginTop: S.sm - 2,
+    fontSize: FS.sm,
+    color: T.slate,
   },
   badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: S.sm + 2,
+    paddingVertical: S.xs,
+    borderRadius: R.pill,
   },
   badgeOk: {
-    backgroundColor: "#dcfce7",
+    backgroundColor: T.successSoft,
   },
   badgeWip: {
-    backgroundColor: "#e0e7ff",
+    backgroundColor: T.accentSoft,
   },
   badgeFail: {
-    backgroundColor: "#fee2e2",
+    backgroundColor: T.dangerSoft,
   },
   badgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#0f172a",
+    fontSize: FS.sm,
+    fontWeight: FW.bold,
+    color: T.ink,
   },
 });
 

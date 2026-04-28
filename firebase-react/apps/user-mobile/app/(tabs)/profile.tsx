@@ -4,6 +4,7 @@ import auth from "@react-native-firebase/auth";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { getApiBaseUrl } from "../../lib/apiBase";
+import { T, R, S, FS, FW, BH } from '../../lib/tokens';
 
 export default function ProfileScreen() {
   const handleLogout = async () => {
@@ -54,55 +55,55 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#f8fafc',
+    padding: S.lg,
+    backgroundColor: T.paper,
   },
   title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 8,
+    fontSize: FS.h3,
+    fontWeight: FW.bold,
+    color: T.ink,
+    marginBottom: S.sm,
   },
   description: {
-    fontSize: 16,
-    color: '#475569',
+    fontSize: FS.md,
+    color: T.graphite,
   },
   linkRow: {
-    marginTop: 20,
+    marginTop: S.lg,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: S.md,
+    paddingHorizontal: S.md,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    borderColor: T.hairline,
+    backgroundColor: T.canvas,
+    borderRadius: R.r2,
   },
   linkLabel: {
-    fontSize: 14,
-    color: "#0f172a",
-    fontWeight: "700",
+    fontSize: FS.body,
+    color: T.ink,
+    fontWeight: FW.bold,
   },
   linkValue: {
-    fontSize: 14,
-    color: "#334155",
-    fontWeight: "800",
+    fontSize: FS.body,
+    color: T.graphite,
+    fontWeight: FW.extrabold,
   },
   buttonContainer: {
-    marginTop: 40,
-    borderRadius: 8,
+    marginTop: S.xxxl,
+    borderRadius: R.r1,
     overflow: 'hidden',
   },
   logoutButton: {
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "#ef4444",
+    height: BH.default,
+    borderRadius: R.r2,
+    backgroundColor: T.danger,
     alignItems: "center",
     justifyContent: "center",
   },
   logoutText: {
-    color: "#fff",
-    fontWeight: "800",
+    color: T.canvas,
+    fontWeight: FW.extrabold,
   },
 });

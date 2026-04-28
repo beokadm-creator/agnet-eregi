@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import Constants from "expo-constants";
+import { T, R, S, FS, FW } from '../../lib/tokens';
 
 export default function AppInfoScreen() {
   const expoConfig: any = (Constants as any).expoConfig || {};
@@ -25,26 +26,26 @@ export default function AppInfoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#f8fafc",
+    padding: S.lg,
+    backgroundColor: T.paper,
   },
   panel: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
+    borderColor: T.hairline,
+    backgroundColor: T.canvas,
+    borderRadius: R.r2,
+    padding: S.base,
   },
   title: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0f172a",
-    marginBottom: 10,
+    fontSize: FS.md,
+    fontWeight: FW.extrabold,
+    color: T.ink,
+    marginBottom: S.sm + 2,
   },
   row: {
-    fontSize: 13,
-    color: "#334155",
-    marginTop: 6,
+    fontSize: FS.label,
+    color: T.graphite,
+    marginTop: S.sm - 2,
   },
 });
 

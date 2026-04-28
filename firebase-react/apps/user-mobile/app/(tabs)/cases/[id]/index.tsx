@@ -2,6 +2,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { useEffect, useMemo, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useApi } from "../../../../hooks/useApi";
+import { T, R, S, FS, FW, BH } from '../../../../lib/tokens';
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 
@@ -194,9 +195,9 @@ export default function CaseDetail() {
           <Text style={styles.bannerText}>업로드 처리 중{uploadPhase ? `: ${uploadPhase}` : ""}</Text>
         </View>
       )}
-      {!actionApi.busy && actionApi.error ? <Text style={{ color: "#b91c1c", marginBottom: 12 }}>{actionApi.error}</Text> : null}
+      {!actionApi.busy && actionApi.error ? <Text style={{ color: T.danger, marginBottom: S.md }}>{actionApi.error}</Text> : null}
       {submissionApi.busy && !submission && <ActivityIndicator />}
-      {!submissionApi.busy && submissionApi.error ? <Text style={{ color: "#b91c1c" }}>{submissionApi.error}</Text> : null}
+      {!submissionApi.busy && submissionApi.error ? <Text style={{ color: T.danger }}>{submissionApi.error}</Text> : null}
 
       {submission && (
         <View style={styles.panel}>
@@ -233,7 +234,7 @@ export default function CaseDetail() {
       <View style={styles.panel}>
         <Text style={styles.sectionTitle}>진행 로그</Text>
         {eventsApi.busy && events.length === 0 && <ActivityIndicator />}
-        {!eventsApi.busy && eventsApi.error ? <Text style={{ color: "#b91c1c" }}>{eventsApi.error}</Text> : null}
+        {!eventsApi.busy && eventsApi.error ? <Text style={{ color: T.danger }}>{eventsApi.error}</Text> : null}
         {events.length === 0 && !eventsApi.busy && !eventsApi.error ? (
           <Text style={styles.body}>이벤트가 없습니다.</Text>
         ) : (
@@ -252,7 +253,7 @@ export default function CaseDetail() {
       <View style={styles.panel}>
         <Text style={styles.sectionTitle}>추가 서류 요청</Text>
         {requestsApi.busy && requests.length === 0 && <ActivityIndicator />}
-        {!requestsApi.busy && requestsApi.error ? <Text style={{ color: "#b91c1c" }}>{requestsApi.error}</Text> : null}
+        {!requestsApi.busy && requestsApi.error ? <Text style={{ color: T.danger }}>{requestsApi.error}</Text> : null}
         {requests.length === 0 && !requestsApi.busy && !requestsApi.error ? (
           <Text style={styles.body}>요청이 없습니다.</Text>
         ) : (
@@ -303,117 +304,117 @@ export default function CaseDetail() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    backgroundColor: "#f8fafc",
+    padding: S.lg,
+    backgroundColor: T.paper,
   },
   banner: {
     borderWidth: 1,
-    borderColor: "#c7d2fe",
-    backgroundColor: "#eef2ff",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    borderColor: T.accent,
+    backgroundColor: T.accentSoft,
+    borderRadius: R.r2,
+    padding: S.md,
+    marginBottom: S.md,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: S.sm + 2,
   },
   bannerText: {
-    fontSize: 13,
-    color: "#3730a3",
-    fontWeight: "800",
+    fontSize: FS.label,
+    color: T.accentInk,
+    fontWeight: FW.extrabold,
   },
   panel: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderColor: T.hairline,
+    backgroundColor: T.canvas,
+    borderRadius: R.r2,
+    padding: S.base,
+    marginBottom: S.md,
   },
   title: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#0f172a",
+    fontSize: FS.title,
+    fontWeight: FW.extrabold,
+    color: T.ink,
   },
   metaRow: {
-    marginTop: 8,
+    marginTop: S.sm,
   },
   meta: {
-    fontSize: 13,
-    color: "#475569",
-    marginTop: 4,
+    fontSize: FS.label,
+    color: T.graphite,
+    marginTop: S.xs,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#0f172a",
-    marginBottom: 6,
+    fontSize: FS.body,
+    fontWeight: FW.extrabold,
+    color: T.ink,
+    marginBottom: S.sm - 2,
   },
   body: {
-    fontSize: 14,
-    color: "#334155",
-    lineHeight: 20,
+    fontSize: FS.body,
+    color: T.graphite,
+    lineHeight: BH.sm - 2,
   },
   rowCard: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#f8fafc",
-    borderRadius: 10,
-    padding: 12,
+    borderColor: T.hairline,
+    backgroundColor: T.paper,
+    borderRadius: R.r2,
+    padding: S.md,
   },
   rowTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#0f172a",
+    fontSize: FS.body,
+    fontWeight: FW.extrabold,
+    color: T.ink,
   },
   rowMeta: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "#64748b",
+    marginTop: S.xs,
+    fontSize: FS.sm,
+    color: T.slate,
   },
   cancelButton: {
-    height: 44,
-    borderRadius: 10,
+    height: BH.default,
+    borderRadius: R.r2,
     borderWidth: 1,
-    borderColor: "#fecaca",
-    backgroundColor: "#fff1f2",
+    borderColor: T.dangerSoft,
+    backgroundColor: T.dangerSoft,
     alignItems: "center",
     justifyContent: "center",
   },
   cancelText: {
-    color: "#b91c1c",
-    fontWeight: "800",
+    color: T.danger,
+    fontWeight: FW.extrabold,
   },
   itemCard: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 12,
+    borderColor: T.hairline,
+    backgroundColor: T.canvas,
+    borderRadius: R.r2,
+    padding: S.md,
   },
   itemTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#0f172a",
+    fontSize: FS.label,
+    fontWeight: FW.extrabold,
+    color: T.ink,
   },
   itemMeta: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "#64748b",
+    marginTop: S.xs,
+    fontSize: FS.sm,
+    color: T.slate,
   },
   actionButton: {
     flex: 1,
-    height: 40,
-    borderRadius: 10,
+    height: BH.sm + 6,
+    borderRadius: R.r2,
     borderWidth: 1,
-    borderColor: "#c7d2fe",
-    backgroundColor: "#eef2ff",
+    borderColor: T.accent,
+    backgroundColor: T.accentSoft,
     alignItems: "center",
     justifyContent: "center",
   },
   actionText: {
-    color: "#3730a3",
-    fontWeight: "800",
+    color: T.accentInk,
+    fontWeight: FW.extrabold,
   },
   actionButtonDisabled: {
     opacity: 0.5,

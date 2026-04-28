@@ -15,7 +15,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-[0.75rem] font-medium tracking-[0.12em] uppercase text-[var(--text-tertiary)] mb-2"
+            className="block text-[0.75rem] font-medium tracking-[0.12em] uppercase text-[var(--ar-graphite)] mb-2"
           >
             {label}
           </label>
@@ -24,16 +24,16 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           ref={ref}
           className={[
-            "block w-full px-3 py-2.5 border rounded-[2px] text-sm bg-[var(--surface)] text-[var(--text-primary)]",
-            "placeholder:text-[var(--text-tertiary)]",
-            "focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)]",
-            error ? "border-[var(--error)]" : "border-[var(--border)]",
-            props.disabled ? "opacity-60 bg-[var(--surface-alt)] cursor-not-allowed" : ""
+            "block w-full px-3 py-3 border rounded-lg text-sm bg-[var(--ar-canvas)] text-[var(--ar-ink)] h-12",
+            "placeholder:text-[var(--ar-slate)]",
+            "focus:outline-none focus:ring-2 focus:ring-[var(--ar-accent)] focus:border-[var(--ar-accent)]",
+            error ? "border-[var(--ar-danger)]" : "border-[var(--ar-hairline)]",
+            props.disabled ? "opacity-60 bg-[var(--ar-paper-alt)] cursor-not-allowed" : ""
           ].filter(Boolean).join(" ")}
           {...props}
         />
-        {error && <p className="mt-2 text-sm text-[var(--error)]">{error}</p>}
-        {helperText && !error && <p className="mt-2 text-sm text-[var(--text-tertiary)]">{helperText}</p>}
+        {error && <p className="mt-2 text-sm text-[var(--ar-danger)]">{error}</p>}
+        {helperText && !error && <p className="mt-2 text-sm text-[var(--ar-slate)]">{helperText}</p>}
       </div>
     );
   }

@@ -1,12 +1,13 @@
 import { Tabs, router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Pressable } from 'react-native';
+import { T, S } from '../../lib/tokens';
 
 export default function TabLayout() {
   return (
     <Tabs screenOptions={{ 
-      tabBarActiveTintColor: '#4f46e5', // indigo-600
-      tabBarInactiveTintColor: '#94a3b8',
+      tabBarActiveTintColor: T.accent,
+      tabBarInactiveTintColor: T.slate,
       headerShown: true 
     }}>
       <Tabs.Screen 
@@ -14,8 +15,8 @@ export default function TabLayout() {
         options={{ 
           title: '홈',
           headerRight: () => (
-            <Pressable onPress={() => router.push('/settings')} style={{ paddingHorizontal: 12 }}>
-              <MaterialIcons name="settings" size={22} color="#0f172a" />
+            <Pressable onPress={() => router.push('/settings')} style={{ paddingHorizontal: S.md }}>
+              <MaterialIcons name="settings" size={22} color={T.ink} />
             </Pressable>
           ),
           tabBarIcon: ({ color }) => <MaterialIcons name="home" size={24} color={color} />
@@ -34,8 +35,8 @@ export default function TabLayout() {
         options={{ 
           title: '프로필',
           headerRight: () => (
-            <Pressable onPress={() => router.push('/settings')} style={{ paddingHorizontal: 12 }}>
-              <MaterialIcons name="settings" size={22} color="#0f172a" />
+            <Pressable onPress={() => router.push('/settings')} style={{ paddingHorizontal: S.md }}>
+              <MaterialIcons name="settings" size={22} color={T.ink} />
             </Pressable>
           ),
           tabBarIcon: ({ color }) => <MaterialIcons name="person" size={24} color={color} />

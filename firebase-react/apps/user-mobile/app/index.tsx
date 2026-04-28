@@ -6,6 +6,7 @@ import * as GoogleSignIn from "@react-native-google-signin/google-signin";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import { getApiBaseUrl } from "../lib/apiBase";
+import { T, R, S, FS, FW, BH } from '../lib/tokens';
 
 export default function Index() {
   const [ready, setReady] = useState(false);
@@ -120,8 +121,8 @@ export default function Index() {
       <AppleAuthentication.AppleAuthenticationButton
         buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
         buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-        cornerRadius={8}
-        style={{ width: "100%", height: 48, marginTop: 12 }}
+        cornerRadius={R.btn}
+        style={{ width: "100%", height: BH.lg, marginTop: S.md }}
         onPress={busy ? () => {} : signInWithApple}
       />
 
@@ -135,53 +136,53 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: T.paper,
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    padding: S.lg,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 10,
-    color: "#0f172a",
+    fontSize: FS.h2,
+    fontWeight: FW.bold,
+    marginBottom: S.base,
+    color: T.ink,
   },
   subtitle: {
-    fontSize: 16,
-    marginBottom: 24,
-    color: "#475569",
+    fontSize: FS.md,
+    marginBottom: S.xl,
+    color: T.graphite,
     textAlign: "center",
   },
   button: {
     width: "100%",
-    height: 48,
-    borderRadius: 8,
+    height: BH.lg,
+    borderRadius: R.btn,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#2563eb",
+    backgroundColor: T.accent,
   },
   buttonSecondary: {
     width: "100%",
-    height: 48,
-    borderRadius: 8,
+    height: BH.lg,
+    borderRadius: R.btn,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f1f5f9",
-    marginTop: 12,
+    backgroundColor: T.surfaceMuted,
+    marginTop: S.md,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: T.hairline,
   },
   buttonDisabled: {
     opacity: 0.5,
   },
   buttonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
+    color: T.canvas,
+    fontWeight: FW.bold,
+    fontSize: FS.md,
   },
   buttonTextSecondary: {
-    color: "#0f172a",
-    fontWeight: "700",
-    fontSize: 16,
+    color: T.ink,
+    fontWeight: FW.bold,
+    fontSize: FS.md,
   },
 });

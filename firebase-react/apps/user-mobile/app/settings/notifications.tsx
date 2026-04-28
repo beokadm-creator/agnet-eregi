@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import { useApi } from "../../hooks/useApi";
+import { T, R, S, FS, FW, BH } from '../../lib/tokens';
 
 export default function NotificationSettingsScreen() {
   const { busy, error, callApi } = useApi();
@@ -74,27 +75,27 @@ export default function NotificationSettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#f8fafc",
+    padding: S.lg,
+    backgroundColor: T.paper,
   },
   panel: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
+    borderColor: T.hairline,
+    backgroundColor: T.canvas,
+    borderRadius: R.r2,
+    padding: S.md,
   },
   panelTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0f172a",
-    marginBottom: 8,
+    fontSize: FS.md,
+    fontWeight: FW.extrabold,
+    color: T.ink,
+    marginBottom: S.sm,
   },
   subPanel: {
-    marginTop: 10,
+    marginTop: S.sm + 2,
     borderTopWidth: 1,
-    borderTopColor: "#e2e8f0",
-    paddingTop: 10,
+    borderTopColor: T.hairline,
+    paddingTop: S.sm + 2,
   },
   subPanelDisabled: {
     opacity: 0.5,
@@ -103,38 +104,38 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 10,
+    paddingVertical: S.sm + 2,
   },
   rowDisabled: {
     opacity: 0.5,
   },
   rowLabel: {
-    fontSize: 14,
-    color: "#0f172a",
-    fontWeight: "700",
+    fontSize: FS.body,
+    color: T.ink,
+    fontWeight: FW.bold,
   },
   rowValue: {
-    fontSize: 14,
-    color: "#334155",
-    fontWeight: "800",
+    fontSize: FS.body,
+    color: T.graphite,
+    fontWeight: FW.extrabold,
   },
   saveButton: {
-    marginTop: 12,
-    height: 44,
-    borderRadius: 10,
+    marginTop: S.md,
+    height: BH.default,
+    borderRadius: R.r2,
     borderWidth: 1,
-    borderColor: "#c7d2fe",
-    backgroundColor: "#eef2ff",
+    borderColor: T.accent,
+    backgroundColor: T.accent,
     alignItems: "center",
     justifyContent: "center",
   },
   saveText: {
-    color: "#3730a3",
-    fontWeight: "800",
+    color: T.canvas,
+    fontWeight: FW.extrabold,
   },
   error: {
-    color: "#b91c1c",
-    marginBottom: 12,
+    color: T.danger,
+    marginBottom: S.md,
   },
 });
 

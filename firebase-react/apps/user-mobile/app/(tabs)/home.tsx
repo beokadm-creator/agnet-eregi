@@ -2,6 +2,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "
 import { useEffect, useMemo } from "react";
 import { router } from "expo-router";
 import { useApi } from "../../hooks/useApi";
+import { T, R, S, FS, FW } from '../../lib/tokens';
 
 export default function HomeScreen() {
   const { busy, data, error, callApi } = useApi();
@@ -45,7 +46,7 @@ export default function HomeScreen() {
       <View style={{ marginTop: 16 }}>
         {busy && items.length === 0 && <ActivityIndicator />}
         {!busy && error ? (
-          <Text style={{ color: "#b91c1c" }}>{error}</Text>
+          <Text style={{ color: T.danger }}>{error}</Text>
         ) : (
           <FlatList
             data={items}
@@ -67,75 +68,75 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#f8fafc',
+    padding: S.lg,
+    backgroundColor: T.paper,
   },
   title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 8,
+    fontSize: FS.h3,
+    fontWeight: FW.bold,
+    color: T.ink,
+    marginBottom: S.sm,
   },
   description: {
-    fontSize: 16,
-    color: '#475569',
+    fontSize: FS.md,
+    color: T.graphite,
   },
   tokenContainer: {
-    marginTop: 40,
-    padding: 16,
-    backgroundColor: '#e0e7ff',
-    borderRadius: 8,
+    marginTop: S.xxxl,
+    padding: S.base,
+    backgroundColor: T.accentSoft,
+    borderRadius: R.r1,
   },
   tokenTitle: {
-    fontWeight: 'bold',
-    color: '#3730a3',
-    marginBottom: 4,
+    fontWeight: FW.bold,
+    color: T.accentInk,
+    marginBottom: S.xs,
   },
   tokenText: {
-    fontSize: 12,
-    color: '#4338ca',
+    fontSize: FS.sm,
+    color: T.accentInk,
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: T.canvas,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 10,
-    padding: 12,
+    borderColor: T.hairline,
+    borderRadius: R.r2,
+    padding: S.md,
   },
   cardRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
+    gap: S.sm + 2,
   },
   cardTitle: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#0f172a",
+    fontSize: FS.md,
+    fontWeight: FW.bold,
+    color: T.ink,
   },
   cardMeta: {
-    marginTop: 6,
-    fontSize: 12,
-    color: "#64748b",
+    marginTop: S.sm - 2,
+    fontSize: FS.sm,
+    color: T.slate,
   },
   badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: S.sm + 2,
+    paddingVertical: S.xs,
+    borderRadius: R.pill,
   },
   badgeOk: {
-    backgroundColor: "#dcfce7",
+    backgroundColor: T.successSoft,
   },
   badgeWip: {
-    backgroundColor: "#e0e7ff",
+    backgroundColor: T.accentSoft,
   },
   badgeFail: {
-    backgroundColor: "#fee2e2",
+    backgroundColor: T.dangerSoft,
   },
   badgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#0f172a",
+    fontSize: FS.sm,
+    fontWeight: FW.bold,
+    color: T.ink,
   },
 });

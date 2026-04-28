@@ -129,8 +129,8 @@ export default function Dashboard() {
                     key={opt} 
                     onClick={() => { setFunnelAnswer(opt); submitFunnelAnswer(); }} 
                     disabled={busy} 
-                    className="dash-button dash-button--outline"
-                    style={funnelAnswer === opt ? { backgroundColor: 'var(--surface)', borderColor: 'var(--text-primary)' } : {}}
+                    className={`dash-button dash-button--outline${funnelAnswer === opt ? ' selected' : ''}`}
+                    style={funnelAnswer === opt ? {} : {}}
                   >
                     {opt}
                   </button>
@@ -147,7 +147,7 @@ export default function Dashboard() {
         )}
 
         {funnelPreview && !funnelResults && (
-          <div className="dash-card" style={{ marginTop: '1.5rem', backgroundColor: 'var(--brand-faint)' }}>
+          <div className="dash-card" style={{ marginTop: '1.5rem', backgroundColor: 'var(--ar-accent-soft)' }}>
             <h4 className="dash-card-title" style={{ fontSize: '1rem' }}>가치 프리뷰</h4>
             <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
               <div>
@@ -167,11 +167,11 @@ export default function Dashboard() {
             <h3 className="dash-card-title">매칭 결과</h3>
             {funnelResults.recommended && (
               <div style={{ marginTop: '2rem' }}>
-                <span className="dash-label" style={{ color: 'var(--brand)' }}>추천 파트너</span>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem', border: '1px solid var(--border)' }}>
+                <span className="dash-label" style={{ color: 'var(--ar-accent-ink)' }}>추천 파트너</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem', border: '1px solid var(--ar-hairline)', borderRadius: 'var(--ar-r2)' }}>
                   <div>
                     <div style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.25rem' }}>{funnelResults.recommended.name}</div>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--ar-graphite)' }}>
                       예상 가격: {funnelResults.recommended.price?.toLocaleString()}원 · ETA: {funnelResults.recommended.etaHours}시간
                     </div>
                   </div>
@@ -192,7 +192,7 @@ export default function Dashboard() {
         </div>
 
         {submissions.length === 0 ? (
-          <div style={{ padding: '3rem 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>
+          <div style={{ padding: '3rem 0', textAlign: 'center', color: 'var(--ar-fog)', fontSize: '0.875rem' }}>
             {t('empty_submissions')}
           </div>
         ) : (
@@ -200,7 +200,7 @@ export default function Dashboard() {
             {submissions.map(s => (
               <div key={s.id} className="dash-item" onClick={() => navigate(`/submissions/${s.id}`)} style={{ cursor: 'pointer' }}>
                 <div className="dash-item-header">
-                  <div className="dash-item-title" style={{ color: 'var(--text-primary)' }}>{s.input?.type || '알 수 없는 유형'}</div>
+                  <div className="dash-item-title">{s.input?.type || '알 수 없는 유형'}</div>
                   <div className={`dash-item-status ${["failed", "cancelled"].includes(s.status) ? "dash-item-status--error" : ""}`}>
                     {statusText[s.status] || s.status.toUpperCase()}
                   </div>

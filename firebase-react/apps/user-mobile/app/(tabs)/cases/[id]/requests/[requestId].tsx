@@ -2,6 +2,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { useEffect, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { useApi } from "../../../../../hooks/useApi";
+import { T, R, S, FS, FW, BH } from '../../../../../lib/tokens';
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 
@@ -123,9 +124,9 @@ export default function EvidenceRequestDetail() {
           <Text style={styles.bannerText}>업로드 처리 중{uploadPhase ? `: ${uploadPhase}` : ""}</Text>
         </View>
       )}
-      {!actionApi.busy && actionApi.error ? <Text style={{ color: "#b91c1c", marginBottom: 12 }}>{actionApi.error}</Text> : null}
+      {!actionApi.busy && actionApi.error ? <Text style={{ color: T.danger, marginBottom: S.md }}>{actionApi.error}</Text> : null}
       {detailApi.busy && !evidenceRequest && <ActivityIndicator />}
-      {!detailApi.busy && detailApi.error ? <Text style={{ color: "#b91c1c" }}>{detailApi.error}</Text> : null}
+      {!detailApi.busy && detailApi.error ? <Text style={{ color: T.danger }}>{detailApi.error}</Text> : null}
 
       {evidenceRequest && (
         <View style={styles.panel}>
@@ -171,77 +172,77 @@ export default function EvidenceRequestDetail() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    backgroundColor: "#f8fafc",
+    padding: S.lg,
+    backgroundColor: T.paper,
   },
   banner: {
     borderWidth: 1,
-    borderColor: "#c7d2fe",
-    backgroundColor: "#eef2ff",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    borderColor: T.accent,
+    backgroundColor: T.accentSoft,
+    borderRadius: R.r2,
+    padding: S.md,
+    marginBottom: S.md,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: S.sm + 2,
   },
   bannerText: {
-    fontSize: 13,
-    color: "#3730a3",
-    fontWeight: "800",
+    fontSize: FS.label,
+    color: T.accentInk,
+    fontWeight: FW.extrabold,
   },
   panel: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
+    borderColor: T.hairline,
+    backgroundColor: T.canvas,
+    borderRadius: R.r2,
+    padding: S.base,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0f172a",
+    fontSize: FS.subheading + 1,
+    fontWeight: FW.extrabold,
+    color: T.ink,
   },
   meta: {
-    fontSize: 12,
-    color: "#64748b",
-    marginTop: 4,
+    fontSize: FS.sm,
+    color: T.slate,
+    marginTop: S.xs,
   },
   body: {
-    fontSize: 14,
-    color: "#334155",
-    lineHeight: 20,
+    fontSize: FS.body,
+    color: T.graphite,
+    lineHeight: BH.sm - 2,
   },
   itemCard: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#f8fafc",
-    borderRadius: 10,
-    padding: 12,
+    borderColor: T.hairline,
+    backgroundColor: T.paper,
+    borderRadius: R.r2,
+    padding: S.md,
   },
   itemTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#0f172a",
+    fontSize: FS.label,
+    fontWeight: FW.extrabold,
+    color: T.ink,
   },
   itemMeta: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "#64748b",
+    marginTop: S.xs,
+    fontSize: FS.sm,
+    color: T.slate,
   },
   actionButton: {
     flex: 1,
-    height: 40,
-    borderRadius: 10,
+    height: BH.sm + 6,
+    borderRadius: R.r2,
     borderWidth: 1,
-    borderColor: "#c7d2fe",
-    backgroundColor: "#eef2ff",
+    borderColor: T.accent,
+    backgroundColor: T.accentSoft,
     alignItems: "center",
     justifyContent: "center",
   },
   actionText: {
-    color: "#3730a3",
-    fontWeight: "800",
+    color: T.accentInk,
+    fontWeight: FW.extrabold,
   },
   actionButtonDisabled: {
     opacity: 0.5,

@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import auth from "@react-native-firebase/auth";
 import { useApi } from "../../hooks/useApi";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
+import { T, R, S, FS, FW } from '../../lib/tokens';
 
 export default function SettingsIndex() {
   const { busy, callApi } = useApi();
@@ -54,42 +55,42 @@ export default function SettingsIndex() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#f8fafc",
+    padding: S.lg,
+    backgroundColor: T.paper,
   },
   group: {
-    gap: 10,
-    marginBottom: 14,
+    gap: S.sm + 2,
+    marginBottom: S.lg + 2,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: S.md,
+    paddingHorizontal: S.md,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    borderColor: T.hairline,
+    backgroundColor: T.canvas,
+    borderRadius: R.r2,
   },
   rowDisabled: {
     opacity: 0.5,
   },
   label: {
-    fontSize: 14,
-    color: "#0f172a",
-    fontWeight: "700",
+    fontSize: FS.body,
+    color: T.ink,
+    fontWeight: FW.bold,
   },
   value: {
-    fontSize: 14,
-    color: "#334155",
-    fontWeight: "800",
+    fontSize: FS.body,
+    color: T.graphite,
+    fontWeight: FW.extrabold,
   },
   dangerRow: {
-    borderColor: "#fecaca",
-    backgroundColor: "#fff1f2",
+    borderColor: T.dangerSoft,
+    backgroundColor: T.dangerSoft,
   },
   dangerText: {
-    color: "#b91c1c",
+    color: T.danger,
   },
 });

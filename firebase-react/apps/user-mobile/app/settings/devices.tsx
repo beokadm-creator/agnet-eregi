@@ -2,6 +2,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { useEffect } from "react";
 import { useApi } from "../../hooks/useApi";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
+import { T, R, S, FS, FW, BH } from '../../lib/tokens';
 
 function formatTs(ts: any): string {
   if (!ts) return "-";
@@ -94,70 +95,70 @@ export default function DevicesScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    backgroundColor: "#f8fafc",
+    padding: S.lg,
+    backgroundColor: T.paper,
   },
   panel: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderColor: T.hairline,
+    backgroundColor: T.canvas,
+    borderRadius: R.r2,
+    padding: S.base,
+    marginBottom: S.md,
   },
   title: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0f172a",
+    fontSize: FS.md,
+    fontWeight: FW.extrabold,
+    color: T.ink,
   },
   meta: {
-    fontSize: 12,
-    color: "#64748b",
-    marginTop: 6,
+    fontSize: FS.sm,
+    color: T.slate,
+    marginTop: S.sm - 2,
   },
   error: {
-    color: "#b91c1c",
-    marginTop: 8,
+    color: T.danger,
+    marginTop: S.sm,
   },
   card: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#f8fafc",
-    borderRadius: 12,
-    padding: 12,
+    borderColor: T.hairline,
+    backgroundColor: T.paper,
+    borderRadius: R.r2,
+    padding: S.md,
   },
   cardTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#0f172a",
+    fontSize: FS.body,
+    fontWeight: FW.extrabold,
+    color: T.ink,
   },
   button: {
-    marginTop: 10,
-    height: 40,
-    borderRadius: 10,
+    marginTop: S.sm + 2,
+    height: BH.sm + 6,
+    borderRadius: R.r2,
     borderWidth: 1,
-    borderColor: "#fecaca",
-    backgroundColor: "#fff1f2",
+    borderColor: T.dangerSoft,
+    backgroundColor: T.dangerSoft,
     alignItems: "center",
     justifyContent: "center",
   },
   buttonText: {
-    color: "#b91c1c",
-    fontWeight: "800",
+    color: T.danger,
+    fontWeight: FW.extrabold,
   },
   dangerButton: {
-    marginTop: 12,
-    height: 44,
-    borderRadius: 10,
+    marginTop: S.md,
+    height: BH.default,
+    borderRadius: R.r2,
     borderWidth: 1,
-    borderColor: "#fecaca",
-    backgroundColor: "#fff1f2",
+    borderColor: T.dangerSoft,
+    backgroundColor: T.dangerSoft,
     alignItems: "center",
     justifyContent: "center",
   },
   dangerText: {
-    color: "#b91c1c",
-    fontWeight: "800",
+    color: T.danger,
+    fontWeight: FW.extrabold,
   },
   disabled: {
     opacity: 0.5,
