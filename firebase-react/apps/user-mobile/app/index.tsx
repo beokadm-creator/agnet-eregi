@@ -5,6 +5,7 @@ import auth from "@react-native-firebase/auth";
 import * as GoogleSignIn from "@react-native-google-signin/google-signin";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
+import { getApiBaseUrl } from "../lib/apiBase";
 
 export default function Index() {
   const [ready, setReady] = useState(false);
@@ -13,7 +14,24 @@ export default function Index() {
   useEffect(() => {
     const unsub = auth().onAuthStateChanged((u: any) => {
       if (u) {
-        router.replace("/(tabs)/home");
+        (async () => {
+          try {
+            const token = await u.getIdToken();
+            const res = await fetch(`${getApiBaseUrl()}/v1/user/account/deletion-status`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const json: any = await res.json().catch(() => null);
+            const status = json?.data?.status || json?.status;
+            if (status === "queued" || status === "processing") {
+              Alert.alert("계정 삭제 진행 중", "계정 삭제가 진행 중입니다. 완료 후 다시 시도해주세요.");
+              await auth().signOut();
+              router.replace("/");
+              setReady(true);
+              return;
+            }
+          } catch {}
+          router.replace("/(tabs)/home");
+        })();
         return;
       }
       setReady(true);

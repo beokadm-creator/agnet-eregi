@@ -1,11 +1,26 @@
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import auth from "@react-native-firebase/auth";
 import { useApi } from "../../hooks/useApi";
 
 export default function AccountSettingsScreen() {
   const { busy, error, callApi } = useApi();
+  const statusApi = useApi();
   const user = auth().currentUser;
+  const [status, setStatus] = useState<string>("none");
+  const [job, setJob] = useState<any>(null);
+
+  useEffect(() => {
+    statusApi.callApi("/v1/user/account/deletion-status")
+      .then((res: any) => {
+        const st = res?.status || "none";
+        setStatus(String(st));
+        setJob(res);
+      })
+      .catch(() => {})
+      .finally(() => {});
+  }, []);
 
   async function deleteAccount() {
     Alert.alert("계정 삭제", "계정과 관련된 푸시 토큰/설정이 삭제되고, 로그인도 해제됩니다.", [
@@ -36,9 +51,16 @@ export default function AccountSettingsScreen() {
         <Text style={styles.row}>Provider: {user?.providerData?.map((p) => p.providerId).filter(Boolean).join(", ") || "-"}</Text>
       </View>
 
+      <View style={styles.panel}>
+        <Text style={styles.title}>탈퇴 상태</Text>
+        {statusApi.busy ? <ActivityIndicator /> : <Text style={styles.row}>status: {status}</Text>}
+        {job?.progress ? <Text style={styles.meta}>{JSON.stringify(job.progress)}</Text> : null}
+        {statusApi.error ? <Text style={styles.error}>{statusApi.error}</Text> : null}
+      </View>
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable disabled={busy} style={[styles.dangerButton, busy && styles.disabled]} onPress={deleteAccount}>
+      <Pressable disabled={busy || status === "queued" || status === "processing"} style={[styles.dangerButton, (busy || status === "queued" || status === "processing") && styles.disabled]} onPress={deleteAccount}>
         <Text style={styles.dangerText}>계정 삭제</Text>
       </Pressable>
     </View>
@@ -57,6 +79,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
+    marginBottom: 12,
   },
   title: {
     fontSize: 16,
@@ -68,6 +91,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#334155",
     marginTop: 6,
+  },
+  meta: {
+    fontSize: 12,
+    color: "#64748b",
+    marginTop: 8,
   },
   error: {
     color: "#b91c1c",

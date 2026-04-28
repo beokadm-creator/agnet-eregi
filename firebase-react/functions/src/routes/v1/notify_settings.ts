@@ -209,6 +209,21 @@ export function registerNotificationSettingsRoutes(app: express.Application, adm
     }
   });
 
+  app.get("/v1/user/account/deletion-status", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const db = adminApp.firestore();
+      const snap = await db.collection("user_deletion_jobs").doc(auth.uid).get();
+      if (!snap.exists) return ok(res, { status: "none" });
+      return ok(res, { id: snap.id, ...(snap.data() as any) });
+    } catch (err: any) {
+      logError({ endpoint: "user/account/deletion-status", code: "INTERNAL", messageKo: "삭제 상태 조회 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
   app.delete("/v1/user/account", async (req: express.Request, res: express.Response) => {
     try {
       const auth = await requireAuth(adminApp, req, res);
@@ -216,8 +231,28 @@ export function registerNotificationSettingsRoutes(app: express.Application, adm
 
       const db = adminApp.firestore();
       const uid = auth.uid;
+      const activeSnap = await db.collection("user_submissions")
+        .where("userId", "==", uid)
+        .where("status", "in", ["submitted", "processing"])
+        .limit(5)
+        .get();
+      if (!activeSnap.empty) {
+        return fail(res, 400, "FAILED_PRECONDITION", "진행 중 제출이 있어 탈퇴할 수 없습니다.", {
+          activeSubmissionIds: activeSnap.docs.map((d) => d.id)
+        });
+      }
+
       const deletedUserId = `deleted_${crypto.createHash("sha256").update(uid).digest("hex").slice(0, 16)}`;
       const jobRef = db.collection("user_deletion_jobs").doc(uid);
+
+      const existing = await jobRef.get();
+      if (existing.exists) {
+        const data = existing.data() as any;
+        if (data?.status === "queued" || data?.status === "processing") {
+          return ok(res, { queued: true, jobId: jobRef.id, status: data.status });
+        }
+      }
+
       await jobRef.set({
         userId: uid,
         deletedUserId,
