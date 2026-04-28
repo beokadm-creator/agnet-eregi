@@ -1,4 +1,8 @@
-import React, { Suspense, lazy } from "react";
+const fs = require('fs');
+const path = require('path');
+const srcDir = './firebase-react/apps/user-web/src';
+
+const appTsxCode = `import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { signOut } from "firebase/auth";
@@ -55,3 +59,6 @@ export default function App() {
     </AuthProvider>
   );
 }
+`;
+
+fs.writeFileSync(path.join(srcDir, 'App.tsx'), appTsxCode);
