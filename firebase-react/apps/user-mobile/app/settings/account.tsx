@@ -37,6 +37,20 @@ export default function AccountSettingsScreen() {
     await refreshAll();
   }
 
+  async function cancelAllActiveSubmissions() {
+    for (const s of activeSubmissions) {
+      await callApi(`/v1/user/submissions/${String(s.id)}/cancel`, { method: "POST" });
+    }
+    await refreshAll();
+  }
+
+  async function cancelAllAndDeleteAccount() {
+    await cancelAllActiveSubmissions();
+    await callApi("/v1/user/account", { method: "DELETE" });
+    await auth().signOut();
+    router.replace("/");
+  }
+
   async function deleteAccount() {
     Alert.alert("계정 삭제", "계정과 관련된 푸시 토큰/설정이 삭제되고, 로그인도 해제됩니다.", [
       { text: "취소", style: "cancel" },
@@ -101,29 +115,52 @@ export default function AccountSettingsScreen() {
         )}
 
         {activeSubmissions.length > 0 ? (
-          <Pressable
-            disabled={busy}
-            style={[styles.dangerButton, busy && styles.disabled, { marginTop: 12 }]}
-            onPress={() => {
-              Alert.alert("일괄 취소", "진행 중 제출을 모두 취소한 뒤 탈퇴를 다시 시도할까요?", [
-                { text: "취소", style: "cancel" },
-                {
-                  text: "진행",
-                  style: "destructive",
-                  onPress: async () => {
-                    try {
-                      for (const s of activeSubmissions) {
-                        await cancelSubmission(String(s.id));
-                      }
-                      await refreshAll();
-                    } catch {}
+          <View style={{ gap: 10, marginTop: 12 }}>
+            <Pressable
+              disabled={busy}
+              style={[styles.dangerButton, busy && styles.disabled, { marginTop: 0 }]}
+              onPress={() => {
+                Alert.alert("일괄 취소", "진행 중 제출을 모두 취소할까요?", [
+                  { text: "취소", style: "cancel" },
+                  {
+                    text: "진행",
+                    style: "destructive",
+                    onPress: async () => {
+                      try {
+                        await cancelAllActiveSubmissions();
+                      } catch {}
+                    },
                   },
-                },
-              ]);
-            }}
-          >
-            <Text style={styles.dangerText}>진행 중 제출 모두 취소</Text>
-          </Pressable>
+                ]);
+              }}
+            >
+              <Text style={styles.dangerText}>진행 중 제출 모두 취소</Text>
+            </Pressable>
+
+            <Pressable
+              disabled={busy}
+              style={[styles.dangerButton, busy && styles.disabled, { marginTop: 0 }]}
+              onPress={() => {
+                Alert.alert("취소 후 탈퇴", "진행 중 제출을 모두 취소한 뒤 바로 탈퇴를 진행할까요?", [
+                  { text: "취소", style: "cancel" },
+                  {
+                    text: "진행",
+                    style: "destructive",
+                    onPress: async () => {
+                      try {
+                        await cancelAllAndDeleteAccount();
+                      } catch (e: any) {
+                        await refreshAll();
+                        Alert.alert("탈퇴 불가", e?.message || "탈퇴를 완료할 수 없습니다.");
+                      }
+                    },
+                  },
+                ]);
+              }}
+            >
+              <Text style={styles.dangerText}>모두 취소 후 탈퇴</Text>
+            </Pressable>
+          </View>
         ) : null}
       </View>
 
