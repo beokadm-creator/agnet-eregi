@@ -2,10 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+
+:root {
+  --brand:          oklch(36% 0.092 155);
+  --brand-hover:    oklch(32% 0.088 155);
+  --brand-faint:    oklch(95% 0.018 155);
+  --bg:             oklch(97.5% 0.007 88);
+  --surface:        oklch(99% 0.004 88);
+  --surface-alt:    oklch(96% 0.008 88);
+  --text-primary:   oklch(16% 0.012 230);
+  --text-secondary: oklch(48% 0.014 230);
+  --text-tertiary:  oklch(68% 0.010 230);
+  --border:         oklch(87% 0.010 88);
+  --border-strong:  oklch(77% 0.012 88);
+  --error:          oklch(42% 0.14 25);
+  --error-light:    oklch(94% 0.038 25);
+}
+
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
-  background-color: #f8f9fa;
-  color: #333;
+  font-family: 'Gothic A1', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-primary);
 }
+
