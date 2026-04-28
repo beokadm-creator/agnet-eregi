@@ -1,7 +1,4 @@
 export function getApiBaseUrl() {
-  const explicit = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE;
-  if (explicit) return explicit.replace(/\/$/, "");
-
   const host = typeof window !== "undefined" ? window.location.hostname : "";
   const isLocal = host === "localhost" || host === "127.0.0.1" || host === "::1";
   const useEmulator = import.meta.env.VITE_USE_FUNCTIONS_EMULATOR === "1";
@@ -11,9 +8,14 @@ export function getApiBaseUrl() {
     return `http://127.0.0.1:5001/${projectId}/asia-northeast3/api`;
   }
 
+  // MUST return empty string in production to use relative paths for CORS bypass
   if (!isLocal) {
     return "";
   }
+
+  // Fallback for local dev without emulator
+  const explicit = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE;
+  if (explicit) return explicit.replace(/\/$/, "");
 
   return `https://asia-northeast3-${projectId}.cloudfunctions.net/api`;
 }
