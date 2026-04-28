@@ -41,12 +41,18 @@ export async function processUserDeletionJobs(adminApp: typeof admin) {
 
   const jobSnap = await db.collection("user_deletion_jobs")
     .where("status", "==", "queued")
-    .where("nextRunAt", "<=", now)
-    .limit(1)
+    .limit(5)
     .get();
   if (jobSnap.empty) return;
 
-  const jobDoc = jobSnap.docs[0];
+  const jobDoc = jobSnap.docs.find((d) => {
+    const data: any = d.data();
+    const nextRunAt: admin.firestore.Timestamp | undefined = data?.nextRunAt;
+    if (!nextRunAt) return true;
+    return nextRunAt.toMillis() <= now.toMillis();
+  });
+  if (!jobDoc) return;
+
   const job = jobDoc.data() as UserDeletionJob;
   const uid = job.userId;
   const deletedUserId = job.deletedUserId || deletedUserIdOf(uid);
