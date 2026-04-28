@@ -1,5 +1,6 @@
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Pressable } from 'react-native';
 
 export default function TabLayout() {
   return (
@@ -12,6 +13,11 @@ export default function TabLayout() {
         name="home" 
         options={{ 
           title: '홈',
+          headerRight: () => (
+            <Pressable onPress={() => router.push('/settings')} style={{ paddingHorizontal: 12 }}>
+              <MaterialIcons name="settings" size={22} color="#0f172a" />
+            </Pressable>
+          ),
           tabBarIcon: ({ color }) => <MaterialIcons name="home" size={24} color={color} />
         }} 
       />
@@ -27,6 +33,11 @@ export default function TabLayout() {
         name="profile" 
         options={{ 
           title: '프로필',
+          headerRight: () => (
+            <Pressable onPress={() => router.push('/settings')} style={{ paddingHorizontal: 12 }}>
+              <MaterialIcons name="settings" size={22} color="#0f172a" />
+            </Pressable>
+          ),
           tabBarIcon: ({ color }) => <MaterialIcons name="person" size={24} color={color} />
         }} 
       />

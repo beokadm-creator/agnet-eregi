@@ -13,7 +13,7 @@ export default function ProfileScreen() {
       <Text style={styles.title}>내 프로필</Text>
       <Text style={styles.description}>{auth().currentUser?.email || auth().currentUser?.uid}</Text>
 
-      <Pressable style={styles.linkRow} onPress={() => router.push("/settings/notifications")}>
+      <Pressable style={styles.linkRow} onPress={() => router.push("/settings")}>
         <Text style={styles.linkLabel}>알림 설정</Text>
         <Text style={styles.linkValue}>열기</Text>
       </Pressable>
