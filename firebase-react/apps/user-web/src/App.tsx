@@ -564,67 +564,54 @@ function App() {
 
   if (!token) {
     return (
-      <div className="min-h-screen w-full bg-[#0a0a0a] text-[#f5f5f5] flex flex-col font-sans relative overflow-hidden selection:bg-white/20">
-        {/* Abstract Background Elements */}
-        <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-white/5 blur-[120px] pointer-events-none"></div>
-        <div className="absolute bottom-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/10 blur-[150px] pointer-events-none"></div>
+      <div className="min-h-screen w-full bg-[#fdfbf7] text-[#2d2c2a] flex flex-col font-sans relative overflow-hidden selection:bg-[#2d2c2a] selection:text-[#fdfbf7]">
+        {/* Soft Organic Background */}
+        <div className="absolute top-[-10%] right-[-5%] w-[50%] h-[50%] rounded-full bg-[#f4eadd]/40 blur-[100px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] rounded-full bg-[#e3e7dd]/50 blur-[120px] pointer-events-none"></div>
         
-        {/* Header */}
-        <header className="w-full px-8 py-6 flex justify-between items-center border-b border-white/10 z-10">
-          <div className="text-xl font-bold tracking-widest uppercase text-white">AgentRegi</div>
-          <div className="flex gap-6 text-xs font-medium tracking-widest uppercase">
-            <button onClick={() => i18n.changeLanguage('ko')} className={`transition-colors ${i18n.language?.startsWith('ko') ? 'text-white' : 'text-white/40 hover:text-white'}`}>KR</button>
-            <button onClick={() => i18n.changeLanguage('en')} className={`transition-colors ${i18n.language?.startsWith('en') ? 'text-white' : 'text-white/40 hover:text-white'}`}>EN</button>
+        {/* Subtle Noise Texture */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-multiply" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }}></div>
+
+        {/* Minimal Header */}
+        <header className="w-full px-8 py-8 flex justify-between items-center z-10">
+          <div className="text-xl font-bold tracking-tight text-[#2d2c2a]" style={{ fontFamily: '"Playfair Display", serif' }}>AgentRegi.</div>
+          <div className="flex gap-4 text-xs font-semibold tracking-wider">
+            <button onClick={() => i18n.changeLanguage('ko')} className={`transition-colors ${i18n.language?.startsWith('ko') ? 'text-[#2d2c2a] border-b border-[#2d2c2a]' : 'text-[#8c8b89] hover:text-[#2d2c2a]'}`}>KO</button>
+            <button onClick={() => i18n.changeLanguage('en')} className={`transition-colors ${i18n.language?.startsWith('en') ? 'text-[#2d2c2a] border-b border-[#2d2c2a]' : 'text-[#8c8b89] hover:text-[#2d2c2a]'}`}>EN</button>
           </div>
         </header>
 
-        {/* Main Content */}
-        <main className="flex-1 flex flex-col lg:flex-row items-center justify-center px-8 lg:px-24 z-10 relative">
-          <div className="w-full lg:w-1/2 flex flex-col items-start gap-8 z-20">
-            <div className="inline-block px-4 py-1.5 border border-white/20 rounded-full text-xs uppercase tracking-widest text-white/70 mb-2 backdrop-blur-md">
-              Premium Agency Service
-            </div>
-            <h1 className="text-5xl lg:text-7xl font-light leading-tight tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
-              Complex paperwork,<br/>
-              <span className="font-serif italic text-white/40">simplified.</span>
-            </h1>
-            <p className="text-lg lg:text-xl text-white/50 max-w-lg font-light leading-relaxed">
-              가장 전문적이고 신속한 행정/법률 대행 경험을 제공합니다.<br/>
-              복잡한 절차는 저희에게 맡기고, 비즈니스에 집중하세요.
-            </p>
-            
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-              <button 
-                onClick={handleGuestLogin} 
-                disabled={busy} 
-                className="group relative px-8 py-4 bg-white text-black font-bold text-sm uppercase tracking-widest overflow-hidden transition-transform hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <div className="absolute inset-0 bg-neutral-200 transform scale-x-0 origin-left group-hover:scale-x-100 transition-transform duration-500 ease-out z-0"></div>
-                <span className="relative z-10 flex items-center justify-center gap-3">
-                  {busy ? "Processing..." : "Start as Guest"}
-                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="square" strokeLinejoin="miter" strokeWidth="2" d="M5 12h14M12 5l7 7-7 7"></path></svg>
-                </span>
-              </button>
-            </div>
+        {/* Main Content - Soft & Editorial */}
+        <main className="flex-1 flex flex-col items-center justify-center px-6 lg:px-24 z-10 relative text-center mt-[-5vh]">
+          
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/60 border border-[#e8e6e1] rounded-full text-xs font-medium tracking-wide text-[#73716e] mb-8 backdrop-blur-md shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-[#8c9c81]"></span>
+            Now Available for Everyone
           </div>
           
-          <div className="w-full lg:w-1/2 mt-16 lg:mt-0 flex justify-center lg:justify-end relative z-10">
-            {/* Decorative architectural element */}
-            <div className="w-full max-w-md aspect-[3/4] border border-white/10 relative p-6 flex flex-col justify-between overflow-hidden group bg-white/[0.01] backdrop-blur-sm transition-colors hover:bg-white/[0.03]">
-              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-              <div className="absolute -right-24 -top-24 w-64 h-64 border border-white/5 rounded-full group-hover:scale-110 transition-transform duration-1000"></div>
-              <div className="absolute -left-12 -bottom-12 w-40 h-40 border border-white/5 rounded-full group-hover:scale-110 transition-transform duration-1000"></div>
-              
-              <div className="flex justify-between items-start text-white/40 text-[10px] font-mono tracking-widest uppercase">
-                <span>SEC.01</span>
-                <span>SYSTEM.READY</span>
-              </div>
-              <div className="text-right">
-                <div className="text-6xl font-serif italic text-white/20 font-light tracking-tighter group-hover:text-white/30 transition-colors duration-700">Seamless</div>
-                <div className="text-[10px] font-mono text-white/40 mt-3 tracking-widest uppercase">v2.0.4 - Production</div>
-              </div>
-            </div>
-          </div>
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-[#2d2c2a] leading-[1.1] tracking-tight mb-6 max-w-4xl" style={{ fontFamily: '"Playfair Display", serif' }}>
+            행정과 법률의 벽을 허무는 <br/>
+            <span className="text-[#8c9c81] italic font-normal">가장 우아한 방법.</span>
+          </h1>
+          
+          <p className="text-lg md:text-xl text-[#5e5c59] max-w-2xl font-light leading-relaxed mb-12">
+            복잡한 서류 작업과 낯선 절차에 더 이상 지치지 마세요. 전문 파트너가 당신의 비즈니스를 위한 모든 과정을 매끄럽게 대행합니다.
+          </p>
+          
+          <button 
+            onClick={handleGuestLogin} 
+            disabled={busy} 
+            className="group relative px-10 py-4 bg-[#2d2c2a] text-[#fdfbf7] font-semibold text-sm tracking-wide rounded-2xl overflow-hidden transition-all hover:bg-[#1a1918] hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:shadow-md"
+          >
+            <span className="relative z-10 flex items-center justify-center gap-3">
+              {busy ? "연결 중..." : "게스트로 경험해보기"}
+              <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </span>
+          </button>
+          
+          <p className="text-xs text-[#a3a19e] mt-6 font-medium">
+            가입 없이 즉시 대시보드를 확인하실 수 있습니다.
+          </p>
         </main>
       </div>
     );
