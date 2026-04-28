@@ -4,13 +4,13 @@ import { getAnalytics } from "firebase/analytics";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCydfzxKGa-OBRiPEGVwi0HV-2EVbZkYMM",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "agentregi-d77a3.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "agentregi-d77a3",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "agentregi-d77a3.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "524652826247",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:524652826247:web:f3188b16db4fb6f5813222",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-K17M93Y1T0",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAaVp-7itlHDgHlLvkZAb5k8ZXh-GiRaMo",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "agent-eregi.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "agent-eregi",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "agent-eregi.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "337988126020",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:337988126020:web:1baed287ef934f8063c311",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-VYFLLG9C6P",
 };
 
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);

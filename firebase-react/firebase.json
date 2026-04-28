@@ -23,6 +23,14 @@
       "target": "user-web",
       "public": "apps/user-web/dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" }
+          ]
+        }
+      ],
       "rewrites": [
         { "source": "/v1/**", "function": "api", "region": "asia-northeast3" },
         { "source": "**", "destination": "/index.html" }
@@ -48,4 +56,3 @@
     }
   ]
 }
-
