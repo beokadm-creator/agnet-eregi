@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@agentregi/ui-components";
-import { ensureLogin, apiBase } from "../../api";
+import { auth } from "@rp/firebase";
+import { getApiBaseUrl } from "../../apiBase";
 
 interface Props {
   caseId: string;
@@ -30,9 +31,16 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
   const [requestId, setRequestId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  async function getToken(): Promise<string> {
+    const token = await auth.currentUser?.getIdToken(true);
+    if (!token) throw new Error("인증 토큰이 필요합니다.");
+    return token;
+  }
+
   const downloadSubmissionPackage = async () => {
     try {
-      const token = await ensureLogin();
+      const token = await getToken();
+      const apiBase = getApiBaseUrl();
       const resp = await fetch(`${apiBase}/v1/cases/${caseId}/packages/submission.zip`, {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` }
@@ -58,7 +66,8 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
 
   const downloadClosingReport = async () => {
     try {
-      const token = await ensureLogin();
+      const token = await getToken();
+      const apiBase = getApiBaseUrl();
       const resp = await fetch(`${apiBase}/v1/cases/${caseId}/reports/closing.docx`, {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` }
@@ -88,7 +97,8 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
     setValidationError(null);
     setRequestId(null);
     try {
-      const token = await ensureLogin();
+      const token = await getToken();
+      const apiBase = getApiBaseUrl();
       const resp = await fetch(`${apiBase}/v1/cases/${caseId}/packages/validate`, {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` }

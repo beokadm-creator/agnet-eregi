@@ -1,9 +1,14 @@
-import { createContext, useContext, useState, ReactNode } from "react";
-import { getApi } from "../services/api";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from "@rp/firebase";
+import { getApi, initApi } from "../services/api";
 
 interface AppContextType {
-  token: string;
-  setToken: (t: string) => void;
+  idToken: string;
+  claims: Record<string, any> | null;
+  authReady: boolean;
+  accessDenied: boolean;
+  logout: () => Promise<void>;
   log: string;
   setLog: (l: string) => void;
   busy: boolean;
@@ -75,7 +80,11 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState("");
+  const tokenRef = useRef("");
+  const [idToken, setIdToken] = useState("");
+  const [claims, setClaims] = useState<Record<string, any> | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [log, setLog] = useState("");
   const [busy, setBusy] = useState(false);
   
@@ -103,6 +112,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [pollError, setPollError] = useState<string | null>(null);
   const [lastPolledAt, setLastPolledAt] = useState<Date | null>(null);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      setAuthReady(true);
+      if (!u) {
+        tokenRef.current = "";
+        setIdToken("");
+        setClaims(null);
+        setAccessDenied(false);
+        return;
+      }
+      const nextToken = await u.getIdToken(true);
+      tokenRef.current = nextToken;
+      setIdToken(nextToken);
+      const tokenResult = await u.getIdTokenResult();
+      setClaims(tokenResult.claims as any);
+      const partnerId = tokenResult.claims?.partnerId ? String(tokenResult.claims.partnerId) : "";
+      setAccessDenied(!partnerId);
+      initApi(() => tokenRef.current);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  async function logout() {
+    await signOut(auth);
+  }
+
   async function loadCases() {
     try {
       const api = getApi();
@@ -115,14 +150,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const notifyRes = await api.get("/v1/partner/notification-settings");
       setNotificationSettings(notifyRes.settings);
       
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const pId = payload.partnerId;
-        if (pId) {
-          const stRes = await api.get(`/v1/partners/${pId}/settlements`);
-          setSettlements(stRes.settlements || []);
-        }
-      } catch(e) {}
+      const pId = claims?.partnerId ? String(claims.partnerId) : "";
+      if (pId) {
+        const stRes = await api.get(`/v1/partners/${pId}/settlements`);
+        setSettlements(stRes.settlements || []);
+      }
 
       try {
         const adRes = await api.get("/v1/partner/ads/campaigns");
@@ -217,7 +249,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      token, setToken, log, setLog, busy, setBusy,
+      idToken, claims, authReady, accessDenied, logout, log, setLog, busy, setBusy,
       cases, setCases, selectedCase, setSelectedCase,
       notificationSettings, setNotificationSettings,
       partnerProfile, setPartnerProfile, teamMembers, setTeamMembers,

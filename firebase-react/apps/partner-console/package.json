@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@agentregi/ui-components": "^1.0.0",
+    "@rp/firebase": "file:../../packages/firebase",
     "@tailwindcss/postcss": "^4.2.4",
     "@vitejs/plugin-react": "^5.1.2",
     "firebase": "^12.12.1",

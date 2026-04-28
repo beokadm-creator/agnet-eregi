@@ -2,7 +2,14 @@ import React, { useState, useEffect, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 
 import { auth } from "@rp/firebase";
-import { signInAnonymously, onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+} from "firebase/auth";
 import { getApiBaseUrl } from "./apiBase";
 
 import WelcomeScreen from "./components/WelcomeScreen";
@@ -16,6 +23,7 @@ function App() {
   const [showTossModal, setShowTossModal] = useState(false);
   const [log, setLog] = useState("");
   const [busy, setBusy] = useState(false);
+  const [tossHandled, setTossHandled] = useState(false);
 
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [selectedSub, setSelectedSub] = useState<any | null>(null);
@@ -58,7 +66,7 @@ function App() {
   const [b2gItems, setB2gItems] = useState<any[]>([]);
   const [b2gFees, setB2gFees] = useState<any[]>([]);
 
-  const user = token ? { uid: token.slice(0, 16), email: undefined, displayName: undefined } : null;
+  const user = auth.currentUser || null;
 
   const statusText: Record<string, string> = {
     draft: "작성중",
@@ -71,35 +79,52 @@ function App() {
   };
 
   useEffect(() => {
-    const t = localStorage.getItem("user_token");
-    if (t) setToken(t);
-
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         try {
           const idToken = await currentUser.getIdToken(true);
           setToken(idToken);
-          localStorage.setItem("user_token", idToken);
           setLog("자동 로그인되었습니다.");
         } catch (e) {
           console.error("Token fetch error", e);
         }
       } else {
         setToken("");
-        localStorage.removeItem("user_token");
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  async function handleGuestLogin() {
+  async function handleGoogleLogin() {
     setBusy(true);
-    setLog("게스트 로그인 중...");
     try {
-      await signInAnonymously(auth);
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
     } catch (e: any) {
       setLog(`[Error] 로그인 실패: ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEmailLogin(email: string, password: string) {
+    setBusy(true);
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+    } catch (e: any) {
+      setLog(`[Error] 로그인 실패: ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEmailSignUp(email: string, password: string) {
+    setBusy(true);
+    try {
+      await createUserWithEmailAndPassword(auth, email.trim(), password);
+    } catch (e: any) {
+      setLog(`[Error] 가입 실패: ${e.message}`);
     } finally {
       setBusy(false);
     }
@@ -111,7 +136,8 @@ function App() {
   }
 
   useEffect(() => {
-    // 쿼리 파라미터 확인하여 토스 결제 완료/실패 처리
+    if (tossHandled) return;
+    if (!token) return;
     const searchParams = new URLSearchParams(window.location.search);
     const tossSuccess = searchParams.get('tossSuccess');
     const tossFail = searchParams.get('tossFail');
@@ -121,6 +147,7 @@ function App() {
     const amountStr = searchParams.get('amount');
 
     if (tossSuccess && paymentId && paymentKey && orderId && amountStr) {
+      setTossHandled(true);
       setLog(`토스페이먼츠 결제 승인 진행 중...`);
       setBusy(true);
       
@@ -162,16 +189,12 @@ function App() {
 
       doConfirm();
     } else if (tossFail) {
+      setTossHandled(true);
       const message = searchParams.get('message') || "결제가 취소되었거나 실패했습니다.";
       setLog(`[Error] 토스 결제 실패: ${message}`);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
-
-  function handleSaveToken(t: string) {
-    setToken(t);
-    localStorage.setItem("user_token", t);
-  }
+  }, [token, tossHandled]);
 
   async function apiGet(path: string) {
     const apiUrl = getApiBaseUrl();
@@ -570,8 +593,9 @@ function App() {
       <WelcomeScreen
         busy={busy}
         log={log}
-        onGuestLogin={handleGuestLogin}
-        onTokenLogin={handleSaveToken}
+        onGoogleLogin={handleGoogleLogin}
+        onEmailLogin={handleEmailLogin}
+        onEmailSignUp={handleEmailSignUp}
       />
     );
   }

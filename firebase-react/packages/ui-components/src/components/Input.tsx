@@ -13,21 +13,27 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className={`w-full ${className}`}>
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor={inputId}
+            className="block text-[0.75rem] font-medium tracking-[0.12em] uppercase text-[var(--text-tertiary)] mb-2"
+          >
             {label}
           </label>
         )}
         <input
           id={inputId}
           ref={ref}
-          className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm
-            ${error ? "border-red-300 text-red-900 placeholder-red-300" : "border-gray-300 text-gray-900"}
-            ${props.disabled ? "bg-gray-50 text-gray-500" : "bg-white"}
-          `}
+          className={[
+            "block w-full px-3 py-2.5 border rounded-[2px] text-sm bg-[var(--surface)] text-[var(--text-primary)]",
+            "placeholder:text-[var(--text-tertiary)]",
+            "focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)]",
+            error ? "border-[var(--error)]" : "border-[var(--border)]",
+            props.disabled ? "opacity-60 bg-[var(--surface-alt)] cursor-not-allowed" : ""
+          ].filter(Boolean).join(" ")}
           {...props}
         />
-        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
-        {helperText && !error && <p className="mt-1 text-sm text-gray-500">{helperText}</p>}
+        {error && <p className="mt-2 text-sm text-[var(--error)]">{error}</p>}
+        {helperText && !error && <p className="mt-2 text-sm text-[var(--text-tertiary)]">{helperText}</p>}
       </div>
     );
   }

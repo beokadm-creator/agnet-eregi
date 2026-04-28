@@ -1,15 +1,27 @@
 import { useTranslation } from "react-i18next";
-import { Button } from "@agentregi/ui-components";
 
 export default function Header() {
   const { t, i18n } = useTranslation();
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-      <h1 style={{ color: "#00695c", margin: 0 }}>{t('title')}</h1>
-      <div style={{ display: "flex", gap: 8 }}>
-        <Button onClick={() => i18n.changeLanguage('ko')} style={{ padding: "6px 12px", cursor: "pointer", fontWeight: i18n.language?.startsWith('ko') ? 'bold' : 'normal' }}>KO</Button>
-        <Button onClick={() => i18n.changeLanguage('en')} style={{ padding: "6px 12px", cursor: "pointer", fontWeight: i18n.language?.startsWith('en') ? 'bold' : 'normal' }}>EN</Button>
+    <header className="im-header">
+      <h1 className="im-title">{t("title")}</h1>
+      <div className="im-lang">
+        <button
+          onClick={() => i18n.changeLanguage("ko")}
+          className={`im-link${i18n.language?.startsWith("ko") ? " im-link--active" : ""}`}
+          type="button"
+        >
+          KO
+        </button>
+        <span aria-hidden="true">·</span>
+        <button
+          onClick={() => i18n.changeLanguage("en")}
+          className={`im-link${i18n.language?.startsWith("en") ? " im-link--active" : ""}`}
+          type="button"
+        >
+          EN
+        </button>
       </div>
-    </div>
+    </header>
   );
 }

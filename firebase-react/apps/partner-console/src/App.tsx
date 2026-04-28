@@ -1,28 +1,50 @@
 import { AppProvider, useAppContext } from "./context/AppContext";
+import { auth } from "@rp/firebase";
 import Header from "./components/Layout/Header";
-import TokenInput from "./components/Layout/TokenInput";
 import LogViewer from "./components/Layout/LogViewer";
 import LeftSidebar from "./components/Layout/LeftSidebar";
 import RightPanel from "./components/Layout/RightPanel";
+import AuthScreen from "./components/AuthScreen";
 
 function PartnerConsoleContent() {
-  const { token } = useAppContext();
+  const { authReady, accessDenied, logout } = useAppContext();
+
+  if (!authReady) {
+    return (
+      <div className="im-shell">
+        <div className="im-container">
+          <div className="im-log">loading…</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text-primary)] font-['Gothic_A1'] selection:bg-[var(--brand)]/10 selection:text-[var(--brand)]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
-        <Header />
-        <TokenInput />
-        <LogViewer />
-        
-        {token && (
-          <div className="flex flex-col lg:flex-row gap-6 items-start mt-4">
-            <div className="w-full lg:w-1/4 shrink-0">
-              <LeftSidebar />
+    <div className="im-shell selection:bg-[var(--brand)]/10 selection:text-[var(--brand)]">
+      <div className="im-container">
+        {!auth.currentUser && <AuthScreen />}
+
+        {auth.currentUser && (
+          <>
+            <Header />
+            <div className="im-lang" style={{ justifyContent: "flex-end" }}>
+              <button type="button" className="im-link" onClick={logout}>
+                로그아웃
+              </button>
             </div>
-            <div className="w-full lg:w-3/4">
-              <RightPanel />
-            </div>
+            {accessDenied && (
+              <div className="im-log" style={{ background: "var(--error-light)", color: "var(--error)" }}>
+                권한이 없습니다. partnerId 커스텀 클레임이 필요합니다.
+              </div>
+            )}
+            {!accessDenied && <LogViewer />}
+          </>
+        )}
+
+        {!accessDenied && auth.currentUser && (
+          <div className="im-split">
+            <LeftSidebar />
+            <RightPanel />
           </div>
         )}
       </div>

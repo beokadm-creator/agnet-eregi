@@ -228,7 +228,7 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
         sessionId,
         type: "RESULTS_VIEWED",
         payload: {
-          recommendedPartnerId: recommended?.partnerId,
+          recommendedPartnerId: recommended?.partnerId || "none",
           comparePartnerIds: compareTop3.map(p => p.partnerId),
           sponsoredPartnerIds: sponsoredPartners.map(p => p.partnerId)
         },

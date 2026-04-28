@@ -1,34 +1,38 @@
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface WelcomeScreenProps {
   busy: boolean;
   log: string;
-  onGuestLogin: () => void;
-  onTokenLogin: (token: string) => void;
+  onGoogleLogin: () => void;
+  onEmailLogin: (email: string, password: string) => void;
+  onEmailSignUp: (email: string, password: string) => void;
 }
 
-export default function WelcomeScreen({ busy, log, onGuestLogin, onTokenLogin }: WelcomeScreenProps) {
+export default function WelcomeScreen({ busy, log, onGoogleLogin, onEmailLogin, onEmailSignUp }: WelcomeScreenProps) {
   const { i18n } = useTranslation();
-  const [showTokenInput, setShowTokenInput] = useState(false);
-  const [tokenValue, setTokenValue] = useState('');
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const isError = log.startsWith('[Error]');
-  const displayLog = isError ? log.replace('[Error] ', '') : log;
+  const isError = log.startsWith("[Error]");
+  const displayLog = isError ? log.replace("[Error] ", "") : log;
 
   return (
     <div className="wc-root">
       <div className="wc-lang">
         <button
-          onClick={() => i18n.changeLanguage('ko')}
-          className={`wc-lang-btn${i18n.language?.startsWith('ko') ? ' wc-lang-btn--active' : ''}`}
+          onClick={() => i18n.changeLanguage("ko")}
+          className={`wc-lang-btn${i18n.language?.startsWith("ko") ? " wc-lang-btn--active" : ""}`}
+          type="button"
         >
           KO
         </button>
         <span className="wc-lang-sep">·</span>
         <button
-          onClick={() => i18n.changeLanguage('en')}
-          className={`wc-lang-btn${i18n.language?.startsWith('en') ? ' wc-lang-btn--active' : ''}`}
+          onClick={() => i18n.changeLanguage("en")}
+          className={`wc-lang-btn${i18n.language?.startsWith("en") ? " wc-lang-btn--active" : ""}`}
+          type="button"
         >
           EN
         </button>
@@ -43,11 +47,12 @@ export default function WelcomeScreen({ busy, log, onGuestLogin, onTokenLogin }:
         </h1>
 
         <button
-          onClick={onGuestLogin}
+          onClick={onGoogleLogin}
           disabled={busy}
           className="wc-cta"
+          type="button"
         >
-          {busy ? '연결 중…' : '게스트로 시작하기'}
+          {busy ? "연결 중…" : "Google로 로그인"}
         </button>
 
         <p className="wc-reassurance">
@@ -55,39 +60,45 @@ export default function WelcomeScreen({ busy, log, onGuestLogin, onTokenLogin }:
         </p>
 
         {log && (
-          <div className={`wc-log${isError ? ' wc-log--error' : ' wc-log--neutral'}`}>
+          <div className={`wc-log${isError ? " wc-log--error" : " wc-log--neutral"}`}>
             {displayLog}
           </div>
         )}
 
-        {!showTokenInput && (
+        <div className="wc-token-form">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="이메일"
+            className="wc-token-input"
+            autoComplete="email"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="비밀번호"
+            className="wc-token-input"
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+          />
           <button
-            onClick={() => setShowTokenInput(true)}
-            className="wc-token-link"
+            onClick={() => (mode === "signup" ? onEmailSignUp(email, password) : onEmailLogin(email, password))}
+            disabled={busy || !email.trim() || !password.trim()}
+            className="wc-token-submit"
+            type="button"
           >
-            기존 계정이 있으신가요?
+            {mode === "signup" ? "이메일로 가입" : "이메일로 로그인"}
           </button>
-        )}
+        </div>
 
-        {showTokenInput && (
-          <div className="wc-token-form">
-            <input
-              type="text"
-              value={tokenValue}
-              onChange={e => setTokenValue(e.target.value)}
-              placeholder="토큰을 입력하세요"
-              className="wc-token-input"
-              autoFocus
-            />
-            <button
-              onClick={() => onTokenLogin(tokenValue)}
-              disabled={busy || !tokenValue.trim()}
-              className="wc-token-submit"
-            >
-              적용
-            </button>
-          </div>
-        )}
+        <button
+          onClick={() => setMode(mode === "signup" ? "login" : "signup")}
+          className="wc-token-link"
+          type="button"
+        >
+          {mode === "signup" ? "이미 계정이 있으신가요?" : "이메일로 가입하기"}
+        </button>
       </main>
     </div>
   );

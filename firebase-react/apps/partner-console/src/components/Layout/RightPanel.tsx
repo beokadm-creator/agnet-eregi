@@ -14,7 +14,7 @@ export default function RightPanel() {
   if (!selectedCase) return null;
 
   return (
-    <div style={{ flex: 2, background: "#fff", padding: 16, borderRadius: 8, border: "1px solid #ddd" }}>
+    <div className="im-panel">
       <CaseHeader />
       <CaseWorkboardWrapper />
       <QuotesManager />

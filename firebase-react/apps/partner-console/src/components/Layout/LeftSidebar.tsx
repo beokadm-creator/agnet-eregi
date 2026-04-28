@@ -13,7 +13,7 @@ import { EnterpriseAnalytics } from "../LeftSidebar/EnterpriseAnalytics";
 
 export default function LeftSidebar() {
   return (
-    <div style={{ flex: 1, background: "#fff", padding: 16, borderRadius: 8, border: "1px solid #ddd" }}>
+    <div className="im-panel">
       <OrganizationSettings />
       <EnterpriseAnalytics />
       <QualityTier />
