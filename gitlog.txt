@@ -1,0 +1,15 @@
+ff3ddede chore(user-web): finalize B2B SaaS landing design and fix API endpoint configuration
+4d2a6b3c style(user-web): apply modern standard B2B SaaS landing page design
+607c59bc style(user-web): redesign welcome screen with elegant organic minimalism
+0bd9bc6a style(user-web): apply premium editorial minimalist design to welcome screen
+d82fc8c4 style(user-web): enhance guest login UI with gradient background and better typography
+c80f1789 feat(user-web): add guest login UI and welcome screen to replace raw token input
+604e03fc fix(deploy): resolve json schema syntax and cloud functions missing env variables errors
+a9ba5815 chore: configure production environments and prepare for deployment
+ca641c27 chore(deploy): set real deployment script for agent-eregi
+7aca56e1 chore(mobile): remove TODO/placeholder comments in react-native app
+6196f5fb feat(mobile): add push notifications (FCM) and document image picker
+22f1b30f feat(mobile): add expo-router and setup tab navigation for user-mobile
+99052035 feat(mobile): init phase 12 mobile app with expo and biometric auth
+3df04a42 feat(ops): implement real firestore backup, remove alert blindspots, complete access UI and ci fixes
+eb3cbcfe docs: finalize roadmap and create project README

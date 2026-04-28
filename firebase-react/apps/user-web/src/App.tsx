@@ -566,107 +566,54 @@ function App() {
 
   if (!token) {
     return (
-      <div className="min-h-screen w-full bg-white text-slate-900 flex flex-col font-sans relative selection:bg-blue-100 selection:text-blue-900 overflow-hidden">
-        {/* Subtle Grid Background for Tech/SaaS feel */}
-        <div className="absolute inset-0 pointer-events-none" style={{ 
-          backgroundImage: 'radial-gradient(#e2e8f0 1px, transparent 1px)', 
-          backgroundSize: '24px 24px',
-          opacity: 0.5 
-        }}></div>
-
-        {/* Top Navigation */}
-        <header className="w-full px-6 py-5 max-w-7xl mx-auto flex justify-between items-center z-10">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 pb-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-3xl font-extrabold text-indigo-700 tracking-tight">{t('title')}</h1>
+            <div className="flex gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+              <button onClick={() => i18n.changeLanguage('ko')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${i18n.language?.startsWith('ko') ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>KO</button>
+              <button onClick={() => i18n.changeLanguage('en')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${i18n.language?.startsWith('en') ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>EN</button>
             </div>
-            <span className="text-xl font-extrabold tracking-tight text-slate-900">AgentRegi</span>
           </div>
-          <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-md backdrop-blur-sm border border-slate-200/50">
-            <button onClick={() => i18n.changeLanguage('ko')} className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${i18n.language?.startsWith('ko') ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>KO</button>
-            <button onClick={() => i18n.changeLanguage('en')} className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all ${i18n.language?.startsWith('en') ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>EN</button>
-          </div>
-        </header>
-
-        {/* Hero Section */}
-        <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 z-10 text-center pb-20">
           
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold tracking-wide mb-8 shadow-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-            </span>
-            신규 서비스 오픈
-          </span>
-
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-6 max-w-4xl">
-            복잡한 행정·법률 업무,<br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-              가장 쉽고 완벽하게.
-            </span>
-          </h1>
-
-          <p className="text-lg sm:text-xl text-slate-500 font-medium max-w-2xl leading-relaxed mb-10">
-            법인 설립, 인허가, 각종 서류 대행까지. 검증된 파트너가 당신의 비즈니스를 위한 모든 과정을 매끄럽게 처리해 드립니다.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-            <button 
-              onClick={handleGuestLogin} 
-              disabled={busy} 
-              className="w-full sm:w-auto px-8 py-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white text-base font-bold rounded-xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2"
-            >
-              {busy ? (
-                <>
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  <span>처리 중...</span>
-                </>
-              ) : (
-                <>
-                  게스트로 바로 체험하기
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
-                </>
-              )}
-            </button>
+          <div className="flex flex-col items-center justify-center bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center my-10">
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">AgentRegi 로그인</h2>
+            <p className="text-slate-600 mb-8 max-w-md leading-relaxed">
+              서비스를 이용하려면 로그인이 필요합니다.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-center w-full">
+              <button 
+                onClick={handleGuestLogin} 
+                disabled={busy} 
+                className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold rounded-xl transition-colors shadow-md text-lg w-full sm:w-auto"
+              >
+                게스트로 시작하기
+              </button>
+            </div>
+            
+            <div className="mt-8 flex flex-col sm:flex-row gap-2 items-center justify-center w-full max-w-md">
+              <input 
+                value={manualToken} 
+                onChange={e => setManualToken(e.target.value)} 
+                className="flex-1 w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                placeholder="또는 기존 토큰 입력" 
+              />
+              <button 
+                onClick={() => handleSaveToken(manualToken)} 
+                disabled={busy || !manualToken} 
+                className="w-full sm:w-auto px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-lg transition-colors whitespace-nowrap"
+              >
+                토큰 적용
+              </button>
+            </div>
+            
+            {log && (
+              <div className="mt-4 max-w-md w-full rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                {log}
+              </div>
+            )}
           </div>
-
-          <div className="mt-5 flex flex-col sm:flex-row items-stretch gap-2 w-full max-w-2xl">
-            <input
-              value={manualToken}
-              onChange={(event) => setManualToken(event.target.value)}
-              placeholder="Firebase Auth Token"
-              className="flex-1 min-w-0 px-4 py-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={() => handleSaveToken(manualToken.trim())}
-              disabled={!manualToken.trim()}
-              className="px-5 py-3 rounded-lg bg-blue-600 text-white text-sm font-bold disabled:bg-slate-300"
-            >
-              토큰으로 진입
-            </button>
-          </div>
-
-          {log && (
-            <div className="mt-4 max-w-2xl rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {log}
-            </div>
-          )}
-
-          <div className="mt-12 flex flex-wrap justify-center gap-6 sm:gap-8 text-sm font-semibold text-slate-500">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
-              <span>회원가입 없음</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
-              <span>100% 비대면 진행</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
-              <span>실시간 현황 추적</span>
-            </div>
-          </div>
-        </main>
+        </div>
       </div>
     );
   }
