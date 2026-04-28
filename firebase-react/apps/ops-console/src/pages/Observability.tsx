@@ -16,7 +16,7 @@ export default function Observability() {
         <Button disabled={busy} variant="secondary" onClick={() => callApi(`/v1/ops/metrics/daily`)}>일일 시스템 메트릭 조회</Button>
       </div>
 
-      {error && <pre className="im-log" style={{ marginTop: "2rem", background: "var(--error-light)", color: "var(--error)" }}>{error}</pre>}
+      {error && <pre className="im-log" style={{ marginTop: "2rem", background: "var(--ar-danger-soft)", color: "var(--ar-danger)" }}>{error}</pre>}
       {!error && data && <pre className="im-log" style={{ marginTop: "2rem" }}>{JSON.stringify(data, null, 2)}</pre>}
     </div>
   );

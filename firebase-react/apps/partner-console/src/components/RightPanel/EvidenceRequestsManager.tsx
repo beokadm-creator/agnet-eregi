@@ -7,26 +7,25 @@ export default function EvidenceRequestsManager() {
 
   return (
     <div style={{ marginBottom: 24 }}>
-      <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", borderBottom: "1px solid #eee", paddingBottom: 8 }}>📝 추가 서류 요청 (Evidence Requests)</h3>
-      {/* ... simplified for now ... */}
+      <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", borderBottom: "1px solid var(--ar-surface-muted)", paddingBottom: 8 }}>📝 추가 서류 요청 (Evidence Requests)</h3>
       {evidenceRequests.length === 0 ? (
-        <div style={{ color: "#999", fontSize: "0.9em" }}>서류 요청 내역이 없습니다.</div>
+        <div style={{ color: "var(--ar-slate)", fontSize: "0.9em" }}>서류 요청 내역이 없습니다.</div>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
           <thead>
             <tr>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid #ddd" }}>요청 항목</th>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid #ddd" }}>메시지</th>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid #ddd" }}>상태</th>
+              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>요청 항목</th>
+              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>메시지</th>
+              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>상태</th>
             </tr>
           </thead>
           <tbody>
             {evidenceRequests.map((req: any) => (
               <tr key={req.id}>
-                <td style={{ padding: 8, borderBottom: "1px solid #eee", fontWeight: "bold" }}>{req.itemTitle}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid #eee", color: "#555" }}>{req.messageToUser}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>
-                  <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: "0.85em", fontWeight: "bold", background: req.status === "fulfilled" ? "#e8f5e9" : "#fff3e0", color: req.status === "fulfilled" ? "#2e7d32" : "#ef6c00" }}>
+                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)", fontWeight: "bold" }}>{req.itemTitle}</td>
+                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)", color: "var(--ar-graphite)" }}>{req.messageToUser}</td>
+                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)" }}>
+                  <span style={{ padding: "2px 6px", borderRadius: "var(--ar-r1)", fontSize: "0.85em", fontWeight: "bold", background: req.status === "fulfilled" ? "var(--ar-success-soft)" : "var(--ar-warning-soft)", color: req.status === "fulfilled" ? "var(--ar-success)" : "var(--ar-warning)" }}>
                     {req.status.toUpperCase()}
                   </span>
                 </td>

@@ -16,11 +16,11 @@ export default function CasePacks() {
         <Input label="Case Pack ID" value={casePackId} onChange={(e) => setCasePackId(e.target.value)} placeholder="ex: real_estate_transfer_v1" />
         <Input label="사건명" value={casePackName} onChange={(e) => setCasePackName(e.target.value)} placeholder="ex: 부동산 소유권 이전" />
         <div>
-          <label className="block text-[0.75rem] font-medium tracking-[0.12em] uppercase text-[var(--text-tertiary)] mb-2">입력 폼 스키마</label>
+          <label className="block text-[0.75rem] font-medium tracking-[0.12em] uppercase text-[var(--ar-slate)] mb-2">입력 폼 스키마</label>
           <textarea
             value={casePackSchema}
             onChange={(e) => setCasePackSchema(e.target.value)}
-            className="block w-full px-3 py-2.5 border rounded-[2px] text-sm bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)] h-40 font-mono"
+            className="block w-full px-3 py-2.5 border rounded-[var(--ar-r1)] text-sm bg-[var(--ar-canvas)] text-[var(--ar-ink)] border-[var(--ar-hairline)] focus:outline-none focus:ring-2 focus:ring-[var(--ar-accent)] focus:border-[var(--ar-accent)] h-40 font-mono"
           />
         </div>
       </div>
@@ -51,7 +51,7 @@ export default function CasePacks() {
         >수정</Button>
       </div>
 
-      {error && <pre className="im-log" style={{ marginTop: "2rem", background: "var(--error-light)", color: "var(--error)" }}>{error}</pre>}
+      {error && <pre className="im-log" style={{ marginTop: "2rem", background: "var(--ar-danger-soft)", color: "var(--ar-danger)" }}>{error}</pre>}
       {!error && data && <pre className="im-log" style={{ marginTop: "2rem" }}>{JSON.stringify(data, null, 2)}</pre>}
     </div>
   );

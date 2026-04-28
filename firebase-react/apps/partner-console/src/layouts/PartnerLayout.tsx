@@ -9,7 +9,7 @@ export default function PartnerLayout({ onLogout }: { onLogout: () => void }) {
   const { t, i18n } = useTranslation();
 
   return (
-    <div className="im-shell selection:bg-[var(--brand)]/10 selection:text-[var(--brand)]">
+    <div className="im-shell">
       <div className="im-container">
         <header className="im-header">
           <h1 className="im-title" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>{t("title") || "Partner Console"}</h1>
@@ -29,8 +29,8 @@ export default function PartnerLayout({ onLogout }: { onLogout: () => void }) {
             >
               EN
             </button>
-            <span style={{ margin: '0 8px' }}>|</span>
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{auth.currentUser?.email}</span>
+            <span style={{ margin: '0 8px', color: 'var(--ar-fog)' }}>|</span>
+            <span style={{ fontSize: '0.875rem', color: 'var(--ar-graphite)' }}>{auth.currentUser?.email}</span>
             <button type="button" className="im-link" onClick={onLogout} style={{ marginLeft: '1rem' }}>
               로그아웃
             </button>
@@ -45,7 +45,7 @@ export default function PartnerLayout({ onLogout }: { onLogout: () => void }) {
               <NavLink to="/" className={({isActive}) => `dash-button ${isActive ? '' : 'dash-button--outline'}`} end>대시보드</NavLink>
               <NavLink to="/cases" className={({isActive}) => `dash-button ${isActive ? '' : 'dash-button--outline'}`}>케이스 관리</NavLink>
               <NavLink to="/templates" className={({isActive}) => `dash-button ${isActive ? '' : 'dash-button--outline'}`}>템플릿 관리</NavLink>
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0.5rem 0' }} />
+              <hr style={{ border: 'none', borderTop: '1px solid var(--ar-hairline)', margin: '0.5rem 0' }} />
               <NavLink to="/organization" className={({isActive}) => `dash-button ${isActive ? '' : 'dash-button--outline'}`}>조직 및 팀</NavLink>
               <NavLink to="/billing" className={({isActive}) => `dash-button ${isActive ? '' : 'dash-button--outline'}`}>정산 및 요금제</NavLink>
               <NavLink to="/settings" className={({isActive}) => `dash-button ${isActive ? '' : 'dash-button--outline'}`}>설정</NavLink>

@@ -25,7 +25,7 @@ export default function AccessControl() {
         <Button disabled={busy || !accessTargetUid} variant="danger" onClick={() => callApi(`/v1/ops/access/revoke`, { method: "POST", body: JSON.stringify({ targetUid: accessTargetUid, reason: accessReason }) })}>권한 회수</Button>
       </div>
 
-      {error && <pre className="im-log" style={{ marginTop: "2rem", background: "var(--error-light)", color: "var(--error)" }}>{error}</pre>}
+      {error && <pre className="im-log" style={{ marginTop: "2rem", background: "var(--ar-danger-soft)", color: "var(--ar-danger)" }}>{error}</pre>}
       {!error && data && <pre className="im-log" style={{ marginTop: "2rem" }}>{JSON.stringify(data, null, 2)}</pre>}
     </div>
   );

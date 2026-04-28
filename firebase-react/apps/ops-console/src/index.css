@@ -1,37 +1,57 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 
 :root {
-  --brand:          oklch(36% 0.092 155);
-  --brand-hover:    oklch(32% 0.088 155);
-  --brand-faint:    oklch(95% 0.018 155);
-  --bg:             oklch(97.5% 0.007 88);
-  --surface:        oklch(99% 0.004 88);
-  --surface-alt:    oklch(96% 0.008 88);
-  --text-primary:   oklch(16% 0.012 230);
-  --text-secondary: oklch(48% 0.014 230);
-  --text-tertiary:  oklch(68% 0.010 230);
-  --border:         oklch(87% 0.010 88);
-  --border-strong:  oklch(77% 0.012 88);
-  --error:          oklch(42% 0.14 25);
-  --error-light:    oklch(94% 0.038 25);
+  --ar-paper: #FAF8F4;
+  --ar-paper-alt: #F4F1EA;
+  --ar-canvas: #FFFFFF;
+  --ar-ink: #0A0A0A;
+  --ar-ink2: #2C2C2E;
+  --ar-graphite: #46474C;
+  --ar-slate: #76767E;
+  --ar-fog: #A6A6AC;
+  --ar-hairline: #E9E5DC;
+  --ar-hairline-strong: #D9D3C5;
+  --ar-surface-muted: #F1ECE0;
+  --ar-accent: #D87242;
+  --ar-accent-hover: #BC5C30;
+  --ar-accent-soft: #FDEDE2;
+  --ar-accent-ink: #5C2A12;
+  --ar-accent-deep: #923D1B;
+  --ar-success: #1F9D55;
+  --ar-success-soft: #E5F5EC;
+  --ar-warning: #E0A019;
+  --ar-warning-soft: #FBF1D9;
+  --ar-danger: #D1372B;
+  --ar-danger-soft: #FBE8E5;
+  --ar-info: #2F6FE0;
+  --ar-info-soft: #E6EEFB;
+  --ar-font-ui: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --ar-font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  --ar-r1: 8px;
+  --ar-r2: 12px;
+  --ar-r3: 20px;
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Gothic A1', -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: var(--bg);
-  color: var(--text-primary);
+  font-family: var(--ar-font-ui);
+  background-color: var(--ar-paper);
+  color: var(--ar-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer components {
   .im-shell {
     min-height: 100dvh;
-    background-color: var(--bg);
-    color: var(--text-primary);
+    background-color: var(--ar-paper);
+    color: var(--ar-ink);
   }
 
   .im-container {
@@ -48,31 +68,31 @@ body {
     align-items: baseline;
     justify-content: space-between;
     padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--ar-hairline);
   }
 
   .im-title {
-    font-family: 'Hahmlet', serif;
-    font-weight: 500;
-    letter-spacing: 0.12em;
+    font-family: var(--ar-font-ui);
+    font-weight: 600;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--brand);
-    font-size: 0.9rem;
+    color: var(--ar-accent);
+    font-size: 0.8125rem;
     margin: 0;
   }
 
   .im-lede {
     margin: 0;
-    color: var(--text-secondary);
-    font-size: 0.95rem;
+    color: var(--ar-graphite);
+    font-size: 0.9rem;
     line-height: 1.7;
     max-width: 70ch;
   }
 
   .im-panel {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 2px;
+    background-color: var(--ar-canvas);
+    border: 1px solid var(--ar-hairline);
+    border-radius: var(--ar-r1);
     padding: 1.25rem;
     display: grid;
     gap: 0.875rem;
@@ -80,10 +100,11 @@ body {
 
   .im-panel-title {
     margin: 0 0 0.25rem;
-    font-family: 'Hahmlet', serif;
-    font-size: 1.1rem;
-    font-weight: 500;
-    color: var(--text-primary);
+    font-family: var(--ar-font-ui);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ar-ink);
+    letter-spacing: -0.01em;
   }
 
   .im-actions {
@@ -93,12 +114,13 @@ body {
   }
 
   .im-log {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 2px;
+    background: var(--ar-canvas);
+    border: 1px solid var(--ar-hairline);
+    border-radius: var(--ar-r1);
     padding: 1rem;
-    color: var(--text-primary);
-    font-size: 0.875rem;
+    color: var(--ar-ink);
+    font-size: 0.8125rem;
+    font-family: var(--ar-font-mono);
     line-height: 1.55;
     overflow-x: auto;
     white-space: pre-wrap;

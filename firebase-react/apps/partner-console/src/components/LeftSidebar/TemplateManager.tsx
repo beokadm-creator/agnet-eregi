@@ -107,9 +107,9 @@ export default function TemplateManager() {
   }
 
   return (
-    <div style={{ marginTop: 24, padding: 16, border: "1px solid #ccc", borderRadius: 8, background: "#fafafa" }}>
+    <div style={{ marginTop: 24, padding: 16, border: "1px solid var(--ar-fog)", borderRadius: "var(--ar-r1)", background: "var(--ar-paper-alt)" }}>
       <h3 style={{ margin: "0 0 12px" }}>폼 템플릿 관리</h3>
-      <p style={{ fontSize: "0.9em", color: "#555", marginBottom: 12 }}>
+      <p style={{ fontSize: "0.9em", color: "var(--ar-graphite)", marginBottom: 12 }}>
         사용자에게 제공할 폼 빌더 템플릿(JSON Schema)을 등록하고 관리하세요.
       </p>
 
@@ -128,13 +128,13 @@ export default function TemplateManager() {
           value={newSchema} 
           onChange={(e: any) => setNewSchema(e.target.value)} 
           placeholder={'Schema JSON (예: {"type": "object", "properties": {}})'} 
-          style={{ minHeight: "80px", fontFamily: "monospace", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+          style={{ minHeight: "80px", fontFamily: "var(--ar-font-mono)", padding: "8px", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-fog)" }}
         />
         <textarea 
           value={newUiSchema} 
           onChange={(e: any) => setNewUiSchema(e.target.value)} 
           placeholder={'UI Schema JSON (선택 사항)'} 
-          style={{ minHeight: "60px", fontFamily: "monospace", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+          style={{ minHeight: "60px", fontFamily: "var(--ar-font-mono)", padding: "8px", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-fog)" }}
         />
         <Button variant="primary" onClick={handleCreateTemplate} disabled={busy || !newName || !newSchema}>
           새 템플릿 등록
@@ -144,25 +144,25 @@ export default function TemplateManager() {
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ fontWeight: "bold" }}>등록된 템플릿 목록</div>
         {items.length === 0 ? (
-          <div style={{ color: "#666", fontSize: "0.9em" }}>등록된 템플릿이 없습니다.</div>
+          <div style={{ color: "var(--ar-graphite)", fontSize: "0.9em" }}>등록된 템플릿이 없습니다.</div>
         ) : (
           items.map((t) => (
-            <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12, border: "1px solid #e0e0e0", borderRadius: 8, background: "#fff" }}>
+            <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12, border: "1px solid var(--ar-hairline)", borderRadius: "var(--ar-r1)", background: "var(--ar-canvas)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: "bold" }}>{t.name}</span>
                 <Button variant="danger" size="sm" onClick={() => handleDelete(t.id)} disabled={busy}>
                   삭제
                 </Button>
               </div>
-              {t.description && <div style={{ fontSize: "0.85em", color: "#666" }}>{t.description}</div>}
-              <div style={{ fontSize: "0.8em", color: "#444", background: "#f5f5f5", padding: 8, borderRadius: 4, overflowX: "auto" }}>
+              {t.description && <div style={{ fontSize: "0.85em", color: "var(--ar-graphite)" }}>{t.description}</div>}
+              <div style={{ fontSize: "0.8em", color: "var(--ar-graphite)", background: "var(--ar-paper-alt)", padding: 8, borderRadius: "var(--ar-r1)", overflowX: "auto" }}>
                 <strong>Schema:</strong>
-                <pre style={{ margin: "4px 0 0", fontFamily: "monospace" }}>{JSON.stringify(t.schema, null, 2)}</pre>
+                <pre style={{ margin: "4px 0 0", fontFamily: "var(--ar-font-mono)" }}>{JSON.stringify(t.schema, null, 2)}</pre>
               </div>
               {t.uiSchema && Object.keys(t.uiSchema).length > 0 && (
-                <div style={{ fontSize: "0.8em", color: "#444", background: "#f5f5f5", padding: 8, borderRadius: 4, overflowX: "auto" }}>
+                <div style={{ fontSize: "0.8em", color: "var(--ar-graphite)", background: "var(--ar-paper-alt)", padding: 8, borderRadius: "var(--ar-r1)", overflowX: "auto" }}>
                   <strong>UI Schema:</strong>
-                  <pre style={{ margin: "4px 0 0", fontFamily: "monospace" }}>{JSON.stringify(t.uiSchema, null, 2)}</pre>
+                  <pre style={{ margin: "4px 0 0", fontFamily: "var(--ar-font-mono)" }}>{JSON.stringify(t.uiSchema, null, 2)}</pre>
                 </div>
               )}
             </div>

@@ -45,7 +45,7 @@ export default function AuthScreen() {
   }
 
   return (
-    <div className="im-shell selection:bg-[var(--brand)]/10 selection:text-[var(--brand)]">
+    <div className="im-shell">
       <div className="im-container">
         <header className="im-header">
           <h1 className="im-title">AgentRegi</h1>
@@ -54,13 +54,13 @@ export default function AuthScreen() {
           </div>
         </header>
 
-        <div className="im-panel" style={{ maxWidth: 460, margin: "0 auto" }}>
+        <div className="im-panel" style={{ maxWidth: 460, margin: "0 auto", borderRadius: 'var(--ar-r3)' }}>
           <div style={{ display: "grid", gap: "0.75rem" }}>
             <Button disabled={busy} onClick={handleGoogle}>
               Google로 로그인
             </Button>
 
-            <div style={{ height: 1, background: "var(--border)" }} />
+            <div style={{ height: 1, background: "var(--ar-hairline)" }} />
 
             <Input
               label="Email"
@@ -90,7 +90,7 @@ export default function AuthScreen() {
             </button>
 
             {error && (
-              <div className="im-log" style={{ background: "var(--error-light)", color: "var(--error)" }}>
+              <div className="im-log" style={{ background: "var(--ar-danger-soft)", color: "var(--ar-danger)" }}>
                 {error}
               </div>
             )}
@@ -100,4 +100,3 @@ export default function AuthScreen() {
     </div>
   );
 }
-

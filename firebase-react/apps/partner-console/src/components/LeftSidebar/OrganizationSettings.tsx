@@ -70,12 +70,12 @@ export default function OrganizationSettings() {
             placeholder="조직 이름" 
             value={orgName}
             onChange={(e) => setOrgName(e.target.value)}
-            style={{ flex: 1, padding: "6px 10px", borderRadius: 4, border: "1px solid #ccc" }}
+            style={{ flex: 1, padding: "6px 10px", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-fog)" }}
           />
           <Button 
             onClick={handleCreateOrg} 
             disabled={busy || !orgName}
-            style={{ padding: "6px 12px", borderRadius: 4, border: "none", background: "#007AFF", color: "#fff", cursor: "pointer" }}
+            style={{ padding: "6px 12px", borderRadius: "var(--ar-r1)", border: "none", background: "var(--ar-accent)", color: "var(--ar-canvas)", cursor: "pointer" }}
           >
             생성
           </Button>
@@ -91,7 +91,7 @@ export default function OrganizationSettings() {
               <option key={o.id} value={String(o.id)}>{o.name} ({o.id})</option>
             ))}
           </select>
-          <Button onClick={loadOrganizations} disabled={busy} style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid #ccc", background: "#eee", cursor: "pointer" }}>
+          <Button onClick={loadOrganizations} disabled={busy} style={{ padding: "6px 12px", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-fog)", background: "var(--ar-surface-muted)", cursor: "pointer" }}>
             새로고침
           </Button>
         </div>
@@ -101,12 +101,12 @@ export default function OrganizationSettings() {
             placeholder="워크스페이스 이름" 
             value={workspaceName}
             onChange={(e) => setWorkspaceName(e.target.value)}
-            style={{ flex: 1, padding: "6px 10px", borderRadius: 4, border: "1px solid #ccc" }}
+            style={{ flex: 1, padding: "6px 10px", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-fog)" }}
           />
           <Button 
             onClick={handleCreateWorkspace} 
             disabled={busy || !workspaceName || !selectedOrgId}
-            style={{ padding: "6px 12px", borderRadius: 4, border: "none", background: "#007AFF", color: "#fff", cursor: "pointer" }}
+            style={{ padding: "6px 12px", borderRadius: "var(--ar-r1)", border: "none", background: "var(--ar-accent)", color: "var(--ar-canvas)", cursor: "pointer" }}
           >
             생성
           </Button>
@@ -116,13 +116,13 @@ export default function OrganizationSettings() {
       <div style={{ marginTop: 16, fontSize: "0.9em" }}>
         <div style={{ fontWeight: 600, marginBottom: 6 }}>내 조직</div>
         {organizations.length === 0 ? (
-          <div style={{ color: "#999" }}>조직이 없습니다.</div>
+          <div style={{ color: "var(--ar-slate)" }}>조직이 없습니다.</div>
         ) : (
           <div style={{ display: "grid", gap: 6 }}>
             {organizations.map((o) => (
-              <div key={o.id} style={{ border: "1px solid #eee", borderRadius: 6, padding: 10, background: "#fafafa" }}>
+              <div key={o.id} style={{ border: "1px solid var(--ar-surface-muted)", borderRadius: "var(--ar-r1)", padding: 10, background: "var(--ar-paper-alt)" }}>
                 <div style={{ fontWeight: 600 }}>{o.name}</div>
-                <div style={{ color: "#666", fontSize: "0.85em" }}>ID: {o.id}</div>
+                <div style={{ color: "var(--ar-graphite)", fontSize: "0.85em" }}>ID: {o.id}</div>
               </div>
             ))}
           </div>
@@ -132,14 +132,14 @@ export default function OrganizationSettings() {
       <div style={{ marginTop: 16, fontSize: "0.9em" }}>
         <div style={{ fontWeight: 600, marginBottom: 6 }}>최근 생성된 워크스페이스</div>
         {workspaces.length === 0 ? (
-          <div style={{ color: "#999" }}>생성된 워크스페이스가 없습니다.</div>
+          <div style={{ color: "var(--ar-slate)" }}>생성된 워크스페이스가 없습니다.</div>
         ) : (
           <div style={{ display: "grid", gap: 6 }}>
             {workspaces.map((w) => (
-              <div key={w.id} style={{ border: "1px solid #eee", borderRadius: 6, padding: 10, background: "#fafafa" }}>
+              <div key={w.id} style={{ border: "1px solid var(--ar-surface-muted)", borderRadius: "var(--ar-r1)", padding: 10, background: "var(--ar-paper-alt)" }}>
                 <div style={{ fontWeight: 600 }}>{w.name}</div>
-                <div style={{ color: "#666", fontSize: "0.85em" }}>ID: {w.id}</div>
-                <div style={{ color: "#666", fontSize: "0.85em" }}>Organization: {w.organizationId}</div>
+                <div style={{ color: "var(--ar-graphite)", fontSize: "0.85em" }}>ID: {w.id}</div>
+                <div style={{ color: "var(--ar-graphite)", fontSize: "0.85em" }}>Organization: {w.organizationId}</div>
               </div>
             ))}
           </div>

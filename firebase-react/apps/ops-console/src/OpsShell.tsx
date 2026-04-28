@@ -26,11 +26,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         <header className="im-header">
           <h1 className="im-title">Ops Console</h1>
           <div className="im-lang">
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{auth.currentUser?.email}</span>
+            <span style={{ fontSize: '0.875rem', color: 'var(--ar-graphite)' }}>{auth.currentUser?.email}</span>
             <button type="button" className="im-link" onClick={() => signOut(auth)} style={{ marginLeft: '1rem' }}>로그아웃</button>
           </div>
         </header>
-        <div className="im-log" style={{ background: "var(--error-light)", color: "var(--error)" }}>
+        <div className="im-log" style={{ background: "var(--ar-danger-soft)", color: "var(--ar-danger)" }}>
           권한이 없습니다. opsRole 커스텀 클레임이 필요하거나 Super Admin이어야 합니다.
         </div>
       </div>

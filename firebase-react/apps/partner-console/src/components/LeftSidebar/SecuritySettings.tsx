@@ -105,18 +105,18 @@ export default function SecuritySettings() {
   }
 
   return (
-    <div style={{ marginTop: 24, padding: 16, border: "1px solid #ccc", borderRadius: 8, background: "#fafafa" }}>
+    <div style={{ marginTop: 24, padding: 16, border: "1px solid var(--ar-fog)", borderRadius: "var(--ar-r1)", background: "var(--ar-paper-alt)" }}>
       <h3 style={{ margin: "0 0 12px" }}>보안 설정 (2FA / MFA)</h3>
       <div id="recaptcha-container"></div>
       
       {mfaEnrolled ? (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ color: "#2e7d32", fontWeight: "bold" }}>✅ 2FA가 활성화되어 있습니다.</span>
+          <span style={{ color: "var(--ar-success)", fontWeight: "bold" }}>✅ 2FA가 활성화되어 있습니다.</span>
           <Button variant="danger" size="sm" onClick={handleUnenrollMfa} disabled={busy}>해제</Button>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <span style={{ color: "#c62828", fontSize: "0.9em" }}>⚠️ 계정 보호를 위해 2단계 인증(MFA)을 등록하세요.</span>
+          <span style={{ color: "var(--ar-danger)", fontSize: "0.9em" }}>⚠️ 계정 보호를 위해 2단계 인증(MFA)을 등록하세요.</span>
           
           {!verificationId ? (
             <div style={{ display: "flex", gap: 8 }}>

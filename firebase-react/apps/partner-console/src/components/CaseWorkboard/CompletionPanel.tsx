@@ -145,9 +145,9 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
   };
 
   return (
-    <div style={{ padding: 24, border: "1px solid #b7eb8f", borderRadius: 8, background: "#f6ffed", textAlign: "center" }}>
-      <h3 style={{ margin: "0 0 16px 0", color: "#389e0d" }}>✅ 케이스 완료 (completed)</h3>
-      <div style={{ color: "#666", marginBottom: 20 }}>
+    <div style={{ padding: 24, border: "1px solid var(--ar-success-soft)", borderRadius: "var(--ar-r1)", background: "var(--ar-success-soft)", textAlign: "center" }}>
+      <h3 style={{ margin: "0 0 16px 0", color: "var(--ar-success)" }}>✅ 케이스 완료 (completed)</h3>
+      <div style={{ color: "var(--ar-graphite)", marginBottom: 20 }}>
         모든 작업이 성공적으로 완료되었습니다. 아래에서 최종 서류와 리포트를 다운로드하세요.
       </div>
 
@@ -155,14 +155,14 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
         <Button 
           onClick={downloadSubmissionPackage} 
           disabled={busy} 
-          style={{ padding: "12px 24px", fontSize: 16, background: "#1890ff", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold" }}
+          style={{ padding: "12px 24px", fontSize: 16, background: "var(--ar-accent)", color: "var(--ar-canvas)", border: "none", borderRadius: "var(--ar-r1)", cursor: "pointer", fontWeight: "bold" }}
         >
           제출 패키지 (ZIP)
         </Button>
         <Button 
           onClick={downloadClosingReport} 
           disabled={busy} 
-          style={{ padding: "12px 24px", fontSize: 16, background: "#fff", color: "#1890ff", border: "1px solid #1890ff", borderRadius: 6, cursor: "pointer", fontWeight: "bold" }}
+          style={{ padding: "12px 24px", fontSize: 16, background: "var(--ar-canvas)", color: "var(--ar-accent)", border: "1px solid var(--ar-accent)", borderRadius: "var(--ar-r1)", cursor: "pointer", fontWeight: "bold" }}
         >
           종료 리포트 (DOCX)
         </Button>
@@ -172,59 +172,59 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
         <Button
           onClick={validatePackage}
           disabled={busy || validating}
-          style={{ padding: "8px 16px", fontSize: 14, background: "#fff", color: "#389e0d", border: "1px solid #b7eb8f", borderRadius: 6, cursor: "pointer", fontWeight: "bold" }}
+          style={{ padding: "8px 16px", fontSize: 14, background: "var(--ar-canvas)", color: "var(--ar-success)", border: "1px solid var(--ar-success-soft)", borderRadius: "var(--ar-r1)", cursor: "pointer", fontWeight: "bold" }}
         >
           {validating ? "검증 중..." : "ZIP 포함 파일 검증"}
         </Button>
       </div>
 
       {validationError && (
-        <div style={{ marginTop: 12, padding: 8, background: "#fff1f0", border: "1px solid #ffccc7", color: "#cf1322", borderRadius: 4, fontSize: 13 }}>
+        <div style={{ marginTop: 12, padding: 8, background: "var(--ar-danger-soft)", border: "1px solid var(--ar-danger-soft)", color: "var(--ar-danger)", borderRadius: "var(--ar-r1)", fontSize: 13 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <strong>검증 오류:</strong> {validationError}
             </div>
             <Button 
               onClick={handleCopyEvidence}
-              style={{ padding: "4px 8px", fontSize: 12, background: copied ? "#52c41a" : "#fff", color: copied ? "#fff" : "#1890ff", border: `1px solid ${copied ? "#52c41a" : "#1890ff"}`, borderRadius: 4, cursor: "pointer" }}
+              style={{ padding: "4px 8px", fontSize: 12, background: copied ? "var(--ar-success)" : "var(--ar-canvas)", color: copied ? "var(--ar-canvas)" : "var(--ar-accent)", border: `1px solid ${copied ? "var(--ar-success)" : "var(--ar-accent)"}`, borderRadius: "var(--ar-r1)", cursor: "pointer" }}
             >
               {copied ? "복사됨!" : "에러 복사"}
             </Button>
           </div>
           <div style={{ marginTop: 8, fontWeight: "bold" }}>다음 액션 가이드:</div>
           <div>서류 업로드 상태를 확인한 후 다시 검증을 시도해주세요.</div>
-          {requestId && <div style={{ fontSize: 11, color: "#8c8c8c", marginTop: 4 }}>Request ID: {requestId}</div>}
+          {requestId && <div style={{ fontSize: 11, color: "var(--ar-slate)", marginTop: 4 }}>Request ID: {requestId}</div>}
         </div>
       )}
 
       {validation && (
-        <div style={{ marginTop: 12, textAlign: "left", background: "#fff", border: `1px solid ${validation.ok ? "#d9f7be" : "#ffa39e"}`, borderRadius: 8, padding: 12, fontSize: 13 }}>
+        <div style={{ marginTop: 12, textAlign: "left", background: "var(--ar-canvas)", border: `1px solid ${validation.ok ? "var(--ar-success-soft)" : "var(--ar-danger-soft)"}`, borderRadius: "var(--ar-r1)", padding: 12, fontSize: 13 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <div style={{ fontWeight: 700, color: validation.ok ? "#389e0d" : "#cf1322" }}>
+            <div style={{ fontWeight: 700, color: validation.ok ? "var(--ar-success)" : "var(--ar-danger)" }}>
               {validation.ok ? "✅ signed/ 및 접수증 포함 확인됨" : "⚠️ 누락된 파일이 있습니다"}
             </div>
             <Button 
               onClick={handleCopyEvidence}
-              style={{ padding: "4px 8px", fontSize: 12, background: copied ? "#52c41a" : "#fff", color: copied ? "#fff" : "#1890ff", border: `1px solid ${copied ? "#52c41a" : "#1890ff"}`, borderRadius: 4, cursor: "pointer" }}
+              style={{ padding: "4px 8px", fontSize: 12, background: copied ? "var(--ar-success)" : "var(--ar-canvas)", color: copied ? "var(--ar-canvas)" : "var(--ar-accent)", border: `1px solid ${copied ? "var(--ar-success)" : "var(--ar-accent)"}`, borderRadius: "var(--ar-r1)", cursor: "pointer" }}
             >
               {copied ? "복사됨!" : "증거 복사"}
             </Button>
           </div>
           {evidenceId && (
-            <div style={{ fontSize: 11, color: "#8c8c8c", marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: "var(--ar-slate)", marginBottom: 8 }}>
               Evidence ID: {evidenceId}
               {requestId && <span style={{ marginLeft: 8 }}>| Request ID: {requestId}</span>}
             </div>
           )}
           {Array.isArray(validation.missing) && validation.missing.length > 0 && (
-            <div style={{ marginBottom: 12, background: "#fff1f0", padding: 8, borderRadius: 4, border: "1px solid #ffccc7" }}>
-              <div style={{ fontWeight: 600, marginBottom: 4, color: "#cf1322" }}>다음 액션 가이드:</div>
-              <div style={{ color: "#cf1322", marginBottom: 8 }}>누락된 서명본/접수증을 업로드한 뒤 다시 ‘ZIP 포함 파일 검증’을 눌러주세요.</div>
-              <ul style={{ margin: 0, paddingLeft: 20, color: "#cf1322" }}>
+            <div style={{ marginBottom: 12, background: "var(--ar-danger-soft)", padding: 8, borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-danger-soft)" }}>
+              <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--ar-danger)" }}>다음 액션 가이드:</div>
+              <div style={{ color: "var(--ar-danger)", marginBottom: 8 }}>누락된 서명본/접수증을 업로드한 뒤 다시 'ZIP 포함 파일 검증'을 눌러주세요.</div>
+              <ul style={{ margin: 0, paddingLeft: 20, color: "var(--ar-danger)" }}>
                 {validation.missing.map((slot: string) => (
                   <li key={slot}>
-                    {getSlotLabel(slot)} <span style={{ fontSize: "0.8em", color: "#ff4d4f" }}>({slot})</span>
-                    <div style={{ fontSize: "0.85em", color: "#666", marginTop: 2 }}>
+                    {getSlotLabel(slot)} <span style={{ fontSize: "0.8em", color: "var(--ar-danger)" }}>({slot})</span>
+                    <div style={{ fontSize: "0.85em", color: "var(--ar-graphite)", marginTop: 2 }}>
                       👉 {slot.includes("receipt") ? "접수증 영역에서" : "서명본 패널에서"} 파일을 확인하고 다시 업로드해주세요.
                     </div>
                   </li>
@@ -232,7 +232,7 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
               </ul>
             </div>
           )}
-          <div style={{ color: "#666" }}>
+          <div style={{ color: "var(--ar-graphite)" }}>
             접수증: {validation.filingReceipt?.status} / storage: {validation.filingReceipt?.exists ? "ok" : "missing"}
           </div>
         </div>

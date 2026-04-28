@@ -36,7 +36,7 @@ export default function RefundsManager() {
 
   return (
     <div style={{ marginBottom: 24 }}>
-      <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", borderBottom: "1px solid #eee", paddingBottom: 8 }}>💸 환불 요청 (Refunds)</h3>
+      <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", borderBottom: "1px solid var(--ar-surface-muted)", paddingBottom: 8 }}>💸 환불 요청 (Refunds)</h3>
       
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         <Input 
@@ -58,37 +58,37 @@ export default function RefundsManager() {
           onChange={e => setNewRefundReason(e.target.value)} 
           style={{ flex: 2, padding: 6, minWidth: 200 }} 
         />
-        <Button onClick={createRefund} disabled={busy || !newRefundPaymentId || !newRefundAmount || !newRefundReason} style={{ padding: "6px 12px", background: "#d84315", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+        <Button onClick={createRefund} disabled={busy || !newRefundPaymentId || !newRefundAmount || !newRefundReason} style={{ padding: "6px 12px", background: "var(--ar-warning)", color: "var(--ar-canvas)", border: "none", borderRadius: "var(--ar-r1)", cursor: "pointer", fontWeight: "bold" }}>
           환불 요청
         </Button>
       </div>
 
       {refunds.length === 0 ? (
-        <div style={{ color: "#999", fontSize: "0.9em" }}>환불 요청 내역이 없습니다.</div>
+        <div style={{ color: "var(--ar-slate)", fontSize: "0.9em" }}>환불 요청 내역이 없습니다.</div>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
           <thead>
             <tr>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid #ddd" }}>결제 ID</th>
-              <th style={{ textAlign: "right", padding: 8, borderBottom: "2px solid #ddd" }}>금액</th>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid #ddd" }}>사유</th>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid #ddd" }}>상태</th>
+              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>결제 ID</th>
+              <th style={{ textAlign: "right", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>금액</th>
+              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>사유</th>
+              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>상태</th>
             </tr>
           </thead>
           <tbody>
             {refunds.map(r => (
               <tr key={r.id}>
-                <td style={{ padding: 8, borderBottom: "1px solid #eee", fontFamily: "monospace" }}>{r.paymentId}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid #eee", textAlign: "right", fontWeight: "bold" }}>{r.amount.toLocaleString()}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>{r.reason}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)", fontFamily: "var(--ar-font-mono)" }}>{r.paymentId}</td>
+                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)", textAlign: "right", fontWeight: "bold" }}>{r.amount.toLocaleString()}</td>
+                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)" }}>{r.reason}</td>
+                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)" }}>
                   <span style={{ 
                     padding: "2px 6px", 
-                    borderRadius: 4, 
+                    borderRadius: "var(--ar-r1)", 
                     fontSize: "0.85em", 
                     fontWeight: "bold",
-                    background: r.status === "executed" ? "#e8f5e9" : r.status === "approved" ? "#e3f2fd" : r.status === "rejected" ? "#ffebee" : "#fff3e0",
-                    color: r.status === "executed" ? "#2e7d32" : r.status === "approved" ? "#1565c0" : r.status === "rejected" ? "#c62828" : "#ef6c00"
+                    background: r.status === "executed" ? "var(--ar-success-soft)" : r.status === "approved" ? "var(--ar-accent-soft)" : r.status === "rejected" ? "var(--ar-danger-soft)" : "var(--ar-warning-soft)",
+                    color: r.status === "executed" ? "var(--ar-success)" : r.status === "approved" ? "var(--ar-accent)" : r.status === "rejected" ? "var(--ar-danger)" : "var(--ar-warning)"
                   }}>
                     {r.status.toUpperCase()}
                   </span>

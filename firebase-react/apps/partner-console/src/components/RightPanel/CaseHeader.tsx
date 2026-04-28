@@ -18,21 +18,21 @@ export default function CaseHeader() {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
       <div>
-        <h2 style={{ margin: "0 0 4px 0", color: "#00695c", fontSize: "1.4em" }}>{selectedCase.title}</h2>
-        <div style={{ fontSize: "0.85em", color: "#666" }}>ID: {selectedCase.id}</div>
+        <h2 style={{ margin: "0 0 4px 0", color: "var(--ar-accent)", fontSize: "1.4em" }}>{selectedCase.title}</h2>
+        <div style={{ fontSize: "0.85em", color: "var(--ar-graphite)" }}>ID: {selectedCase.id}</div>
         {selectedCase.submissionId && (
-          <div style={{ fontSize: "0.85em", color: "#1565c0", fontWeight: "bold", marginTop: 4 }}>
+          <div style={{ fontSize: "0.85em", color: "var(--ar-accent)", fontWeight: "bold", marginTop: 4 }}>
             🔗 원본 User Submission 연동됨: {selectedCase.submissionId}
           </div>
         )}
         <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
           {lastPolledAt && (
-            <span style={{ fontSize: "0.8em", color: "#666" }}>
+            <span style={{ fontSize: "0.8em", color: "var(--ar-graphite)" }}>
               마지막 갱신: {lastPolledAt.toLocaleTimeString()}
             </span>
           )}
           {pollError && (
-            <span style={{ fontSize: "0.8em", color: "#c62828", background: "#ffebee", padding: "2px 6px", borderRadius: 4 }}>
+            <span style={{ fontSize: "0.8em", color: "var(--ar-danger)", background: "var(--ar-danger-soft)", padding: "2px 6px", borderRadius: "var(--ar-r1)" }}>
               ⚠️ 연결 오류
             </span>
           )}
@@ -43,13 +43,13 @@ export default function CaseHeader() {
         <Button 
           onClick={() => loadCaseDetail(selectedCase.id)} 
           disabled={busy} 
-          style={{ background: "#eee", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em", marginRight: 8 }}
+          style={{ background: "var(--ar-surface-muted)", border: "1px solid var(--ar-fog)", padding: "4px 8px", borderRadius: "var(--ar-r1)", cursor: "pointer", fontSize: "0.8em", marginRight: 8 }}
         >
           상세 새로고침
         </Button>
         <Button 
           onClick={() => setSelectedCase(null)} 
-          style={{ background: "none", border: "1px solid #ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: "0.8em" }}
+          style={{ background: "none", border: "1px solid var(--ar-fog)", padding: "4px 8px", borderRadius: "var(--ar-r1)", cursor: "pointer", fontSize: "0.8em" }}
         >
           뒤로가기
         </Button>

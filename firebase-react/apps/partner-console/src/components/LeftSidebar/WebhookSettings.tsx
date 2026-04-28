@@ -115,9 +115,9 @@ export default function WebhookSettings() {
   }
 
   return (
-    <div style={{ marginTop: 24, padding: 16, border: "1px solid #ccc", borderRadius: 8, background: "#fafafa" }}>
+    <div style={{ marginTop: 24, padding: 16, border: "1px solid var(--ar-fog)", borderRadius: "var(--ar-r1)", background: "var(--ar-paper-alt)" }}>
       <h3 style={{ margin: "0 0 12px" }}>웹훅 설정 (이벤트 구독)</h3>
-      <p style={{ fontSize: "0.9em", color: "#555", marginBottom: 12 }}>
+      <p style={{ fontSize: "0.9em", color: "var(--ar-graphite)", marginBottom: 12 }}>
         시스템 이벤트(예: 케이스 할당, 상태 변경 등)를 외부 서버에서 수신할 수 있도록 웹훅을 등록하세요.
       </p>
 
@@ -135,14 +135,14 @@ export default function WebhookSettings() {
 
       {newSecret && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-          <span style={{ color: "#2e7d32", fontWeight: "bold" }}>✅ 새 웹훅이 등록되었습니다.</span>
+          <span style={{ color: "var(--ar-success)", fontWeight: "bold" }}>✅ 새 웹훅이 등록되었습니다.</span>
           <div style={{ display: "flex", gap: 8 }}>
-            <Input value={newSecret} readOnly style={{ flex: 1, fontFamily: "monospace" }} />
+            <Input value={newSecret} readOnly style={{ flex: 1, fontFamily: "var(--ar-font-mono)" }} />
             <Button variant="secondary" onClick={copyToClipboard}>
               복사
             </Button>
           </div>
-          <span style={{ color: "#c62828", fontSize: "0.85em" }}>
+          <span style={{ color: "var(--ar-danger)", fontSize: "0.85em" }}>
             ⚠️ 이 창을 닫으면 웹훅 서명 검증을 위한 시크릿 키를 다시 확인할 수 없습니다. 즉시 복사하여 안전한 곳에 저장하세요.
           </span>
           <Button variant="secondary" size="sm" onClick={() => setNewSecret("")} style={{ alignSelf: "flex-start", marginTop: 8 }}>
@@ -154,15 +154,15 @@ export default function WebhookSettings() {
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ fontWeight: "bold" }}>등록된 웹훅 목록</div>
         {items.length === 0 ? (
-          <div style={{ color: "#666", fontSize: "0.9em" }}>등록된 웹훅이 없습니다.</div>
+          <div style={{ color: "var(--ar-graphite)", fontSize: "0.9em" }}>등록된 웹훅이 없습니다.</div>
         ) : (
           items.map((k) => (
-            <div key={k.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: 8, border: "1px solid #e0e0e0", borderRadius: 8, background: "#fff" }}>
+            <div key={k.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: 8, border: "1px solid var(--ar-hairline)", borderRadius: "var(--ar-r1)", background: "var(--ar-canvas)" }}>
               <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                <span style={{ fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span style={{ fontFamily: "var(--ar-font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {k.url}
                 </span>
-                <span style={{ fontSize: "0.85em", color: "#666" }}>
+                <span style={{ fontSize: "0.85em", color: "var(--ar-graphite)" }}>
                   상태: {k.status} | 이벤트: {k.events?.join(", ") || "*"}
                 </span>
               </div>

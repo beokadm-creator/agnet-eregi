@@ -46,9 +46,9 @@ export default function AuditLogs() {
 
       <div style={{ marginTop: "1rem", display: "grid", gap: "0.75rem" }}>
         <div style={{ display: "grid", gap: "0.5rem", gridTemplateColumns: "1fr 1fr 1fr" }}>
-          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
             Action
-            <select value={action} onChange={(e) => setAction(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--border)", background: "var(--bg)" }}>
+            <select value={action} onChange={(e) => setAction(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }}>
               <option value="all">all</option>
               <option value="grant">grant</option>
               <option value="revoke">revoke</option>
@@ -61,25 +61,25 @@ export default function AuditLogs() {
             </select>
           </label>
 
-          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
             From
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--border)", background: "var(--bg)" }} />
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }} />
           </label>
 
-          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
             To
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--border)", background: "var(--bg)" }} />
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }} />
           </label>
         </div>
 
-        <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+        <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
           Actor UID
-          <input value={actorUid} onChange={(e) => setActorUid(e.target.value)} placeholder="UID 검색" style={{ padding: "0.5rem", border: "1px solid var(--border)", background: "var(--bg)" }} />
+          <input value={actorUid} onChange={(e) => setActorUid(e.target.value)} placeholder="UID 검색" style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }} />
         </label>
       </div>
 
       {error && (
-        <div className="im-log" style={{ marginTop: "2rem", background: "var(--error-light)", color: "var(--error)" }}>
+        <div className="im-log" style={{ marginTop: "2rem", background: "var(--ar-danger-soft)", color: "var(--ar-danger)" }}>
           {error}
         </div>
       )}
@@ -87,23 +87,23 @@ export default function AuditLogs() {
       {!error && data && (
         <div style={{ marginTop: "2rem" }}>
           {items.length === 0 ? (
-            <div style={{ color: "var(--text-tertiary)", fontSize: "0.875rem" }}>감사 로그가 없습니다.</div>
+            <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>감사 로그가 없습니다.</div>
           ) : (
             <div style={{ display: "grid", gap: "0.75rem" }}>
               {items.map((it) => (
-                <div key={it.id} style={{ border: "1px solid var(--border)", background: "var(--bg)", padding: "1rem" }}>
+                <div key={it.id} style={{ border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", padding: "1rem", borderRadius: "var(--ar-r1)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "baseline" }}>
-                    <div style={{ fontWeight: 600 }}>{it.action}</div>
-                    <div style={{ color: "var(--text-tertiary)", fontSize: "0.8125rem" }}>{formatTs(it.createdAt)}</div>
+                    <div style={{ fontWeight: 600, fontFamily: "var(--ar-font-mono)", fontSize: "0.8125rem" }}>{it.action}</div>
+                    <div style={{ color: "var(--ar-slate)", fontSize: "0.8125rem" }}>{formatTs(it.createdAt)}</div>
                   </div>
-                  <div style={{ marginTop: "0.35rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "var(--text-tertiary)", fontSize: "0.8125rem" }}>
+                  <div style={{ marginTop: "0.35rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "var(--ar-slate)", fontSize: "0.8125rem" }}>
                     <span>{it.status}</span>
                     <span>·</span>
                     <span>{it.gateKey || "no gate"}</span>
                     <span>·</span>
-                    <span>{it.actorUid}</span>
+                    <span style={{ fontFamily: "var(--ar-font-mono)" }}>{it.actorUid}</span>
                   </div>
-                  <div style={{ marginTop: "0.75rem", fontSize: "0.875rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                  <div style={{ marginTop: "0.75rem", fontSize: "0.875rem", color: "var(--ar-graphite)", lineHeight: 1.5 }}>
                     {it.summary}
                   </div>
                 </div>
