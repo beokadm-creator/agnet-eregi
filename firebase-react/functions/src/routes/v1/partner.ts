@@ -535,6 +535,20 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
     }
   });
 
+  app.get("/v1/partner/organizations", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const uid = (req as any).user.uid;
+
+    try {
+      const snap = await db.collection("organizations").where("ownerId", "==", uid).orderBy("createdAt", "desc").limit(200).get();
+      const items = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      return ok(res, { items }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "GET /v1/partner/organizations", code: "INTERNAL", messageKo: "조직 조회 실패", err: error });
+      return fail(res, 500, "INTERNAL", "조직 조회에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
   // 11. 워크스페이스 생성 (POST /v1/partner/workspaces)
   app.post("/v1/partner/workspaces", requireAuth, async (req, res) => {
     const requestId = (req as any).requestId || "req-unknown";

@@ -18,9 +18,20 @@ export function registerOpsAuditLogRoutes(app: express.Application, adminApp: ty
       if (!hasRole) return;
 
       const limit = Math.min(Number(req.query.limit) || 50, 200);
+      const action = req.query.action ? String(req.query.action) : undefined;
+      const actorUid = req.query.actorUid ? String(req.query.actorUid) : undefined;
+      const from = req.query.from ? String(req.query.from) : undefined;
+      const to = req.query.to ? String(req.query.to) : undefined;
+
+      const fromDate = from ? new Date(`${from}T00:00:00.000Z`) : null;
+      const toDate = to ? new Date(`${to}T23:59:59.999Z`) : null;
 
       let query: admin.firestore.Query = adminApp.firestore().collection("ops_audit_events");
       if (gateKey) query = query.where("gateKey", "==", gateKey);
+      if (action && action !== "all") query = query.where("action", "==", action);
+      if (actorUid) query = query.where("actorUid", "==", actorUid);
+      if (fromDate && !Number.isNaN(fromDate.getTime())) query = query.where("createdAt", ">=", admin.firestore.Timestamp.fromDate(fromDate));
+      if (toDate && !Number.isNaN(toDate.getTime())) query = query.where("createdAt", "<=", admin.firestore.Timestamp.fromDate(toDate));
       query = query.orderBy("createdAt", "desc").limit(limit);
 
       const snap = await safeQuery(adminApp, gateKey || "unknown", "ops_audit_events_query", async () => await query.get(), null);
@@ -34,4 +45,3 @@ export function registerOpsAuditLogRoutes(app: express.Application, adminApp: ty
     }
   });
 }
-

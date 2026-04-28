@@ -8,13 +8,28 @@ export default function ReviewQueue() {
   const approvals: any[] = data?.approvals || [];
   const incidents: any[] = data?.incidents || [];
 
+  async function refresh() {
+    await callApi(`/v1/ops/reviews/pending?limit=50`);
+  }
+
+  async function approve(approvalId: string) {
+    await callApi(`/v1/ops/approvals/${approvalId}/approve`, { method: "POST" });
+    await refresh();
+  }
+
+  async function reject(approvalId: string) {
+    const reason = prompt("거부 사유를 입력하세요 (선택)");
+    await callApi(`/v1/ops/approvals/${approvalId}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
+    await refresh();
+  }
+
   return (
     <div className="im-panel">
       <h2 className="im-panel-title">Review Queue</h2>
       <p className="im-lede">운영자 수동 검토가 필요한 케이스 대기열입니다.</p>
       
       <div className="im-actions">
-        <Button disabled={busy} variant="secondary" onClick={() => callApi(`/v1/ops/reviews/pending?limit=50`)}>
+        <Button disabled={busy} variant="secondary" onClick={refresh}>
           새로고침
         </Button>
       </div>
@@ -44,6 +59,10 @@ export default function ReviewQueue() {
                     </div>
                     <div style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                       {a.reason || a.summary || "승인 대기"}
+                    </div>
+                    <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                      <Button disabled={busy} onClick={() => approve(a.id)}>승인</Button>
+                      <Button disabled={busy} variant="secondary" onClick={() => reject(a.id)}>거부</Button>
                     </div>
                   </div>
                 ))}

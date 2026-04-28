@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@agentregi/ui-components";
 import { useOpsApi } from "../hooks";
 
@@ -6,6 +6,24 @@ export default function AuditLogs() {
   const { busy, data, error, callApi } = useOpsApi();
 
   const items: any[] = data?.items || [];
+  const [action, setAction] = useState("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [actorUid, setActorUid] = useState("");
+
+  const query = useMemo(() => {
+    const qs = new URLSearchParams();
+    qs.set("limit", "50");
+    if (action) qs.set("action", action);
+    if (from) qs.set("from", from);
+    if (to) qs.set("to", to);
+    if (actorUid) qs.set("actorUid", actorUid);
+    return qs.toString();
+  }, [action, from, to, actorUid]);
+
+  useEffect(() => {
+    callApi(`/v1/ops/audit-logs?${query}`);
+  }, [query]);
 
   function formatTs(ts: any): string {
     if (!ts) return "-";
@@ -21,9 +39,43 @@ export default function AuditLogs() {
       <p className="im-lede">시스템 내 모든 감사 로그(Audit) 내역입니다.</p>
       
       <div className="im-actions">
-        <Button disabled={busy} variant="secondary" onClick={() => callApi(`/v1/ops/audit-logs?limit=50`)}>
+        <Button disabled={busy} variant="secondary" onClick={() => callApi(`/v1/ops/audit-logs?${query}`)}>
           새로고침
         </Button>
+      </div>
+
+      <div style={{ marginTop: "1rem", display: "grid", gap: "0.75rem" }}>
+        <div style={{ display: "grid", gap: "0.5rem", gridTemplateColumns: "1fr 1fr 1fr" }}>
+          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+            Action
+            <select value={action} onChange={(e) => setAction(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--border)", background: "var(--bg)" }}>
+              <option value="all">all</option>
+              <option value="grant">grant</option>
+              <option value="revoke">revoke</option>
+              <option value="breakglass">breakglass</option>
+              <option value="circuit_breaker_reset">circuit_breaker_reset</option>
+              <option value="settlement_batch">settlement_batch</option>
+              <option value="ops_auth.denied">ops_auth.denied</option>
+              <option value="ops_approvals.approve">ops_approvals.approve</option>
+              <option value="ops_approvals.reject">ops_approvals.reject</option>
+            </select>
+          </label>
+
+          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+            From
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--border)", background: "var(--bg)" }} />
+          </label>
+
+          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+            To
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--border)", background: "var(--bg)" }} />
+          </label>
+        </div>
+
+        <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+          Actor UID
+          <input value={actorUid} onChange={(e) => setActorUid(e.target.value)} placeholder="UID 검색" style={{ padding: "0.5rem", border: "1px solid var(--border)", background: "var(--bg)" }} />
+        </label>
       </div>
 
       {error && (
