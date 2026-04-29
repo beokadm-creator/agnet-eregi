@@ -24,7 +24,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     <div className="im-shell">
       <div className="im-container">
         <header className="im-header">
-          <h1 className="im-title">Ops Console</h1>
+            <h1 className="im-title">운영 콘솔</h1>
           <div className="im-lang">
             <span style={{ fontSize: '0.875rem', color: 'var(--ar-graphite)' }}>{auth.currentUser?.email}</span>
             <button type="button" className="im-link" onClick={() => signOut(auth)} style={{ marginLeft: '1rem' }}>로그아웃</button>

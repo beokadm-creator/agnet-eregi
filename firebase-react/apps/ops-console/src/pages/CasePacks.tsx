@@ -10,11 +10,11 @@ export default function CasePacks() {
 
   return (
     <div className="im-panel">
-      <h2 className="im-panel-title">Case Pack</h2>
+      <h2 className="im-panel-title">사건 팩</h2>
       
       <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
-        <Input label="Case Pack ID" value={casePackId} onChange={(e) => setCasePackId(e.target.value)} placeholder="ex: real_estate_transfer_v1" />
-        <Input label="사건명" value={casePackName} onChange={(e) => setCasePackName(e.target.value)} placeholder="ex: 부동산 소유권 이전" />
+        <Input label="사건 팩 ID" value={casePackId} onChange={(e) => setCasePackId(e.target.value)} placeholder="예: real_estate_transfer_v1" />
+        <Input label="사건명" value={casePackName} onChange={(e) => setCasePackName(e.target.value)} placeholder="예: 부동산 소유권 이전" />
         <div>
           <label className="block text-[0.75rem] font-medium tracking-[0.12em] uppercase text-[var(--ar-slate)] mb-2">입력 폼 스키마</label>
           <textarea

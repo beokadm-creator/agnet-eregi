@@ -25,7 +25,7 @@ export default function ReviewQueue() {
 
   return (
     <div className="im-panel">
-      <h2 className="im-panel-title">Review Queue</h2>
+      <h2 className="im-panel-title">검토 대기열</h2>
       <p className="im-lede">운영자 수동 검토가 필요한 케이스 대기열입니다.</p>
       
       <div className="im-actions">
@@ -44,7 +44,7 @@ export default function ReviewQueue() {
         <div style={{ marginTop: "2rem", display: "grid", gap: "1.25rem" }}>
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-              <div style={{ fontWeight: 600 }}>Pending Approvals</div>
+              <div style={{ fontWeight: 600 }}>승인 대기</div>
               <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>{approvals.length}</div>
             </div>
             {approvals.length === 0 ? (
@@ -72,7 +72,7 @@ export default function ReviewQueue() {
 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-              <div style={{ fontWeight: 600 }}>Recent Incidents</div>
+              <div style={{ fontWeight: 600 }}>최근 인시던트</div>
               <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>{incidents.length}</div>
             </div>
             {incidents.length === 0 ? (

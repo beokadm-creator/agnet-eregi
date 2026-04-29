@@ -7,7 +7,7 @@ export default function Observability() {
 
   return (
     <div className="im-panel">
-      <h2 className="im-panel-title">Observability</h2>
+      <h2 className="im-panel-title">모니터링</h2>
       
       <div className="im-actions">
         <Button disabled={busy} variant="secondary" onClick={() => callApi(`/v1/ops/webhooks/dlq`)}>DLQ 메시지 조회</Button>

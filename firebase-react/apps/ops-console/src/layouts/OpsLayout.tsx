@@ -34,7 +34,7 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
             }}
             onClick={() => navigate('/')}
           >
-            Ops Console
+            운영 콘솔
           </h1>
         </div>
 
@@ -46,16 +46,16 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
           flexDirection: 'column',
           gap: '2px',
         }}>
-          <NavLink to="/" end style={({ isActive }) => navLinkStyle(isActive)}>Gate / Operations</NavLink>
-          <NavLink to="/case-packs" style={({ isActive }) => navLinkStyle(isActive)}>Case Packs</NavLink>
-          <NavLink to="/access" style={({ isActive }) => navLinkStyle(isActive)}>Access Control</NavLink>
-          <NavLink to="/observability" style={({ isActive }) => navLinkStyle(isActive)}>Observability</NavLink>
+          <NavLink to="/" end style={({ isActive }) => navLinkStyle(isActive)}>운영 대시보드</NavLink>
+          <NavLink to="/case-packs" style={({ isActive }) => navLinkStyle(isActive)}>사건 팩</NavLink>
+          <NavLink to="/access" style={({ isActive }) => navLinkStyle(isActive)}>권한 관리</NavLink>
+          <NavLink to="/observability" style={({ isActive }) => navLinkStyle(isActive)}>모니터링</NavLink>
 
           <div style={{ height: 1, backgroundColor: 'var(--ar-ink2)', margin: '8px 8px' }} />
 
-          <NavLink to="/review-queue" style={({ isActive }) => navLinkStyle(isActive)}>Review Queue</NavLink>
-          <NavLink to="/sla-dashboard" style={({ isActive }) => navLinkStyle(isActive)}>SLA Dashboard</NavLink>
-          <NavLink to="/audit-logs" style={({ isActive }) => navLinkStyle(isActive)}>Audit Logs</NavLink>
+          <NavLink to="/review-queue" style={({ isActive }) => navLinkStyle(isActive)}>검토 대기열</NavLink>
+          <NavLink to="/sla-dashboard" style={({ isActive }) => navLinkStyle(isActive)}>SLA 대시보드</NavLink>
+          <NavLink to="/audit-logs" style={({ isActive }) => navLinkStyle(isActive)}>감사 로그</NavLink>
         </nav>
 
         {/* Sidebar Footer */}

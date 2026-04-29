@@ -35,7 +35,7 @@ export default function AuditLogs() {
 
   return (
     <div className="im-panel">
-      <h2 className="im-panel-title">Audit Logs</h2>
+      <h2 className="im-panel-title">감사 로그</h2>
       <p className="im-lede">시스템 내 모든 감사 로그(Audit) 내역입니다.</p>
       
       <div className="im-actions">
@@ -47,7 +47,7 @@ export default function AuditLogs() {
       <div style={{ marginTop: "1rem", display: "grid", gap: "0.75rem" }}>
         <div style={{ display: "grid", gap: "0.5rem", gridTemplateColumns: "1fr 1fr 1fr" }}>
           <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
-            Action
+            액션
             <select value={action} onChange={(e) => setAction(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }}>
               <option value="all">all</option>
               <option value="grant">grant</option>
@@ -62,18 +62,18 @@ export default function AuditLogs() {
           </label>
 
           <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
-            From
+            시작일
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }} />
           </label>
 
           <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
-            To
+            종료일
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }} />
           </label>
         </div>
 
         <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
-          Actor UID
+          작업자 UID
           <input value={actorUid} onChange={(e) => setActorUid(e.target.value)} placeholder="UID 검색" style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }} />
         </label>
       </div>

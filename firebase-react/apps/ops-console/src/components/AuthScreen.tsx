@@ -13,7 +13,7 @@ export default function AuthScreen() {
   const [error, setError] = useState<string>("");
 
   const title = useMemo(() => {
-    return mode === "signup" ? "Ops Console · Sign up" : "Ops Console · Sign in";
+    return mode === "signup" ? "운영 콘솔 · 가입" : "운영 콘솔 · 로그인";
   }, [mode]);
 
   async function handleGoogle() {
@@ -63,14 +63,14 @@ export default function AuthScreen() {
             <div style={{ height: 1, background: "var(--ar-hairline)" }} />
 
             <Input
-              label="Email"
+              label="이메일"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
             />
             <Input
-              label="Password"
+              label="비밀번호"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

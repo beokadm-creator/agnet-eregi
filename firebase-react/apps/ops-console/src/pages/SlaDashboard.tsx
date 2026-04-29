@@ -9,7 +9,7 @@ export default function SlaDashboard() {
 
   return (
     <div className="im-panel">
-      <h2 className="im-panel-title">SLA Dashboard</h2>
+      <h2 className="im-panel-title">SLA 대시보드</h2>
       <p className="im-lede">케이스 처리 기한 및 지연 경고 현황입니다.</p>
       
       <div className="im-actions">
@@ -35,7 +35,7 @@ export default function SlaDashboard() {
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
                     <div style={{ fontWeight: 600 }}>{it.gateKey || "unknown"}</div>
                     <div style={{ color: "var(--ar-slate)", fontSize: "0.8125rem" }}>
-                      burn {typeof it.burnRate === "number" ? `${it.burnRate.toFixed(1)}%` : "-"}
+                      소진율 {typeof it.burnRate === "number" ? `${it.burnRate.toFixed(1)}%` : "-"}
                     </div>
                   </div>
                   <div style={{ marginTop: "0.5rem", display: "flex", gap: "1.25rem", flexWrap: "wrap" }}>
@@ -49,7 +49,7 @@ export default function SlaDashboard() {
                     </div>
                     <div>
                       <div style={{ fontSize: "0.75rem", color: "var(--ar-slate)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        Target
+                        목표
                       </div>
                       <div style={{ fontSize: "0.95rem", color: "var(--ar-ink)", fontVariantNumeric: "tabular-nums" }}>
                         {typeof it.targetPercentage === "number" ? `${it.targetPercentage.toFixed(2)}%` : "-"}
@@ -57,13 +57,13 @@ export default function SlaDashboard() {
                     </div>
                     <div>
                       <div style={{ fontSize: "0.75rem", color: "var(--ar-slate)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        Window
+                        기간
                       </div>
                       <div style={{ fontSize: "0.95rem", color: "var(--ar-ink)", fontVariantNumeric: "tabular-nums" }}>{it.budgetDays || "-"}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: "0.75rem", color: "var(--ar-slate)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        Fails
+                        실패
                       </div>
                       <div style={{ fontSize: "0.95rem", color: "var(--ar-ink)", fontVariantNumeric: "tabular-nums" }}>{it.totalFails ?? "-"}</div>
                     </div>

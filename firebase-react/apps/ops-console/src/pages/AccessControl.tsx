@@ -15,12 +15,12 @@ export default function AccessControl() {
 
   return (
     <div className="im-panel">
-      <h2 className="im-panel-title">Access Control</h2>
+      <h2 className="im-panel-title">권한 관리</h2>
       
       <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
-        <Input label="Target UID" value={accessTargetUid} onChange={(e) => setAccessTargetUid(e.target.value)} />
-        <Input label="Role" value={accessRole} onChange={(e) => setAccessRole(e.target.value)} placeholder="ops_admin, ops_operator, ops_viewer" />
-        <Input label="Reason (for audit)" value={accessReason} onChange={(e) => setAccessReason(e.target.value)} />
+        <Input label="대상 UID" value={accessTargetUid} onChange={(e) => setAccessTargetUid(e.target.value)} />
+        <Input label="역할" value={accessRole} onChange={(e) => setAccessRole(e.target.value)} placeholder="ops_admin, ops_operator, ops_viewer" />
+        <Input label="사유 (감사 로그)" value={accessReason} onChange={(e) => setAccessReason(e.target.value)} />
       </div>
 
       <div className="im-actions">
@@ -32,14 +32,14 @@ export default function AccessControl() {
 
       <div style={{ height: 1, background: "var(--ar-hairline)", margin: "2rem 0" }} />
 
-      <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "var(--ar-ink)" }}>Partner Access</h3>
+      <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "var(--ar-ink)" }}>파트너 권한</h3>
 
       <div style={{ display: 'grid', gap: '1rem', marginTop: '1rem', marginBottom: '2rem' }}>
-        <Input label="Target UID" value={partnerTargetUid} onChange={(e) => setPartnerTargetUid(e.target.value)} />
-        <Input label="Partner ID" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} placeholder="partners/{partnerId}" />
-        <Input label="Partner Role" value={partnerRole} onChange={(e) => setPartnerRole(e.target.value)} placeholder="owner, admin, member" />
-        <Input label="Approve Partner (true/false)" value={String(partnerApprove)} onChange={(e) => setPartnerApprove(e.target.value === "true")} />
-        <Input label="Reason (for audit)" value={partnerReason} onChange={(e) => setPartnerReason(e.target.value)} />
+        <Input label="대상 UID" value={partnerTargetUid} onChange={(e) => setPartnerTargetUid(e.target.value)} />
+        <Input label="파트너 ID" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} placeholder="partners/{partnerId}" />
+        <Input label="파트너 역할" value={partnerRole} onChange={(e) => setPartnerRole(e.target.value)} placeholder="owner, admin, member" />
+        <Input label="파트너 승인 여부 (true/false)" value={String(partnerApprove)} onChange={(e) => setPartnerApprove(e.target.value === "true")} />
+        <Input label="사유 (감사 로그)" value={partnerReason} onChange={(e) => setPartnerReason(e.target.value)} />
       </div>
 
       <div className="im-actions">
