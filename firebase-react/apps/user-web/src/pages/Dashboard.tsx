@@ -1,142 +1,300 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { getApiBaseUrl } from '../apiBase';
+import { auth } from '@rp/firebase';
 
-const Ic = {
-  search: () => <span>🔍</span>,
-  arrow: () => <span style={{ fontSize: '18px' }}>→</span>,
-  pin: () => <span>📍</span>,
-  star: () => <span>⭐</span>,
-  check: () => <span>✓</span>,
+interface Submission {
+  id: string;
+  casePackId: string;
+  status: string;
+  createdAt: string;
+  partnerId?: string;
+  partnerName?: string;
+  caseTitle?: string;
+}
+
+interface SubmissionsResponse {
+  items: Submission[];
+}
+
+const STATUS_TEXT: Record<string, string> = {
+  draft: '작성 중',
+  submitted: '접수됨',
+  processing: '처리 중',
+  completed: '등기 완료',
+  failed: '실패',
+  cancelled: '취소됨',
 };
 
-function FeaturedOfficeCard({ style, office, area, rating, count, price, eta, featured, tagColor }: any) {
+const STATUS_BADGE: Record<string, string> = {
+  draft: 'uw-badge uw-badge-warning',
+  submitted: 'uw-badge uw-badge-brand',
+  processing: 'uw-badge uw-badge-brand',
+  completed: 'uw-badge uw-badge-success',
+  failed: 'uw-badge',
+  cancelled: 'uw-badge',
+};
+
+const QUICK_ACTIONS = [
+  '법인 설립',
+  '본점 이전',
+  '임원 변경',
+  '자본금 증자',
+  '상호 변경',
+  '청산',
+];
+
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function SkeletonCard() {
   return (
-    <div className="uw-featured-card" style={{ ...style }}>
-      <div style={{ height: 140, background: tagColor, borderRadius: '12px', position: 'relative', overflow: 'hidden' }}>
-        {featured && (
-          <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(255,255,255,0.9)', color: 'var(--uw-brand)', fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-            ★ 이번 주 인기
-          </div>
-        )}
-        <div style={{ position: 'absolute', bottom: 12, right: 12, background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, backdropFilter: 'blur(4px)' }}>
-          평균 {eta}
-        </div>
-      </div>
-      <div style={{ padding: '20px 4px 4px' }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--uw-ink)' }}>{office}</div>
-        <div style={{ fontSize: 13, color: 'var(--uw-slate)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-          <Ic.pin /> {area} <span style={{ color: 'var(--uw-border-strong)' }}>|</span> <Ic.star /> {rating} <span style={{ opacity: 0.7 }}>({count})</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 16 }}>
-          <div className="uw-tabular" style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--uw-ink)' }}>
-            {price}<span style={{ fontSize: 14, color: 'var(--uw-slate)', fontWeight: 600 }}>원~</span>
-          </div>
-          <span className="uw-badge uw-badge-success">예약 가능</span>
-        </div>
-      </div>
+    <div
+      className="uw-card"
+      style={{
+        padding: '24px',
+        opacity: 0.6,
+        animation: 'pulse 1.5s ease-in-out infinite',
+      }}
+    >
+      <div style={{ height: 20, width: '60%', background: 'var(--uw-surface)', borderRadius: 6, marginBottom: 16 }} />
+      <div style={{ height: 14, width: '40%', background: 'var(--uw-surface)', borderRadius: 6, marginBottom: 12 }} />
+      <div style={{ height: 14, width: '30%', background: 'var(--uw-surface)', borderRadius: 6 }} />
     </div>
   );
 }
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { token } = useAuth();
+  const user = auth.currentUser;
+
+  const [searchText, setSearchText] = useState('');
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadSubmissions = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/v1/user/submissions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.messageKo || json.error?.code || 'API Error');
+      const data = json.data as SubmissionsResponse;
+      setSubmissions(data.items ?? []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '오류가 발생했습니다.';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadSubmissions();
+  }, [loadSubmissions]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = searchText.trim();
+    if (text) {
+      navigate(`/funnel?intent=${encodeURIComponent(text)}`);
+    } else {
+      navigate('/funnel');
+    }
+  };
+
+  const handleQuickAction = (action: string) => {
+    navigate(`/funnel?intent=${encodeURIComponent(action)}`);
+  };
 
   return (
     <div className="uw-container">
-      {/* Hero */}
-      <div className="uw-hero">
-        <div className="animate-slide-up">
-          <div className="uw-badge uw-badge-brand" style={{ marginBottom: '24px', padding: '6px 14px', height: 'auto', fontSize: '13px' }}>
-            <span className="uw-badge-dot" style={{ background: 'var(--uw-brand)' }} />
-            전국 1,200곳의 법무사가 입점
+      {/* Section 1 — Welcome + Quick Start */}
+      <div className="animate-slide-up" style={{ marginBottom: 48 }}>
+        <div style={{ marginBottom: 8, fontSize: 14, color: 'var(--uw-fog)', fontWeight: 500 }}>
+          대시보드
+        </div>
+        <h1 style={{ fontSize: 'clamp(28px, 4vw, 36px)', fontWeight: 800, letterSpacing: '-0.025em', margin: '0 0 8px' }}>
+          {user?.email ? `${user.email}님, ` : ''}안녕하세요!
+        </h1>
+        <p style={{ fontSize: 16, color: 'var(--uw-slate)', margin: '0 0 32px', lineHeight: 1.5 }}>
+          필요한 등기를 검색하거나, 빠르게 시작해보세요.
+        </p>
+
+        <form className="uw-search-box" onSubmit={handleSearchSubmit} style={{ maxWidth: 600 }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, padding: '0 8px' }}>
+            <span>🔍</span>
+            <input
+              type="text"
+              placeholder="어떤 등기가 필요하세요? 예) 본점 이전"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                outline: 'none',
+                width: '100%',
+                fontSize: 16,
+                fontWeight: 500,
+                color: 'var(--uw-ink)',
+              }}
+            />
           </div>
-          <h1 className="uw-hero-title">
-            법인 등기,<br/>
-            <span>5분</span>이면 시작.
-          </h1>
-          <p className="uw-hero-desc">
-            동네 법무사 사무소를 한눈에 비교하고, 카톡으로 서류받고, 등기까지 비대면으로. 평균 처리 6시간.
-          </p>
-          
-          <div className="uw-search-box">
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px', padding: '0 8px' }}>
-              <Ic.search />
-              <input 
-                type="text"
-                placeholder="어떤 등기가 필요하세요? 예) 본점 이전" 
-                style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '16px', fontWeight: 500, color: 'var(--uw-ink)' }}
-              />
-            </div>
-            <button className="uw-btn uw-btn-brand uw-btn-lg" style={{ minWidth: '120px' }}>
-              찾아보기 <Ic.arrow />
+          <button type="submit" className="uw-btn uw-btn-brand uw-btn-lg" style={{ minWidth: 100 }}>
+            찾아보기 <span style={{ fontSize: 18 }}>→</span>
+          </button>
+        </form>
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
+          {QUICK_ACTIONS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className="uw-btn uw-btn-outline uw-btn-sm"
+              style={{ borderRadius: 999 }}
+              onClick={() => handleQuickAction(t)}
+            >
+              {t}
             </button>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
-            {['법인 설립', '본점 이전', '임원 변경', '자본금 증자', '상호 변경', '청산'].map(t => (
-              <button key={t} className="uw-btn uw-btn-outline uw-btn-sm" style={{ borderRadius: '999px' }}>{t}</button>
-            ))}
-          </div>
-        </div>
-
-        {/* Right — featured law office card stack */}
-        <div style={{ position: 'relative', height: '520px', display: 'flex', justifyContent: 'center', alignItems: 'center' }} className="animate-fade-in">
-          <div style={{ position: 'absolute', width: '100%', height: '100%', background: 'radial-gradient(circle, var(--uw-brand-soft) 0%, transparent 70%)', zIndex: -1, transform: 'scale(1.2)' }} />
-          
-          <FeaturedOfficeCard
-            style={{ position: 'absolute', top: 40, left: 0, width: 320, transform: 'rotate(-4deg)', zIndex: 1, opacity: 0.9 }}
-            office="해담 법무사" area="서울 강남" rating={4.9} count={428} price="33,000" eta="4시간"
-            tagColor="linear-gradient(135deg, #c4b5fd, #a78bfa)"
-          />
-          <FeaturedOfficeCard
-            style={{ position: 'absolute', bottom: 20, right: 0, width: 300, transform: 'rotate(5deg)', zIndex: 2, opacity: 0.95 }}
-            office="청람 법무사" area="경기 성남" rating={4.8} count={314} price="35,000" eta="5시간"
-            tagColor="linear-gradient(135deg, #86efac, #4ade80)"
-          />
-          <FeaturedOfficeCard
-            style={{ position: 'relative', zIndex: 3, width: 340, transform: 'translateY(-10px)' }}
-            office="이로운 법무법인" area="서울 마포" rating={4.9} count={892} price="29,000" eta="3시간"
-            featured tagColor="linear-gradient(135deg, var(--uw-brand), #818cf8)"
-          />
-        </div>
-      </div>
-
-      {/* Trust bar */}
-      <div className="uw-card" style={{ marginTop: '40px', padding: '40px 60px', display: 'flex', justifyContent: 'space-between', gap: '40px', background: 'var(--uw-ink)', color: 'white' }}>
-        {[
-          { n: '12,400+', t: '누적 등기 처리' },
-          { n: '평균 6시간', t: '신청 → 완료' },
-          { n: '4.9 / 5.0', t: '실 사용자 평점' },
-          { n: '1,200+', t: '입점 법무사 사무소' },
-        ].map(x => (
-          <div key={x.n} style={{ textAlign: 'center' }}>
-            <div className="uw-tabular" style={{ fontSize: '36px', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '8px' }}>{x.n}</div>
-            <div style={{ fontSize: '14px', color: 'var(--uw-fog)', fontWeight: 500 }}>{x.t}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* How it works */}
-      <div style={{ marginTop: '120px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-          <div className="ar-eyebrow" style={{ color: 'var(--uw-brand)', marginBottom: '12px' }}>How it works</div>
-          <h2 style={{ fontSize: '40px', fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>비대면으로, 4단계면 끝.</h2>
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
-          {[
-            { n: '01', t: '필요한 등기 선택', d: '간단한 질문에 답하면 필요한 등기 종류와 서류를 AI가 안내해드려요.' },
-            { n: '02', t: '법무사 비교 및 선택', d: '가까운 사무소를 평점, 견적, 처리시간 순으로 한눈에 비교하세요.' },
-            { n: '03', t: '카톡으로 서류 제출', d: '신분증과 서류를 스마트폰으로 찍어 보내면 끝. 팩스나 방문이 필요없어요.' },
-            { n: '04', t: '등기부 도착', d: '평균 6시간. 등기가 완료되면 변경된 등기부등본을 PDF로 바로 보내드려요.' },
-          ].map((s, i) => (
-            <div key={s.n} className="uw-card" style={{ padding: '32px 24px', background: i === 0 ? 'var(--uw-brand)' : 'var(--uw-bg)', color: i === 0 ? 'white' : 'var(--uw-ink)', borderColor: i === 0 ? 'var(--uw-brand)' : 'var(--uw-border)', borderTopWidth: i !== 0 ? '4px' : '1px', borderTopColor: i !== 0 ? 'var(--uw-brand-soft)' : 'var(--uw-brand)' }}>
-              <div className="uw-tabular" style={{ fontSize: '16px', fontWeight: 800, color: i === 0 ? 'rgba(255,255,255,0.8)' : 'var(--uw-brand)', marginBottom: '20px' }}>{s.n}</div>
-              <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.015em', marginBottom: '12px' }}>{s.t}</div>
-              <div style={{ fontSize: '15px', lineHeight: 1.6, color: i === 0 ? 'rgba(255,255,255,0.9)' : 'var(--uw-slate)' }}>{s.d}</div>
-            </div>
           ))}
         </div>
+      </div>
+
+      {/* Section 2 — My Submissions */}
+      <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>
+            내 사건
+          </h2>
+          {submissions.length > 0 && !loading && (
+            <button
+              type="button"
+              className="uw-btn uw-btn-brand uw-btn-sm"
+              onClick={() => navigate('/funnel')}
+            >
+              새 등기 시작
+            </button>
+          )}
+        </div>
+
+        {loading && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div className="uw-card" style={{ padding: '40px 32px', textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>⚠</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--uw-ink)', marginBottom: 8 }}>
+              사건을 불러오지 못했습니다.
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--uw-slate)', marginBottom: 20 }}>
+              {error}
+            </div>
+            <button type="button" className="uw-btn uw-btn-outline uw-btn-sm" onClick={loadSubmissions}>
+              다시 시도
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && submissions.length === 0 && (
+          <div className="uw-card" style={{ padding: '60px 32px', textAlign: 'center' }}>
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: '50%',
+                background: 'var(--uw-brand-soft)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 32,
+                margin: '0 auto 20px',
+              }}
+            >
+              📋
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--uw-ink)', marginBottom: 8 }}>
+              아직 진행 중인 사건이 없습니다.
+            </div>
+            <div style={{ fontSize: 15, color: 'var(--uw-slate)', marginBottom: 24, lineHeight: 1.5 }}>
+              새로운 등기를 시작해보세요!
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {QUICK_ACTIONS.slice(0, 4).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className="uw-btn uw-btn-soft uw-btn-sm"
+                  style={{ borderRadius: 999 }}
+                  onClick={() => handleQuickAction(t)}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && submissions.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            {submissions.map((sub) => (
+              <div
+                key={sub.id}
+                className="uw-card"
+                style={{
+                  padding: '24px',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                }}
+                onClick={() => navigate(`/submissions/${sub.id}`)}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = '';
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--uw-ink)', flex: 1, marginRight: 12, lineHeight: 1.3 }}>
+                    {sub.caseTitle || sub.casePackId}
+                  </div>
+                  <span className={STATUS_BADGE[sub.status] || 'uw-badge'} style={{ flexShrink: 0 }}>
+                    {STATUS_TEXT[sub.status] || sub.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: 14, color: 'var(--uw-slate)', marginBottom: 8 }}>
+                  {formatDate(sub.createdAt)}
+                </div>
+                {sub.partnerName && (
+                  <div style={{ fontSize: 13, color: 'var(--uw-graphite)' }}>
+                    담당: {sub.partnerName}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
