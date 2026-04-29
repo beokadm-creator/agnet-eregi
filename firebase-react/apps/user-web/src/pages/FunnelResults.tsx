@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 import { useAuth } from "../context/AuthContext";
 import { getApiBaseUrl } from "../apiBase";
 
@@ -37,6 +38,7 @@ function PartnerCard({
   onSelect: (partnerId: string) => void;
   busy: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className="uw-card animate-slide-up"
@@ -55,23 +57,23 @@ function PartnerCard({
             {partner.name}
           </div>
           <div style={{ fontSize: 13, color: "var(--uw-slate)", marginTop: 4 }}>
-            {partner.area || "전국"}
+            {partner.area || t('results.nationwide')}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
           {isRecommended && (
             <span className="uw-badge uw-badge-brand" style={{ fontSize: 12, fontWeight: 700 }}>
-              추천
+              {t('results.recommended')}
             </span>
           )}
           {isSponsored && (
             <span className="uw-badge" style={{ fontSize: 11, color: "var(--uw-fog)", fontWeight: 600 }}>
-              광고
+              {t('results.ad')}
             </span>
           )}
           {partner.rating && (
             <span style={{ fontSize: 13, color: "var(--uw-graphite)", fontWeight: 600 }}>
-              ★ {partner.rating}{partner.reviewCount ? ` (${partner.reviewCount})` : ""}
+              ★ {partner.rating}{partner.reviewCount ? ` ${t('results.review_count', { count: partner.reviewCount })}` : ""}
             </span>
           )}
         </div>
@@ -86,24 +88,24 @@ function PartnerCard({
         borderBottom: "1px solid var(--uw-border)",
       }}>
         <div>
-          <div style={{ fontSize: 11, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 4 }}>예상 비용</div>
+          <div style={{ fontSize: 11, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 4 }}>{t('results.cost_label')}</div>
           <div className="uw-tabular" style={{ fontSize: isRecommended ? 20 : 17, fontWeight: 800, color: "var(--uw-ink)" }}>
-            {formatPrice(partner.price)}원
+            {formatPrice(partner.price)}{t('common.currency_unit')}
           </div>
         </div>
         {isRecommended && partner.etaDays && (
           <div>
-            <div style={{ fontSize: 11, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 4 }}>소요 시간</div>
+            <div style={{ fontSize: 11, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 4 }}>{t('results.time_label')}</div>
             <div style={{ fontSize: 17, fontWeight: 800, color: "var(--uw-ink)" }}>
-              약 {partner.etaDays}일
+              {t('funnel.days', { count: partner.etaDays ?? 0 })}
             </div>
           </div>
         )}
         {partner.rankingScore && (
           <div>
-            <div style={{ fontSize: 11, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 4 }}>매칭 점수</div>
+            <div style={{ fontSize: 11, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 4 }}>{t('results.score_label')}</div>
             <div className="uw-tabular" style={{ fontSize: isRecommended ? 20 : 17, fontWeight: 800, color: "var(--uw-brand)" }}>
-              {Math.round(partner.rankingScore * 100)}점
+              {Math.round(partner.rankingScore * 100)}{t('results.score_unit')}
             </div>
           </div>
         )}
@@ -115,7 +117,7 @@ function PartnerCard({
         className={`uw-btn ${isRecommended ? "uw-btn-brand uw-btn-lg" : "uw-btn-outline"}`}
         style={{ width: "100%" }}
       >
-        {busy ? "처리 중..." : "선택하기"}
+        {busy ? t('common.processing') : t('results.select_button')}
       </button>
     </div>
   );
@@ -124,6 +126,7 @@ function PartnerCard({
 export default function FunnelResults() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { token } = useAuth();
 
   const [results, setResults] = useState<FunnelResults | null>(null);
@@ -171,7 +174,7 @@ export default function FunnelResults() {
       const data = await apiGet<FunnelResults>(`/v1/funnel/sessions/${sessionId}/results`);
       setResults(data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "결과를 불러올 수 없습니다.");
+      setError(e instanceof Error ? e.message : t('results.load_error'));
     } finally {
       setBusy(false);
     }
@@ -192,7 +195,7 @@ export default function FunnelResults() {
       });
       navigate(`/submissions/${data.id}`);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "신청을 처리할 수 없습니다.");
+      setError(e instanceof Error ? e.message : t('results.select_error'));
       setSelectingPartner(null);
     }
   }
@@ -200,7 +203,7 @@ export default function FunnelResults() {
   if (busy && !results) {
     return (
       <div className="uw-container" style={{ maxWidth: 960, margin: "0 auto", textAlign: "center", padding: "120px 0" }}>
-        <div style={{ color: "var(--uw-fog)", fontSize: 16 }}>진단 결과를 분석하고 있습니다...</div>
+        <div style={{ color: "var(--uw-fog)", fontSize: 16 }}>{t('results.analyzing')}</div>
       </div>
     );
   }
@@ -219,7 +222,7 @@ export default function FunnelResults() {
           {error}
         </div>
         <button onClick={() => navigate("/")} className="uw-btn uw-btn-outline">
-          대시보드로 돌아가기
+          {t('results.back_to_dashboard_full')}
         </button>
       </div>
     );
@@ -234,15 +237,15 @@ export default function FunnelResults() {
         className="uw-btn uw-btn-ghost uw-btn-sm"
         style={{ marginBottom: 32, padding: 0 }}
       >
-        ← 대시보드
+        {t('results.back_to_dashboard')}
       </button>
 
       <div className="animate-slide-up" style={{ marginBottom: 48 }}>
         <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
-          진단 결과
+          {t('results.title')}
         </h1>
         <p style={{ fontSize: 16, color: "var(--uw-slate)", marginTop: 12 }}>
-          AI 분석 결과, 아래 파트너를 추천드립니다.
+          {t('results.subtitle')}
         </p>
       </div>
 
@@ -270,7 +273,7 @@ export default function FunnelResults() {
 
       {results.compareTop3.length > 0 && (
         <div style={{ marginBottom: 48 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 20px" }}>비교</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 20px" }}>{t('results.compare')}</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
             {results.compareTop3.map((p, idx) => (
               <div key={p.partnerId} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
@@ -304,10 +307,10 @@ export default function FunnelResults() {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "var(--uw-slate)" }}>
-              스폰서 파트너
+              {t('results.sponsored_partners')}
             </h2>
             <span style={{ fontSize: 11, color: "var(--uw-fog)", fontWeight: 600, padding: "2px 8px", background: "var(--uw-surface)", borderRadius: 4 }}>
-              광고
+              {t('results.ad')}
             </span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>

@@ -1,5 +1,6 @@
 import React, { Suspense, lazy, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { auth } from '@rp/firebase';
 import { useAuth } from '../context/AuthContext';
 
@@ -7,6 +8,7 @@ const FloatingChatWidget = lazy(() => import('../components/FloatingChatWidget')
 
 export default function DashLayout({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { token } = useAuth();
   const [headerSearch, setHeaderSearch] = useState('');
 
@@ -30,16 +32,16 @@ export default function DashLayout({ onLogout }: { onLogout: () => void }) {
         </div>
 
         <nav className="uw-nav-links">
-          <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); navigate('/'); }}>대시보드</a>
-          <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); navigate('/partner/apply'); }}>법무사 파트너 지원</a>
-          <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); document.getElementById('chatbot-fab')?.click(); }}>고객 지원</a>
+          <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); navigate('/'); }}>{t('nav.dashboard')}</a>
+          <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); navigate('/partner/apply'); }}>{t('nav.partner_apply')}</a>
+          <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); document.getElementById('chatbot-fab')?.click(); }}>{t('nav.customer_support')}</a>
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <form onSubmit={handleHeaderSearch} style={{ display: 'flex', alignItems: 'center' }}>
             <input
               type="text"
-              placeholder="등기 검색..."
+              placeholder={t('nav.search_placeholder')}
               value={headerSearch}
               onChange={(e) => setHeaderSearch(e.target.value)}
               style={{
@@ -64,12 +66,12 @@ export default function DashLayout({ onLogout }: { onLogout: () => void }) {
                 {auth.currentUser.email}
               </span>
               <button onClick={onLogout} className="uw-btn uw-btn-outline uw-btn-sm">
-                로그아웃
+                {t('common.logout')}
               </button>
             </>
           ) : (
             <button onClick={() => navigate('/login')} className="uw-btn uw-btn-brand uw-btn-sm">
-              로그인
+              {t('common.login')}
             </button>
           )}
         </div>
@@ -81,11 +83,11 @@ export default function DashLayout({ onLogout }: { onLogout: () => void }) {
 
       <footer style={{ padding: '40px', textAlign: 'center', color: 'var(--uw-fog)', fontSize: 13, borderTop: '1px solid var(--uw-border)', background: 'var(--uw-surface)' }}>
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center', gap: 24 }}>
-          <a href="#" style={{ color: 'var(--uw-slate)', textDecoration: 'none' }} onClick={(e) => { e.preventDefault(); navigate('/settings'); }}>이용약관</a>
-          <a href="#" style={{ color: 'var(--uw-slate)', textDecoration: 'none' }} onClick={(e) => { e.preventDefault(); navigate('/settings'); }}>개인정보처리방침</a>
-          <a href="#" style={{ color: 'var(--uw-slate)', textDecoration: 'none' }} onClick={(e) => { e.preventDefault(); document.getElementById('chatbot-fab')?.click(); }}>자주 묻는 질문</a>
+          <a href="#" style={{ color: 'var(--uw-slate)', textDecoration: 'none' }} onClick={(e) => { e.preventDefault(); navigate('/settings'); }}>{t('footer.terms')}</a>
+          <a href="#" style={{ color: 'var(--uw-slate)', textDecoration: 'none' }} onClick={(e) => { e.preventDefault(); navigate('/settings'); }}>{t('footer.privacy')}</a>
+          <a href="#" style={{ color: 'var(--uw-slate)', textDecoration: 'none' }} onClick={(e) => { e.preventDefault(); document.getElementById('chatbot-fab')?.click(); }}>{t('footer.faq')}</a>
         </div>
-        © 2026 AgentRegi. All rights reserved.
+        {t('footer.copyright')}
       </footer>
 
       {token && (

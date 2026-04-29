@@ -287,3 +287,151 @@ body {
   box-shadow: 0 20px 40px rgba(0,0,0,0.08);
   border: 1px solid rgba(255,255,255,0.6);
 }
+
+/* ===== Mobile Responsive Utilities ===== */
+.uw-hide-mobile { display: block; }
+.uw-show-mobile { display: none; }
+
+/* ===== Tablet & Mobile (max-width: 768px) ===== */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .uw-hide-mobile { display: none !important; }
+  .uw-show-mobile { display: block !important; }
+
+  /* Topnav */
+  .uw-topnav {
+    padding: 0 16px;
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .uw-nav-links {
+    display: none;
+  }
+
+  /* Container */
+  .uw-container {
+    padding: 24px 16px 60px;
+  }
+
+  /* Hero */
+  .uw-hero {
+    grid-template-columns: 1fr;
+    padding: 40px 0;
+    gap: 32px;
+  }
+  .uw-hero-desc {
+    font-size: 16px;
+    max-width: 100%;
+  }
+
+  /* Detail grid */
+  .uw-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .uw-detail-header {
+    padding: 24px 0;
+    margin-bottom: 24px;
+  }
+
+  /* Search box */
+  .uw-search-box {
+    flex-direction: column;
+  }
+
+  /* Card */
+  .uw-card {
+    border-radius: var(--uw-radius-lg);
+  }
+
+  /* Buttons full-width on mobile */
+  .uw-btn-brand,
+  .uw-btn-dark,
+  .uw-btn-outline {
+    width: 100%;
+  }
+  .uw-btn-sm.uw-btn-brand,
+  .uw-btn-sm.uw-btn-dark,
+  .uw-btn-sm.uw-btn-outline {
+    width: auto;
+  }
+
+  /* Featured card */
+  .uw-featured-card {
+    border-radius: var(--uw-radius-lg);
+    padding: 20px;
+  }
+
+  /* Auth card */
+  .uw-auth-card {
+    padding: 32px 24px;
+  }
+
+  /* Timeline */
+  .uw-timeline {
+    gap: 20px;
+  }
+}
+
+/* ===== Small Mobile (max-width: 480px) ===== */
+@media (max-width: 480px) {
+  .uw-hero-title {
+    font-size: 32px;
+  }
+  .uw-hero {
+    padding: 24px 0;
+    gap: 24px;
+  }
+  .uw-hero-desc {
+    font-size: 15px;
+    margin-bottom: 28px;
+  }
+
+  .uw-container {
+    padding: 16px 16px 48px;
+  }
+
+  .uw-btn {
+    height: 42px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+  .uw-btn-lg {
+    height: 48px;
+    padding: 0 20px;
+    font-size: 15px;
+  }
+
+  .uw-input {
+    height: 44px;
+    font-size: 14px;
+  }
+
+  .uw-card {
+    border-radius: var(--uw-radius-md);
+  }
+
+  .uw-featured-card {
+    padding: 16px;
+  }
+
+  .uw-auth-card {
+    padding: 24px 20px;
+    border-radius: var(--uw-radius-lg);
+  }
+
+  .uw-badge {
+    height: 22px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .uw-welcome {
+    padding: 16px;
+  }
+}

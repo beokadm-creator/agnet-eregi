@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { getApiBaseUrl } from '../apiBase';
 import { auth } from '@rp/firebase';
@@ -17,15 +18,6 @@ interface Submission {
 interface SubmissionsResponse {
   items: Submission[];
 }
-
-const STATUS_TEXT: Record<string, string> = {
-  draft: '작성 중',
-  submitted: '접수됨',
-  processing: '처리 중',
-  completed: '등기 완료',
-  failed: '실패',
-  cancelled: '취소됨',
-};
 
 const STATUS_BADGE: Record<string, string> = {
   draft: 'uw-badge uw-badge-warning',
@@ -76,8 +68,21 @@ function SkeletonCard() {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { token } = useAuth();
   const user = auth.currentUser;
+
+  const getStatusText = (status: string): string => {
+    const map: Record<string, string> = {
+      draft: t('status.draft'),
+      submitted: t('status.submitted'),
+      processing: t('status.processing'),
+      completed: t('status.completed'),
+      failed: t('status.failed'),
+      cancelled: t('status.cancelled'),
+    };
+    return map[status] || status;
+  };
 
   const [searchText, setSearchText] = useState('');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -127,13 +132,13 @@ export default function Dashboard() {
       {/* Section 1 — Welcome + Quick Start */}
       <div className="animate-slide-up" style={{ marginBottom: 48 }}>
         <div style={{ marginBottom: 8, fontSize: 14, color: 'var(--uw-fog)', fontWeight: 500 }}>
-          대시보드
+          {t('dashboard.breadcrumb')}
         </div>
         <h1 style={{ fontSize: 'clamp(28px, 4vw, 36px)', fontWeight: 800, letterSpacing: '-0.025em', margin: '0 0 8px' }}>
-          {user?.email ? `${user.email}님, ` : ''}안녕하세요!
+          {user?.email ? t('dashboard.greeting', { email: user.email }) : t('dashboard.greeting_no_email')}
         </h1>
         <p style={{ fontSize: 16, color: 'var(--uw-slate)', margin: '0 0 32px', lineHeight: 1.5 }}>
-          필요한 등기를 검색하거나, 빠르게 시작해보세요.
+          {t('dashboard.subtitle')}
         </p>
 
         <form className="uw-search-box" onSubmit={handleSearchSubmit} style={{ maxWidth: 600 }}>
@@ -141,7 +146,7 @@ export default function Dashboard() {
             <span>🔍</span>
             <input
               type="text"
-              placeholder="어떤 등기가 필요하세요? 예) 본점 이전"
+              placeholder={t('dashboard.search_placeholder')}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               style={{
@@ -156,7 +161,7 @@ export default function Dashboard() {
             />
           </div>
           <button type="submit" className="uw-btn uw-btn-brand uw-btn-lg" style={{ minWidth: 100 }}>
-            찾아보기 <span style={{ fontSize: 18 }}>→</span>
+            {t('dashboard.search_button')} <span style={{ fontSize: 18 }}>→</span>
           </button>
         </form>
 
@@ -179,7 +184,7 @@ export default function Dashboard() {
       <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>
-            내 사건
+            {t('dashboard.my_cases')}
           </h2>
           {submissions.length > 0 && !loading && (
             <button
@@ -187,7 +192,7 @@ export default function Dashboard() {
               className="uw-btn uw-btn-brand uw-btn-sm"
               onClick={() => navigate('/funnel')}
             >
-              새 등기 시작
+              {t('dashboard.new_registration')}
             </button>
           )}
         </div>
@@ -204,13 +209,13 @@ export default function Dashboard() {
           <div className="uw-card" style={{ padding: '40px 32px', textAlign: 'center' }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>⚠</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--uw-ink)', marginBottom: 8 }}>
-              사건을 불러오지 못했습니다.
+              {t('dashboard.load_error')}
             </div>
             <div style={{ fontSize: 14, color: 'var(--uw-slate)', marginBottom: 20 }}>
               {error}
             </div>
             <button type="button" className="uw-btn uw-btn-outline uw-btn-sm" onClick={loadSubmissions}>
-              다시 시도
+              {t('common.retry')}
             </button>
           </div>
         )}
@@ -233,10 +238,10 @@ export default function Dashboard() {
               📋
             </div>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--uw-ink)', marginBottom: 8 }}>
-              아직 진행 중인 사건이 없습니다.
+              {t('dashboard.no_cases')}
             </div>
             <div style={{ fontSize: 15, color: 'var(--uw-slate)', marginBottom: 24, lineHeight: 1.5 }}>
-              새로운 등기를 시작해보세요!
+              {t('dashboard.start_new')}
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               {QUICK_ACTIONS.slice(0, 4).map((t) => (
@@ -280,7 +285,7 @@ export default function Dashboard() {
                     {sub.caseTitle || sub.casePackId}
                   </div>
                   <span className={STATUS_BADGE[sub.status] || 'uw-badge'} style={{ flexShrink: 0 }}>
-                    {STATUS_TEXT[sub.status] || sub.status}
+                    {getStatusText(sub.status)}
                   </span>
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--uw-slate)', marginBottom: 8 }}>
@@ -288,7 +293,7 @@ export default function Dashboard() {
                 </div>
                 {sub.partnerName && (
                   <div style={{ fontSize: 13, color: 'var(--uw-graphite)' }}>
-                    담당: {sub.partnerName}
+                    {t('common.manager_label', { name: sub.partnerName })}
                   </div>
                 )}
               </div>

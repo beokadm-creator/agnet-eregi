@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 import { useAuth } from "../context/AuthContext";
 import { getApiBaseUrl } from "../apiBase";
 
@@ -25,6 +26,7 @@ export default function Funnel() {
   const { sessionId: paramSessionId } = useParams<{ sessionId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { token } = useAuth();
 
   const [sessionId, setSessionId] = useState<string | null>(paramSessionId || null);
@@ -57,7 +59,7 @@ export default function Funnel() {
       setBusy(true);
       apiPost(`/v1/funnel/sessions/${sessionId}/answer`, { questionId: "", answer: "" })
         .then(() => navigate(`/funnel/${sessionId}/results`, { replace: true }))
-        .catch(() => setError("세션을 불러올 수 없습니다. 처음부터 다시 시작해주세요."))
+        .catch(() => setError(t('funnel.session_error')))
         .finally(() => setBusy(false));
     }
   }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -81,7 +83,7 @@ export default function Funnel() {
       if (data.totalQuestions) setTotalQuestions(data.totalQuestions);
       navigate(`/funnel/${data.sessionId}`, { replace: true });
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "오류가 발생했습니다.");
+      setError(e instanceof Error ? e.message : t('common.error_generic'));
     } finally {
       setBusy(false);
     }
@@ -119,7 +121,7 @@ export default function Funnel() {
       setSelectedOption("");
       setTextInput("");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "오류가 발생했습니다.");
+      setError(e instanceof Error ? e.message : t('common.error_generic'));
     } finally {
       setBusy(false);
     }
@@ -130,12 +132,12 @@ export default function Funnel() {
       <div className="uw-container" style={{ maxWidth: 720, margin: "0 auto", paddingTop: 80, paddingBottom: 80 }}>
         <div className="animate-slide-up" style={{ textAlign: "center", marginBottom: 48 }}>
           <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
-            어떤 서비스가<br />
-            <span style={{ color: "var(--uw-brand)" }}>필요하세요?</span>
+            {t('funnel.title_line1')}<br />
+            <span style={{ color: "var(--uw-brand)" }}>{t('funnel.title_highlight')}</span>
           </h1>
           <p style={{ fontSize: 17, color: "var(--uw-slate)", marginTop: 16, lineHeight: 1.6 }}>
-            필요한 법무/행정 서비스를 자유롭게 입력해주세요.<br />
-            AI가 최적의 법무사를 매칭해드립니다.
+            {t('funnel.subtitle_line1')}<br />
+            {t('funnel.subtitle_line2')}
           </p>
         </div>
 
@@ -143,7 +145,7 @@ export default function Funnel() {
           <textarea
             value={intentText}
             onChange={(e) => setIntentText(e.target.value)}
-            placeholder="예) 법인 임원 변경하고 싶어요"
+            placeholder={t('funnel.placeholder')}
             className="uw-input"
             rows={4}
             style={{
@@ -174,7 +176,7 @@ export default function Funnel() {
             className="uw-btn uw-btn-brand uw-btn-lg"
             style={{ width: "100%" }}
           >
-            {busy ? "분석 중..." : "진단 시작하기 →"}
+            {busy ? t('funnel.analyzing') : t('funnel.start_button')}
           </button>
         </div>
 
@@ -201,15 +203,15 @@ export default function Funnel() {
         className="uw-btn uw-btn-ghost uw-btn-sm"
         style={{ marginBottom: 32, padding: 0 }}
       >
-        ← 대시보드
+        ← {t('common.dashboard')}
       </button>
 
       <div style={{ marginBottom: 40 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--uw-brand)" }}>
-            질문 {questionIndex}{totalQuestions > 0 ? ` / ${totalQuestions}` : ""}
+            {t('funnel.question_label', { current: questionIndex, total: totalQuestions > 0 ? ` / ${totalQuestions}` : '' })}
           </span>
-          <span style={{ fontSize: 13, color: "var(--uw-fog)" }}>진단 중</span>
+          <span style={{ fontSize: 13, color: "var(--uw-fog)" }}>{t('funnel.diagnosing')}</span>
         </div>
         <div style={{
           height: 6,
@@ -264,7 +266,7 @@ export default function Funnel() {
             <textarea
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
-              placeholder="답변을 입력해주세요"
+              placeholder={t('funnel.answer_placeholder')}
               className="uw-input"
               rows={3}
               style={{
@@ -299,37 +301,37 @@ export default function Funnel() {
             className="uw-btn uw-btn-brand uw-btn-lg"
             style={{ width: "100%" }}
           >
-            {busy ? "처리 중..." : "다음 →"}
+            {busy ? t('common.processing') : t('funnel.next_button')}
           </button>
         </div>
       )}
 
       {!currentQuestion && busy && (
         <div style={{ textAlign: "center", padding: 80, color: "var(--uw-fog)", fontSize: 15 }}>
-          질문을 불러오는 중...
+          {t('funnel.loading_question')}
         </div>
       )}
 
       {preview && (
         <div className="uw-card animate-fade-in" style={{ marginTop: 24, padding: "24px 28px", background: "var(--uw-surface)" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--uw-brand)", marginBottom: 16, letterSpacing: "0.05em" }}>
-            실시간 예상 정보
+            {t('funnel.preview_title')}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
             <div>
-              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 4 }}>예상 비용</div>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 4 }}>{t('funnel.estimated_cost')}</div>
               <div className="uw-tabular" style={{ fontSize: 20, fontWeight: 800, color: "var(--uw-ink)" }}>
                 ₩{formatPrice(preview.minPrice)}~₩{formatPrice(preview.maxPrice)}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 4 }}>소요 시간</div>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 4 }}>{t('funnel.estimated_time')}</div>
               <div style={{ fontSize: 20, fontWeight: 800, color: "var(--uw-ink)" }}>
-                약 {preview.etaDays}일
+                {t('funnel.days', { count: preview.etaDays })}
               </div>
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
-              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 6 }}>필요 서류</div>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 6 }}>{t('funnel.required_docs')}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {preview.requiredDocs.map((doc) => (
                   <span key={doc} className="uw-badge" style={{ fontSize: 13 }}>

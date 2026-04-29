@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { auth } from '@rp/firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '../context/AuthContext';
@@ -82,6 +83,7 @@ const CURRENCIES = [
 ];
 
 export default function Settings() {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const user = auth.currentUser;
 
@@ -181,26 +183,26 @@ export default function Settings() {
   return (
     <div className="uw-container">
       <div className="animate-slide-up" style={{ marginBottom: 32 }}>
-        <div style={{ marginBottom: 8, fontSize: 14, color: 'var(--uw-fog)', fontWeight: 500 }}>설정</div>
+        <div style={{ marginBottom: 8, fontSize: 14, color: 'var(--uw-fog)', fontWeight: 500 }}>{t('settings.breadcrumb')}</div>
         <h1 style={{ fontSize: 'clamp(28px, 4vw, 36px)', fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>
-          설정
+          {t('settings.title')}
         </h1>
       </div>
 
-      <SettingsSection title="알림 설정">
+      <SettingsSection title={t('settings.notifications')}>
         {notifLoading ? (
           <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--uw-slate)', fontSize: 14 }}>
-            불러오는 중...
+            {t('settings.loading')}
           </div>
         ) : (
           <>
-            <SettingRow label="사건 완료 알림" description="등기가 완료되면 알려드립니다.">
+            <SettingRow label={t('settings.case_complete_notif')} description={t('settings.case_complete_desc')}>
               <Toggle
                 checked={notifSettings.submissionCompleted}
                 onChange={(v) => setNotifSettings((prev) => ({ ...prev, submissionCompleted: v }))}
               />
             </SettingRow>
-            <SettingRow label="사건 실패 알림" description="등기 처리 중 오류가 발생하면 알려드립니다.">
+            <SettingRow label={t('settings.case_fail_notif')} description={t('settings.case_fail_desc')}>
               <Toggle
                 checked={notifSettings.submissionFailed}
                 onChange={(v) => setNotifSettings((prev) => ({ ...prev, submissionFailed: v }))}
@@ -208,8 +210,8 @@ export default function Settings() {
             </SettingRow>
 
             <div style={{ paddingTop: 20, borderTop: '1px solid var(--uw-border)' }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--uw-ink)', marginBottom: 4 }}>Webhook URL</div>
-              <div style={{ fontSize: 13, color: 'var(--uw-slate)', marginBottom: 12 }}>이벤트 발생 시 알림을 받을 URL을 등록하세요.</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--uw-ink)', marginBottom: 4 }}>{t('settings.webhook_title')}</div>
+              <div style={{ fontSize: 13, color: 'var(--uw-slate)', marginBottom: 12 }}>{t('settings.webhook_desc')}</div>
 
               {notifSettings.webhookUrls.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
@@ -234,7 +236,7 @@ export default function Settings() {
                         onClick={() => removeWebhook(url)}
                         style={{ background: 'none', border: 'none', color: 'var(--uw-danger)', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: '4px 8px' }}
                       >
-                        삭제
+                        {t('settings.delete')}
                       </button>
                     </div>
                   ))}
@@ -244,7 +246,7 @@ export default function Settings() {
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   type="url"
-                  placeholder="https://example.com/webhook"
+                  placeholder={t('settings.webhook_placeholder')}
                   value={webhookInput.url}
                   onChange={(e) => setWebhookInput((prev) => ({ ...prev, url: e.target.value }))}
                   className="uw-input"
@@ -252,14 +254,14 @@ export default function Settings() {
                 />
                 <input
                   type="text"
-                  placeholder="Secret (선택)"
+                  placeholder={t('settings.webhook_secret_placeholder')}
                   value={webhookInput.secret}
                   onChange={(e) => setWebhookInput((prev) => ({ ...prev, secret: e.target.value }))}
                   className="uw-input"
                   style={{ flex: 1, height: 40, fontSize: 13 }}
                 />
                 <button type="button" className="uw-btn uw-btn-outline uw-btn-sm" onClick={addWebhook} disabled={!webhookInput.url.trim()}>
-                  추가
+                  {t('settings.add_button')}
                 </button>
               </div>
             </div>
@@ -271,15 +273,15 @@ export default function Settings() {
                 onClick={saveNotifSettings}
                 disabled={notifSaving}
               >
-                {notifSaving ? '저장 중...' : notifSaved ? '✓ 저장됨' : '알림 설정 저장'}
+                {notifSaving ? t('settings.saving') : notifSaved ? t('settings.saved') : t('settings.save_button')}
               </button>
             </div>
           </>
         )}
       </SettingsSection>
 
-      <SettingsSection title="언어 및 통화">
-        <SettingRow label="언어" description="표시 언어를 선택합니다.">
+      <SettingsSection title={t('settings.language_and_currency')}>
+        <SettingRow label={t('settings.language_label')} description={t('settings.language_desc')}>
           <select
             value={language}
             onChange={(e) => handleLanguageChange(e.target.value)}
@@ -302,7 +304,7 @@ export default function Settings() {
             ))}
           </select>
         </SettingRow>
-        <SettingRow label="통화" description="가격 표시에 사용할 통화를 선택합니다.">
+        <SettingRow label={t('settings.currency_label')} description={t('settings.currency_desc')}>
           <select
             value={currency}
             onChange={(e) => handleCurrencyChange(e.target.value)}
@@ -327,11 +329,11 @@ export default function Settings() {
         </SettingRow>
       </SettingsSection>
 
-      <SettingsSection title="계정 정보">
-        <SettingRow label="이메일">
+      <SettingsSection title={t('settings.account_info')}>
+        <SettingRow label={t('settings.email')}>
           <span style={{ fontSize: 15, color: 'var(--uw-slate)' }}>{user?.email ?? '—'}</span>
         </SettingRow>
-        <SettingRow label="UID">
+        <SettingRow label={t('settings.uid')}>
           <span style={{ fontSize: 13, color: 'var(--uw-fog)', fontFamily: 'monospace' }}>{user?.uid ?? '—'}</span>
         </SettingRow>
         <div style={{ paddingTop: 20, borderTop: '1px solid var(--uw-border)' }}>
@@ -341,7 +343,7 @@ export default function Settings() {
             onClick={handleLogout}
             style={{ borderColor: 'var(--uw-danger)', color: 'var(--uw-danger)' }}
           >
-            로그아웃
+            {t('common.logout')}
           </button>
         </div>
       </SettingsSection>

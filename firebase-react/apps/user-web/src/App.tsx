@@ -7,11 +7,13 @@ import { auth } from "@rp/firebase";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import DashLayout from "./layouts/DashLayout";
 import WelcomeScreen from "./components/WelcomeScreen";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Dashboard from "./pages/Dashboard";
 import PartnerApply from "./pages/PartnerApply";
 import Settings from "./pages/Settings";
 import Funnel from "./pages/Funnel";
 import FunnelResults from "./pages/FunnelResults";
+import NotFound from "./pages/NotFound";
 
 // Keep existing complex logic in SubmissionDetail (will refactor later if needed)
 const SubmissionDetail = lazy(() => import("./pages/SubmissionDetail"));
@@ -84,29 +86,33 @@ function LoginRoute() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginRoute />} />
-          <Route path="/" element={
-            <AuthGuard>
-              <DashLayout onLogout={() => signOut(auth)} />
-            </AuthGuard>
-          }>
-            <Route index element={<Dashboard />} />
-            <Route path="funnel" element={<Funnel />} />
-            <Route path="funnel/:sessionId" element={<Funnel />} />
-            <Route path="funnel/:sessionId/results" element={<FunnelResults />} />
-            <Route path="partner/apply" element={<PartnerApply />} />
-            <Route path="settings" element={<Settings />} />
-            {/* Detail logic will be moved to its own page next */}
-            <Route path="submissions/:id" element={
-              <Suspense fallback={<div>Loading...</div>}>
-                <SubmissionDetail />
-              </Suspense>
-            } />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginRoute />} />
+            <Route path="/" element={
+              <AuthGuard>
+                <DashLayout onLogout={() => signOut(auth)} />
+              </AuthGuard>
+            }>
+              <Route index element={<Dashboard />} />
+              <Route path="funnel" element={<Funnel />} />
+              <Route path="funnel/:sessionId" element={<Funnel />} />
+              <Route path="funnel/:sessionId/results" element={<FunnelResults />} />
+              <Route path="partner/apply" element={<PartnerApply />} />
+              <Route path="settings" element={<Settings />} />
+              {/* Detail logic will be moved to its own page next */}
+              <Route path="submissions/:id" element={
+                <Suspense fallback={<div>Loading...</div>}>
+                  <SubmissionDetail />
+                </Suspense>
+              } />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </ErrorBoundary>
     </AuthProvider>
   );
 }
