@@ -51,7 +51,7 @@ export default function ReviewQueue() {
               <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>대기 중인 승인 요청이 없습니다.</div>
             ) : (
               <div style={{ display: "grid", gap: "0.75rem" }}>
-                {approvals.map((a) => (
+                {approvals?.map((a: any) => (
                   <div key={a.id} style={{ border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", padding: "1rem", borderRadius: "var(--ar-r1)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
                       <div style={{ fontWeight: 600 }}>{a.actionType || "approval"}</div>
@@ -79,7 +79,7 @@ export default function ReviewQueue() {
               <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>최근 인시던트가 없습니다.</div>
             ) : (
               <div style={{ display: "grid", gap: "0.75rem" }}>
-                {incidents.slice(0, 10).map((it) => (
+                {incidents?.slice(0, 10).map((it: any) => (
                   <div key={it.id} style={{ border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", padding: "1rem", borderRadius: "var(--ar-r1)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
                       <div style={{ fontWeight: 600 }}>{it.gateKey || "unknown"}</div>

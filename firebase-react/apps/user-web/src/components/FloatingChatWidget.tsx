@@ -59,7 +59,7 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
         
         // 2. 세션의 메시지 기록 불러오기
         const history = await apiFetch(`/v1/chatbot/sessions/${currentSession.id}/messages`);
-        setMessages(history.map((m: any) => ({
+        setMessages(history?.map((m: any) => ({
           id: m.id || Math.random().toString(36).substring(2, 9),
           role: m.role,
           content: m.content
@@ -174,7 +174,7 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
             gap: '12px',
             backgroundColor: 'var(--ar-paper-alt)'
           }}>
-            {messages.map((msg) => (
+            {messages?.map((msg) => (
               <div key={msg.id} style={{
                 alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
                 maxWidth: '80%',

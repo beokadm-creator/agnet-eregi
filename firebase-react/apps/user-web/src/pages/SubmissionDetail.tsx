@@ -117,7 +117,7 @@ export default function SubmissionDetail() {
         <div style={{ marginBottom: '2rem', padding: '1.5rem', border: '1px solid var(--ar-hairline)', backgroundColor: 'var(--ar-paper-alt)', borderRadius: 'var(--ar-r3)' }}>
           <span className="dash-label">견적 내역</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-            {quotes.map((q: any) => (
+            {quotes?.map((q: any) => (
               <div key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', backgroundColor: 'var(--ar-canvas)', border: '1px solid var(--ar-hairline-strong)', borderRadius: 'var(--ar-r1)' }}>
                 <div>
                   <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>총액: {q.totalAmount.toLocaleString()}원</div>
@@ -144,7 +144,7 @@ export default function SubmissionDetail() {
         <div style={{ marginTop: '3rem' }}>
           <h4 className="dash-section-title" style={{ fontSize: '1.125rem', marginBottom: '1.5rem' }}>진행 이력</h4>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {events.map((ev: any) => (
+            {events?.map((ev: any) => (
               <div key={ev.id} style={{ padding: '1rem 0', borderTop: '1px solid var(--ar-hairline)' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--ar-fog)', marginBottom: '0.25rem' }}>{new Date(ev.createdAt).toLocaleString()}</div>
                 <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--ar-ink)', marginBottom: '0.5rem' }}>{ev.type.toUpperCase()}</div>

@@ -30,7 +30,7 @@ export default function SlaDashboard() {
             <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>현재 감지된 SLA 위반이 없습니다.</div>
           ) : (
             <div style={{ display: "grid", gap: "0.75rem" }}>
-              {items.map((it) => (
+              {items?.map((it: any) => (
                 <div key={it.id} style={{ border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", padding: "1rem", borderRadius: "var(--ar-r1)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
                     <div style={{ fontWeight: 600 }}>{it.gateKey || "unknown"}</div>
