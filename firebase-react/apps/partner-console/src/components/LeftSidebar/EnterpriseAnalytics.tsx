@@ -42,7 +42,7 @@ export const EnterpriseAnalytics: React.FC = () => {
       <div className="mb-6">
         <h3 className="font-semibold mb-2">일간 통계 (최근 7일)</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stats.daily.map((day: any, idx: number) => (
+          {stats?.daily?.map((day: any, idx: number) => (
             <div key={idx} className="border p-3 rounded bg-[var(--ar-paper)]">
               <div className="font-bold text-[var(--ar-graphite)]">{day.date}</div>
               <div className="text-[var(--ar-graphite)] mt-1">완료 케이스: {day.casesCompleted}</div>
@@ -56,7 +56,7 @@ export const EnterpriseAnalytics: React.FC = () => {
       <div>
         <h3 className="font-semibold mb-2">주간 통계 (최근 4주)</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stats.weekly.map((week: any, idx: number) => (
+          {stats?.weekly?.map((week: any, idx: number) => (
             <div key={idx} className="border p-3 rounded bg-[var(--ar-accent-soft)]">
               <div className="font-bold text-[var(--ar-accent)]">{week.week}</div>
               <div className="text-[var(--ar-graphite)] mt-1">완료 케이스: {week.casesCompleted}</div>

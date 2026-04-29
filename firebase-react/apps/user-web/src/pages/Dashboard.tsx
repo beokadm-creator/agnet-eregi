@@ -212,7 +212,7 @@ export default function Dashboard() {
                   
                   {currentQuestion.type === "single_choice" && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                      {currentQuestion.options.map((opt: string) => (
+                      {currentQuestion.options?.map((opt: string) => (
                         <button 
                           key={opt} 
                           onClick={() => { setFunnelAnswer(opt); submitFunnelAnswer(opt); }} 
@@ -343,7 +343,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-            {submissions.map(s => (
+            {submissions?.map(s => (
               <div key={s.id} className="ar-card" style={{ padding: 24, cursor: 'pointer' }} onClick={() => navigate(`/submissions/${s.id}`)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
