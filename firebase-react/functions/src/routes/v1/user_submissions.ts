@@ -194,10 +194,21 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
       const userId = auth.uid;
       const db = adminApp.firestore();
 
-      const snap = await db.collection("user_submissions")
-        .where("userId", "==", userId)
-        .orderBy("updatedAt", "desc")
-        .get();
+      let snap: admin.firestore.QuerySnapshot;
+      try {
+        snap = await db.collection("user_submissions")
+          .where("userId", "==", userId)
+          .orderBy("updatedAt", "desc")
+          .get();
+      } catch (e: any) {
+        const msg = String(e?.message || "");
+        const isIndexError = e?.code === 9 || msg.includes("requires an index") || msg.includes("FAILED_PRECONDITION");
+        if (!isIndexError) throw e;
+        snap = await db.collection("user_submissions")
+          .where("userId", "==", userId)
+          .orderBy("createdAt", "desc")
+          .get();
+      }
 
       const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       return ok(res, { items });
