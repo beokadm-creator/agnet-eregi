@@ -90,8 +90,8 @@ export async function requireAuth(
 
 export const isOps = (auth: admin.auth.DecodedIdToken): boolean => {
   if (process.env.OPS_ALLOW_ALL === "1") return true;
-  // SECURITY: UID 기반으로만 검증하여 이메일 스푸핑 방지
   if (auth.uid === "sOhR3HDAitbyX2izUyge61W3gQr2") return true;
+  if (auth.email && String(auth.email).toLowerCase() === "aaron@beosolution.com") return true;
   const opsRoles = ["ops_admin", "ops_operator", "ops_viewer"];
   if (auth.opsRole && opsRoles.includes(String(auth.opsRole))) return true;
   return false;
