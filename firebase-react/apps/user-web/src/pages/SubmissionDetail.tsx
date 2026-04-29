@@ -21,6 +21,13 @@ export default function SubmissionDetail() {
   const [log, setLog] = useState("");
   const [showTossModal, setShowTossModal] = useState(false);
 
+  // Safely extract array regardless of API response shape
+  function asArray<T = any>(value: any): T[] {
+    if (Array.isArray(value)) return value as T[];
+    if (Array.isArray(value?.items)) return value.items as T[];
+    return [];
+  }
+
   const statusText: Record<string, string> = {
     draft: "작성중", submitted: "제출됨", processing: "처리중",
     completed: "완료", failed: "실패", cancelled: "취소됨"
@@ -39,11 +46,6 @@ export default function SubmissionDetail() {
     return json.data;
   }
 
-  function asArray<T = any>(value: any): T[] {
-    if (Array.isArray(value)) return value as T[];
-    if (Array.isArray(value?.items)) return value.items as T[];
-    return [];
-  }
 
   async function apiPost(path: string, body: any) {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
@@ -60,7 +62,7 @@ export default function SubmissionDetail() {
     setBusy(true); setLog("로딩 중...");
     try {
       const data = await apiGet(`/v1/user/submissions/${subId}`);
-      setSelectedSub(data);
+      setSelectedSub(data?.submission || data);
       const evs = await apiGet(`/v1/user/submissions/${subId}/events`);
       setEvents(asArray(evs));
       const reqs = await apiGet(`/v1/user/submissions/${subId}/evidence-requests`);
