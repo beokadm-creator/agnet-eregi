@@ -18,7 +18,7 @@ import AuditLogs from "./pages/AuditLogs";
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, isReady, accessDenied } = useAuth();
   
-  if (!isReady) return <div className="im-shell"><div className="im-container"><div className="im-log">loading...</div></div></div>;
+  if (!isReady) return <div className="im-shell"><div className="im-container"><div className="im-log">불러오는 중...</div></div></div>;
   if (!token) return <Navigate to="/login" replace />;
   if (accessDenied) return (
     <div className="im-shell">
@@ -31,7 +31,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <div className="im-log" style={{ background: "var(--ar-danger-soft)", color: "var(--ar-danger)" }}>
-          권한이 없습니다. opsRole 커스텀 클레임이 필요하거나 Super Admin이어야 합니다.
+          권한이 없습니다. opsRole 커스텀 클레임이 필요하거나 슈퍼어드민이어야 합니다.
         </div>
       </div>
     </div>
@@ -42,7 +42,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 function LoginRoute() {
   const { token, isReady } = useAuth();
-  if (!isReady) return <div className="im-shell"><div className="im-container"><div className="im-log">loading...</div></div></div>;
+  if (!isReady) return <div className="im-shell"><div className="im-container"><div className="im-log">불러오는 중...</div></div></div>;
   if (token) return <Navigate to="/" replace />;
   return <AuthScreen />;
 }

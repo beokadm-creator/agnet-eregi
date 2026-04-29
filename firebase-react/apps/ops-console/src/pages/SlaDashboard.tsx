@@ -27,7 +27,7 @@ export default function SlaDashboard() {
       {!error && data && (
         <div style={{ marginTop: "2rem" }}>
           {items.length === 0 ? (
-            <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>현재 감지된 Breach가 없습니다.</div>
+            <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>현재 감지된 SLA 위반이 없습니다.</div>
           ) : (
             <div style={{ display: "grid", gap: "0.75rem" }}>
               {items.map((it) => (

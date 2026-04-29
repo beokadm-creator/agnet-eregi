@@ -25,7 +25,7 @@ export default function AccessControl() {
 
       <div className="im-actions">
         <Button disabled={busy} variant="secondary" onClick={() => callApi(`/v1/ops/access/users`)}>권한 목록 조회</Button>
-        <Button disabled={busy} variant="danger" onClick={() => callApi(`/v1/ops/access/breakglass`, { method: "POST", body: JSON.stringify({ reason: accessReason || "Emergency access" }) })}>Break-glass 활성화</Button>
+        <Button disabled={busy} variant="danger" onClick={() => callApi(`/v1/ops/access/breakglass`, { method: "POST", body: JSON.stringify({ reason: accessReason || "Emergency access" }) })}>긴급 권한 활성화</Button>
         <Button disabled={busy || !accessTargetUid || !accessRole} onClick={() => callApi(`/v1/ops/access/grant`, { method: "POST", body: JSON.stringify({ targetUid: accessTargetUid, role: accessRole, reason: accessReason }) })}>권한 부여</Button>
         <Button disabled={busy || !accessTargetUid} variant="danger" onClick={() => callApi(`/v1/ops/access/revoke`, { method: "POST", body: JSON.stringify({ targetUid: accessTargetUid, reason: accessReason }) })}>권한 회수</Button>
       </div>

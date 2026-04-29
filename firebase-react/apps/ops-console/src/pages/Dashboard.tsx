@@ -13,7 +13,7 @@ const Ic = {
   chev: () => <span>›</span>,
 };
 
-function OpsNav({ active, label, icon, count, badgeColor }) {
+function OpsNav({ active = false, label, icon, count, badgeColor }: { active?: boolean; label: React.ReactNode; icon: React.ReactNode; count?: React.ReactNode; badgeColor?: string }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8,
@@ -28,7 +28,7 @@ function OpsNav({ active, label, icon, count, badgeColor }) {
   );
 }
 
-function SloTile({ label, value, target, status }) {
+function SloTile({ label, value, target, status }: { label: React.ReactNode; value: React.ReactNode; target: React.ReactNode; status: 'ok' | 'warn' | 'err' }) {
   const colors = { ok: 'var(--ar-success)', warn: 'var(--ar-warning)', err: 'var(--ar-danger)' };
   return (
     <div className="ar-card" style={{ padding: 18 }}>
@@ -42,7 +42,7 @@ function SloTile({ label, value, target, status }) {
   );
 }
 
-function IncRow({ id, tgt, sev, age, owner, resolved }) {
+function IncRow({ id, tgt, sev, age, owner, resolved = false }: { id: React.ReactNode; tgt: React.ReactNode; sev: 'P1' | 'P2' | 'P3'; age: React.ReactNode; owner: React.ReactNode; resolved?: boolean }) {
   const sevColors = { P1: 'var(--ar-danger)', P2: 'var(--ar-warning)', P3: 'var(--ar-info)' };
   return (
     <tr style={{ opacity: resolved ? 0.5 : 1 }}>
@@ -58,7 +58,7 @@ function IncRow({ id, tgt, sev, age, owner, resolved }) {
   );
 }
 
-function ActionRow({ label, hint, warn }) {
+function ActionRow({ label, hint, warn = false }: { label: React.ReactNode; hint: React.ReactNode; warn?: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 10, background: 'var(--ar-paper)', border: '1px solid var(--ar-hairline)' }}>
       <div>
@@ -70,7 +70,7 @@ function ActionRow({ label, hint, warn }) {
   );
 }
 
-function Audit({ who, what, tgt, when, warn, success }) {
+function Audit({ who, what, tgt, when, warn = false, success = false }: { who: React.ReactNode; what: React.ReactNode; tgt: React.ReactNode; when: React.ReactNode; warn?: boolean; success?: boolean }) {
   const dot = warn ? 'var(--ar-warning)' : success ? 'var(--ar-success)' : 'var(--ar-slate)';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: '1px solid var(--ar-hairline)' }}>
@@ -94,7 +94,7 @@ export default function Dashboard() {
           <div style={{ position: 'relative', width: 22, height: 22 }}>
             <div style={{ position: 'absolute', inset: 0, borderRadius: '52% 52% 50% 50% / 60% 60% 40% 40%', background: 'var(--ar-accent)' }} />
           </div>
-          <span style={{ fontWeight: 800, fontSize: 14, color: 'white', letterSpacing: '-0.02em' }}>AgentRegi <span style={{ color: 'var(--ar-accent)' }}>Ops</span></span>
+          <span style={{ fontWeight: 800, fontSize: 14, color: 'white', letterSpacing: '-0.02em' }}>AgentRegi <span style={{ color: 'var(--ar-accent)' }}>운영</span></span>
         </div>
 
         <div style={{ padding: '4px 8px 16px' }}>
@@ -177,7 +177,7 @@ export default function Dashboard() {
             <div className="ar-card" style={{ padding: 20 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 14px' }}>빠른 실행</h3>
               <div style={{ display: 'grid', gap: 8 }}>
-                <ActionRow label="일일 Gate 요약" hint="모든 게이트 기준" />
+                <ActionRow label="일일 게이트 요약" hint="모든 게이트 기준" />
                 <ActionRow label="패키지 재생성" hint="case_id 필요" />
                 <ActionRow label="정산 배치 실행" hint="period_end = 오늘" warn />
                 <ActionRow label="구독 결제 배치" hint="targetDate = 오늘" />

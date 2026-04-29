@@ -76,7 +76,7 @@ export default function ReviewQueue() {
               <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>{incidents.length}</div>
             </div>
             {incidents.length === 0 ? (
-              <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>최근 Incident가 없습니다.</div>
+              <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>최근 인시던트가 없습니다.</div>
             ) : (
               <div style={{ display: "grid", gap: "0.75rem" }}>
                 {incidents.slice(0, 10).map((it) => (
