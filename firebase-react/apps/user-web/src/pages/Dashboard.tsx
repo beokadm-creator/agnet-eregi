@@ -74,6 +74,12 @@ export default function Dashboard() {
     return json.data;
   }
 
+  function asArray<T = any>(value: any): T[] {
+    if (Array.isArray(value)) return value as T[];
+    if (Array.isArray(value?.items)) return value.items as T[];
+    return [];
+  }
+
   async function apiPost(path: string, body: any) {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
       method: "POST",
@@ -89,7 +95,7 @@ export default function Dashboard() {
     setBusy(true);
     try {
       const data = await apiGet("/v1/user/submissions");
-      setSubmissions(data || []);
+      setSubmissions(asArray(data));
     } catch (e: any) {
       console.error(e);
     } finally {

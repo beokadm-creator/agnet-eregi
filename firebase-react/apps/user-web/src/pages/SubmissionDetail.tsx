@@ -39,6 +39,12 @@ export default function SubmissionDetail() {
     return json.data;
   }
 
+  function asArray<T = any>(value: any): T[] {
+    if (Array.isArray(value)) return value as T[];
+    if (Array.isArray(value?.items)) return value.items as T[];
+    return [];
+  }
+
   async function apiPost(path: string, body: any) {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
       method: "POST",
@@ -56,11 +62,11 @@ export default function SubmissionDetail() {
       const data = await apiGet(`/v1/user/submissions/${subId}`);
       setSelectedSub(data);
       const evs = await apiGet(`/v1/user/submissions/${subId}/events`);
-      setEvents(evs || []);
+      setEvents(asArray(evs));
       const reqs = await apiGet(`/v1/user/submissions/${subId}/evidence-requests`);
-      setEvidenceRequests(reqs || []);
+      setEvidenceRequests(asArray(reqs));
       const qs = await apiGet(`/v1/cases/${subId}/quotes`);
-      setQuotes(qs || []);
+      setQuotes(asArray(qs));
       const wf = await apiGet(`/v1/cases/${subId}/workflow`);
       setWorkflowState(wf);
       setLog("");
