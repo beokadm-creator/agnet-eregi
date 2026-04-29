@@ -8,6 +8,9 @@ interface AppContextType {
   claims: Record<string, any> | null;
   authReady: boolean;
   accessDenied: boolean;
+  isOpsAdmin: boolean;
+  actingPartnerId: string;
+  setActingPartnerId: (id: string) => void;
   logout: () => Promise<void>;
   log: string;
   setLog: (l: string) => void;
@@ -85,6 +88,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [claims, setClaims] = useState<Record<string, any> | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [isOpsAdmin, setIsOpsAdmin] = useState(false);
+  const [actingPartnerId, setActingPartnerId] = useState<string>("");
   const [log, setLog] = useState("");
   const [busy, setBusy] = useState(false);
   
@@ -127,8 +132,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIdToken(nextToken);
       const tokenResult = await u.getIdTokenResult();
       setClaims(tokenResult.claims as any);
-      const partnerId = tokenResult.claims?.partnerId ? String(tokenResult.claims.partnerId) : "";
-      setAccessDenied(!partnerId);
+      const hasPartnerId = !!tokenResult.claims?.partnerId;
+      const hasOpsAdmin = tokenResult.claims?.opsRole === "ops_admin";
+      setIsOpsAdmin(hasOpsAdmin);
+      setAccessDenied(!hasPartnerId && !hasOpsAdmin);
       initApi(() => tokenRef.current);
     });
     return () => unsubscribe();
@@ -141,6 +148,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   async function loadCases() {
     try {
       const api = getApi();
+      api.actingPartnerId = actingPartnerId || (claims?.partnerId ? String(claims.partnerId) : "");
       setBusy(true);
       setLog("케이스 및 설정 불러오는 중...");
       
@@ -150,7 +158,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const notifyRes = await api.get("/v1/partner/notification-settings");
       setNotificationSettings(notifyRes.settings);
       
-      const pId = claims?.partnerId ? String(claims.partnerId) : "";
+      const pId = actingPartnerId || (claims?.partnerId ? String(claims.partnerId) : "");
       if (pId) {
         const stRes = await api.get(`/v1/partners/${pId}/settlements`);
         setSettlements(stRes.settlements || []);
@@ -196,6 +204,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   async function loadCaseDetail(caseId: string) {
     if (!caseId) return;
     const api = getApi();
+    api.actingPartnerId = actingPartnerId || (claims?.partnerId ? String(claims.partnerId) : "");
     setBusy(true);
     setPollError(null);
     setLog(`케이스 상세 정보 불러오는 중...`);
@@ -250,6 +259,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       idToken, claims, authReady, accessDenied, logout, log, setLog, busy, setBusy,
+      isOpsAdmin, actingPartnerId, setActingPartnerId,
       cases, setCases, selectedCase, setSelectedCase,
       notificationSettings, setNotificationSettings,
       partnerProfile, setPartnerProfile, teamMembers, setTeamMembers,

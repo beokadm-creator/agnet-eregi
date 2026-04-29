@@ -1,13 +1,19 @@
 import { getApiBaseUrl } from "../apiBase";
 
 export class ApiService {
+  public actingPartnerId: string = "";
+
   constructor(private getToken: () => string) {}
 
   private get headers() {
-    return {
+    const h: Record<string, string> = {
       Authorization: `Bearer ${this.getToken()}`,
       "Content-Type": "application/json"
     };
+    if (this.actingPartnerId) {
+      h["X-Partner-Id"] = this.actingPartnerId;
+    }
+    return h;
   }
 
   private getBaseUrl() {
@@ -15,7 +21,9 @@ export class ApiService {
   }
 
   async get(path: string) {
-    const res = await fetch(`${this.getBaseUrl()}${path}`, { headers: { Authorization: `Bearer ${this.getToken()}` } });
+    const headers: Record<string, string> = { Authorization: `Bearer ${this.getToken()}` };
+    if (this.actingPartnerId) headers["X-Partner-Id"] = this.actingPartnerId;
+    const res = await fetch(`${this.getBaseUrl()}${path}`, { headers });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.messageKo || data.error?.code || "API Error");
     return data.data;
@@ -44,9 +52,11 @@ export class ApiService {
   }
 
   async delete(path: string) {
+    const headers: Record<string, string> = { Authorization: `Bearer ${this.getToken()}` };
+    if (this.actingPartnerId) headers["X-Partner-Id"] = this.actingPartnerId;
     const res = await fetch(`${this.getBaseUrl()}${path}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${this.getToken()}` }
+      headers
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.messageKo || data.error?.code || "API Error");

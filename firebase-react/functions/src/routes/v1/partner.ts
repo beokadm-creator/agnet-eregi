@@ -1,7 +1,7 @@
 import { Express } from "express";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
-import { requireAuth } from "../../lib/auth";
+import { requireAuth, isOpsAdmin } from "../../lib/auth";
 import { ok, fail, logError } from "../../lib/http";
 import { logOpsEvent } from "../../lib/ops_audit";
 
@@ -12,8 +12,28 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
   // GET /v1/partners
   app.get("/v1/partners", requireAuth, async (req, res) => {
     const requestId = (req as any).requestId || "req-unknown";
+
+    if (isOpsAdmin((req as any).user)) {
+      try {
+        const snapshot = await db.collection("partners")
+          .select("bizName", "bizRegNo", "status", "createdAt")
+          .orderBy("bizName")
+          .get();
+
+        const partners = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          bizName: doc.data().bizName || "",
+          bizRegNo: doc.data().bizRegNo || "",
+          status: doc.data().status || "",
+        }));
+
+        return ok(res, { partners }, requestId);
+      } catch (e: unknown) {
+        logError({ endpoint: "GET /v1/partners", code: "INTERNAL", messageKo: "파트너 목록 조회 실패", err: e });
+        return fail(res, 500, "INTERNAL", "파트너 목록 조회에 실패했습니다.", { requestId });
+      }
+    }
     
-    // 필터 파라미터 추출
     const region = req.query.region as string;
     const specialty = req.query.specialty as string;
     const availableOnly = req.query.available === "true";

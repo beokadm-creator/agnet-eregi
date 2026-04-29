@@ -50,11 +50,21 @@ async function verifyAuthToken(
 }
 
 function attachUser(req: express.Request, decoded: admin.auth.DecodedIdToken): void {
+  let partnerId = partnerIdOf(decoded);
+
+  // ops_admin can specify X-Partner-Id header to act as any partner
+  if (isOpsAdmin(decoded) && !partnerId) {
+    const headerPartnerId = req.header("X-Partner-Id");
+    if (headerPartnerId) {
+      partnerId = headerPartnerId;
+    }
+  }
+
   (req as any).user = {
     ...decoded,
     uid: decoded.uid,
     isOps: isOps(decoded),
-    partnerId: partnerIdOf(decoded),
+    partnerId,
   };
 }
 
@@ -95,6 +105,10 @@ export const isOps = (auth: admin.auth.DecodedIdToken): boolean => {
   const opsRoles = ["ops_admin", "ops_operator", "ops_viewer"];
   if (auth.opsRole && opsRoles.includes(String(auth.opsRole))) return true;
   return false;
+};
+
+export const isOpsAdmin = (auth: admin.auth.DecodedIdToken): boolean => {
+  return String(auth.opsRole) === "ops_admin";
 };
 
 export const partnerIdOf = (auth: admin.auth.DecodedIdToken): string | null => {
