@@ -163,4 +163,95 @@ export function registerOpsAccessRoutes(app: express.Application, adminApp: type
     }
   });
 
+  app.post("/v1/ops/access/partner/grant", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin");
+      if (!hasRole) return;
+
+      const { targetUid, partnerId, partnerRole, approvePartner, reason } = req.body || {};
+      if (!targetUid || !partnerId || !partnerRole || !reason) {
+        return fail(res, 400, "INVALID_ARGUMENT", "targetUid, partnerId, partnerRole, reason은 필수입니다.");
+      }
+
+      if (!["owner", "admin", "member"].includes(String(partnerRole))) {
+        return fail(res, 400, "INVALID_ARGUMENT", "올바르지 않은 partnerRole 입니다.");
+      }
+
+      const user = await adminApp.auth().getUser(String(targetUid));
+      const currentClaims = user.customClaims || {};
+
+      await adminApp.auth().setCustomUserClaims(String(targetUid), {
+        ...currentClaims,
+        partnerId: String(partnerId),
+        partnerRole: String(partnerRole),
+      });
+
+      if (approvePartner === true) {
+        const db = adminApp.firestore();
+        await db.collection("partners").doc(String(partnerId)).set({
+          status: "active",
+          approvedBy: auth.uid,
+          approvedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+
+      await logOpsEvent(adminApp, {
+        gateKey: "system",
+        action: "ops_access.partner.grant",
+        status: "success",
+        actorUid: auth.uid,
+        requestId: (req as any).requestId,
+        summary: `사용자 ${user.email}(${targetUid})에게 partnerId=${partnerId}, partnerRole=${partnerRole} 부여`,
+        target: { targetUid, partnerId, partnerRole, approvePartner: approvePartner === true, reason }
+      });
+
+      return ok(res, { message: "파트너 권한 부여 성공" });
+    } catch (err: any) {
+      logError({ endpoint: "ops/access/partner/grant", code: "INTERNAL", messageKo: "파트너 권한 부여 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  app.post("/v1/ops/access/partner/revoke", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin");
+      if (!hasRole) return;
+
+      const { targetUid, reason } = req.body || {};
+      if (!targetUid || !reason) {
+        return fail(res, 400, "INVALID_ARGUMENT", "targetUid, reason은 필수입니다.");
+      }
+
+      const user = await adminApp.auth().getUser(String(targetUid));
+      const currentClaims = user.customClaims || {};
+      const newClaims = { ...currentClaims };
+      delete (newClaims as any).partnerId;
+      delete (newClaims as any).partnerRole;
+
+      await adminApp.auth().setCustomUserClaims(String(targetUid), newClaims);
+
+      await logOpsEvent(adminApp, {
+        gateKey: "system",
+        action: "ops_access.partner.revoke",
+        status: "success",
+        actorUid: auth.uid,
+        requestId: (req as any).requestId,
+        summary: `사용자 ${user.email}(${targetUid})의 partnerId/partnerRole 회수`,
+        target: { targetUid, reason }
+      });
+
+      return ok(res, { message: "파트너 권한 회수 성공" });
+    } catch (err: any) {
+      logError({ endpoint: "ops/access/partner/revoke", code: "INTERNAL", messageKo: "파트너 권한 회수 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
 }

@@ -3,9 +3,18 @@ import { getAuth } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
+function runtimeAuthDomain(): string | null {
+  if (typeof window === "undefined") return null;
+  const host = window.location.hostname;
+  const isLocal = host === "localhost" || host === "127.0.0.1" || host === "::1";
+  if (isLocal) return null;
+  if (!host) return null;
+  return host;
+}
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAaVp-7itlHDgHlLvkZAb5k8ZXh-GiRaMo",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "agent-eregi.firebaseapp.com",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || runtimeAuthDomain() || "agent-eregi.firebaseapp.com",
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "agent-eregi",
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "agent-eregi.firebasestorage.app",
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "337988126020",
