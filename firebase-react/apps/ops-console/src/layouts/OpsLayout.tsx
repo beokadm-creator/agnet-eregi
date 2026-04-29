@@ -53,13 +53,19 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
           <NavLink to="/observability" style={({ isActive }) => navLinkStyle(isActive)}>관측</NavLink>
           <NavLink to="/sla-dashboard" style={({ isActive }) => navLinkStyle(isActive)}>SLO 대시보드</NavLink>
           <NavLink to="/review-queue" style={({ isActive }) => navLinkStyle(isActive)}>리뷰 큐</NavLink>
+          <NavLink to="/incidents" style={({ isActive }) => navLinkStyle(isActive)}>인시던트</NavLink>
 
           <div className="ar-nav-section" style={{ color: 'var(--ar-fog)' }}>관리</div>
           <NavLink to="/case-packs" style={({ isActive }) => navLinkStyle(isActive)}>Case Packs</NavLink>
           <NavLink to="/access" style={({ isActive }) => navLinkStyle(isActive)}>접근 제어</NavLink>
+          <NavLink to="/release" style={({ isActive }) => navLinkStyle(isActive)}>릴리즈 관리</NavLink>
+          <NavLink to="/system" style={({ isActive }) => navLinkStyle(isActive)}>시스템 관리</NavLink>
 
           <div className="ar-nav-section" style={{ color: 'var(--ar-fog)' }}>기록</div>
           <NavLink to="/audit-logs" style={({ isActive }) => navLinkStyle(isActive)}>감사 로그</NavLink>
+
+          <div className="ar-nav-section" style={{ color: 'var(--ar-fog)' }}>설정</div>
+          <NavLink to="/settings" style={({ isActive }) => navLinkStyle(isActive)}>통합 설정</NavLink>
         </nav>
 
         {/* Sidebar Footer */}

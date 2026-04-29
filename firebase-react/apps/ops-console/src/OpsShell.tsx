@@ -15,6 +15,10 @@ import ReviewQueue from "./pages/ReviewQueue";
 import SlaDashboard from "./pages/SlaDashboard";
 import AuditLogs from "./pages/AuditLogs";
 import BusinessDashboard from "./pages/BusinessDashboard";
+import Incidents from "./pages/Incidents";
+import Release from "./pages/Release";
+import System from "./pages/System";
+import Settings from "./pages/Settings";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, isReady, accessDenied } = useAuth();
@@ -63,6 +67,10 @@ export default function App() {
             <Route path="review-queue" element={<ReviewQueue />} />
             <Route path="sla-dashboard" element={<SlaDashboard />} />
             <Route path="audit-logs" element={<AuditLogs />} />
+            <Route path="incidents" element={<Incidents />} />
+            <Route path="release" element={<Release />} />
+            <Route path="system" element={<System />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
       </BrowserRouter>
