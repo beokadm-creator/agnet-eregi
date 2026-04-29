@@ -38,7 +38,6 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
           </h1>
         </div>
 
-        {/* Navigation */}
         <nav style={{
           flex: 1,
           padding: '12px 8px',
@@ -46,17 +45,21 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
           flexDirection: 'column',
           gap: '2px',
         }}>
+          <div className="ar-nav-section" style={{ color: 'var(--ar-fog)' }}>대시보드</div>
           <NavLink to="/business" style={({ isActive }) => navLinkStyle(isActive)}>비즈니스 대시보드</NavLink>
-          <NavLink to="/" end style={({ isActive }) => navLinkStyle(isActive)}>운영 관리</NavLink>
+          <NavLink to="/" end style={({ isActive }) => navLinkStyle(isActive)}>운영 허브</NavLink>
+
+          <div className="ar-nav-section" style={{ color: 'var(--ar-fog)' }}>모니터링</div>
+          <NavLink to="/observability" style={({ isActive }) => navLinkStyle(isActive)}>관측</NavLink>
+          <NavLink to="/sla-dashboard" style={({ isActive }) => navLinkStyle(isActive)}>SLO 대시보드</NavLink>
+          <NavLink to="/review-queue" style={({ isActive }) => navLinkStyle(isActive)}>리뷰 큐</NavLink>
+
+          <div className="ar-nav-section" style={{ color: 'var(--ar-fog)' }}>관리</div>
           <NavLink to="/case-packs" style={({ isActive }) => navLinkStyle(isActive)}>Case Packs</NavLink>
-          <NavLink to="/access" style={({ isActive }) => navLinkStyle(isActive)}>Access Control</NavLink>
-          <NavLink to="/observability" style={({ isActive }) => navLinkStyle(isActive)}>Observability</NavLink>
+          <NavLink to="/access" style={({ isActive }) => navLinkStyle(isActive)}>접근 제어</NavLink>
 
-          <div style={{ height: 1, backgroundColor: 'var(--ar-ink2)', margin: '8px 8px' }} />
-
-          <NavLink to="/review-queue" style={({ isActive }) => navLinkStyle(isActive)}>Review Queue</NavLink>
-          <NavLink to="/sla-dashboard" style={({ isActive }) => navLinkStyle(isActive)}>SLA Dashboard</NavLink>
-          <NavLink to="/audit-logs" style={({ isActive }) => navLinkStyle(isActive)}>Audit Logs</NavLink>
+          <div className="ar-nav-section" style={{ color: 'var(--ar-fog)' }}>기록</div>
+          <NavLink to="/audit-logs" style={({ isActive }) => navLinkStyle(isActive)}>감사 로그</NavLink>
         </nav>
 
         {/* Sidebar Footer */}
