@@ -27,6 +27,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setAccessDenied(!isSuperAdmin && !["ops_admin", "ops_operator", "ops_viewer"].includes(opsRole));
         } catch (e) {
           console.error(e);
+          // Retry with cached token (no force refresh)
+          try {
+            const cachedToken = await u.getIdToken(false);
+            setToken(cachedToken);
+            setAccessDenied(false);
+          } catch {
+            // Both attempts failed — leave token empty, user will see login
+          }
         }
       } else {
         setToken('');
