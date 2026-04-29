@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -59,87 +58,87 @@ export default function OrganizationSettings() {
   }
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>조직 및 워크스페이스 관리</h3>
-      
-      <div style={{ marginBottom: 16 }}>
-        <h4 style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>조직 생성</h4>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div>
+        <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: "var(--pc-text)" }}>조직 생성</h4>
         <div style={{ display: "flex", gap: 8 }}>
-          <Input 
+          <input 
             type="text" 
             placeholder="조직 이름" 
             value={orgName}
             onChange={(e) => setOrgName(e.target.value)}
-            style={{ flex: 1, padding: "6px 10px", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-fog)" }}
+            className="pc-input"
+            style={{ flex: 1 }}
           />
-          <Button 
+          <button 
             onClick={handleCreateOrg} 
             disabled={busy || !orgName}
-            style={{ padding: "6px 12px", borderRadius: "var(--ar-r1)", border: "none", background: "var(--ar-accent)", color: "var(--ar-canvas)", cursor: "pointer" }}
+            className="pc-btn pc-btn-brand"
           >
             생성
-          </Button>
+          </button>
         </div>
       </div>
 
       <div>
-        <h4 style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>워크스페이스 생성</h4>
+        <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: "var(--pc-text)" }}>워크스페이스 생성</h4>
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-          <select value={selectedOrgId} onChange={(e) => setSelectedOrgId(e.target.value)} style={{ flex: 1, padding: "6px 10px" }}>
+          <select value={selectedOrgId} onChange={(e) => setSelectedOrgId(e.target.value)} className="pc-input" style={{ flex: 1 }}>
             <option value="">조직 선택</option>
             {organizations?.map((o) => (
               <option key={o.id} value={String(o.id)}>{o.name} ({o.id})</option>
             ))}
           </select>
-          <Button onClick={loadOrganizations} disabled={busy} style={{ padding: "6px 12px", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-fog)", background: "var(--ar-surface-muted)", cursor: "pointer" }}>
+          <button onClick={loadOrganizations} disabled={busy} className="pc-btn">
             새로고침
-          </Button>
+          </button>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Input 
+          <input 
             type="text" 
             placeholder="워크스페이스 이름" 
             value={workspaceName}
             onChange={(e) => setWorkspaceName(e.target.value)}
-            style={{ flex: 1, padding: "6px 10px", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-fog)" }}
+            className="pc-input"
+            style={{ flex: 1 }}
           />
-          <Button 
+          <button 
             onClick={handleCreateWorkspace} 
             disabled={busy || !workspaceName || !selectedOrgId}
-            style={{ padding: "6px 12px", borderRadius: "var(--ar-r1)", border: "none", background: "var(--ar-accent)", color: "var(--ar-canvas)", cursor: "pointer" }}
+            className="pc-btn pc-btn-brand"
           >
             생성
-          </Button>
+          </button>
         </div>
       </div>
 
-      <div style={{ marginTop: 16, fontSize: "0.9em" }}>
-        <div style={{ fontWeight: 600, marginBottom: 6 }}>내 조직</div>
+      <div>
+        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "var(--pc-text)" }}>내 조직</div>
         {organizations.length === 0 ? (
-          <div style={{ color: "var(--ar-slate)" }}>조직이 없습니다.</div>
+          <div style={{ color: "var(--pc-text-muted)", fontSize: 13, background: "var(--pc-surface)", padding: 16, borderRadius: "var(--pc-radius)", textAlign: "center" }}>조직이 없습니다.</div>
         ) : (
-          <div style={{ display: "grid", gap: 6 }}>
+          <div style={{ display: "grid", gap: 8 }}>
             {organizations?.map((o) => (
-              <div key={o.id} style={{ border: "1px solid var(--ar-surface-muted)", borderRadius: "var(--ar-r1)", padding: 10, background: "var(--ar-paper-alt)" }}>
-                <div style={{ fontWeight: 600 }}>{o.name}</div>
-                <div style={{ color: "var(--ar-graphite)", fontSize: "0.85em" }}>ID: {o.id}</div>
+              <div key={o.id} style={{ border: "1px solid var(--pc-border)", borderRadius: "var(--pc-radius)", padding: 12, background: "var(--pc-surface)" }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{o.name}</div>
+                <div className="pc-mono" style={{ color: "var(--pc-text-muted)", fontSize: 12, marginTop: 4 }}>ID: {o.id}</div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <div style={{ marginTop: 16, fontSize: "0.9em" }}>
-        <div style={{ fontWeight: 600, marginBottom: 6 }}>최근 생성된 워크스페이스</div>
+      <div>
+        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "var(--pc-text)" }}>최근 생성된 워크스페이스</div>
         {workspaces.length === 0 ? (
-          <div style={{ color: "var(--ar-slate)" }}>생성된 워크스페이스가 없습니다.</div>
+          <div style={{ color: "var(--pc-text-muted)", fontSize: 13, background: "var(--pc-surface)", padding: 16, borderRadius: "var(--pc-radius)", textAlign: "center" }}>생성된 워크스페이스가 없습니다.</div>
         ) : (
-          <div style={{ display: "grid", gap: 6 }}>
+          <div style={{ display: "grid", gap: 8 }}>
             {workspaces?.map((w) => (
-              <div key={w.id} style={{ border: "1px solid var(--ar-surface-muted)", borderRadius: "var(--ar-r1)", padding: 10, background: "var(--ar-paper-alt)" }}>
-                <div style={{ fontWeight: 600 }}>{w.name}</div>
-                <div style={{ color: "var(--ar-graphite)", fontSize: "0.85em" }}>ID: {w.id}</div>
-                <div style={{ color: "var(--ar-graphite)", fontSize: "0.85em" }}>Organization: {w.organizationId}</div>
+              <div key={w.id} style={{ border: "1px solid var(--pc-border)", borderRadius: "var(--pc-radius)", padding: 12, background: "var(--pc-surface)" }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{w.name}</div>
+                <div className="pc-mono" style={{ color: "var(--pc-text-muted)", fontSize: 12, marginTop: 4 }}>ID: {w.id}</div>
+                <div className="pc-mono" style={{ color: "var(--pc-text-muted)", fontSize: 12 }}>Organization: {w.organizationId}</div>
               </div>
             ))}
           </div>

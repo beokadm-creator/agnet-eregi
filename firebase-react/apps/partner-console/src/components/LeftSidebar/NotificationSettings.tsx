@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -58,64 +57,93 @@ export default function NotificationSettings() {
   }
 
   return (
-    <div style={{ borderTop: "2px solid var(--ar-surface-muted)", paddingTop: 16 }}>
-      <h3 style={{ margin: "0 0 12px 0", color: "var(--ar-accent)", fontSize: "1.1em" }}>알림 설정 (Webhooks)</h3>
-      <div style={{ marginBottom: 12, fontSize: "0.9em" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <Input type="checkbox" checked={notificationSettings.events?.packageReady} onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, packageReady: e.target.checked } })} />
-          Package Ready
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <Input type="checkbox" checked={notificationSettings.events?.closingReportReady} onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, closingReportReady: e.target.checked } })} />
-          Closing Report Ready
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <Input type="checkbox" checked={notificationSettings.events?.caseCompleted} onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, caseCompleted: e.target.checked } })} />
-          Case Completed
-        </label>
+    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      <div>
+        <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--pc-text)" }}>알림 설정</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, background: "var(--pc-surface)", padding: 24, borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-border)" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, cursor: "pointer" }}>
+            <input 
+              type="checkbox" 
+              checked={notificationSettings.events?.packageReady} 
+              onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, packageReady: e.target.checked } })} 
+              style={{ accentColor: "var(--pc-brand)", width: 16, height: 16 }}
+            />
+            Package Ready
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, cursor: "pointer" }}>
+            <input 
+              type="checkbox" 
+              checked={notificationSettings.events?.closingReportReady} 
+              onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, closingReportReady: e.target.checked } })} 
+              style={{ accentColor: "var(--pc-brand)", width: 16, height: 16 }}
+            />
+            Closing Report Ready
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, cursor: "pointer" }}>
+            <input 
+              type="checkbox" 
+              checked={notificationSettings.events?.caseCompleted} 
+              onChange={e => updateNotificationSettings({ ...notificationSettings, events: { ...notificationSettings.events, caseCompleted: e.target.checked } })} 
+              style={{ accentColor: "var(--pc-brand)", width: 16, height: 16 }}
+            />
+            Case Completed
+          </label>
+        </div>
       </div>
       
-      <div style={{ marginBottom: 12 }}>
-        <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em" }}>웹훅 목록</h4>
-        {notificationSettings.channels?.webhook?.map((w: any, idx: number) => (
-          <div key={idx} style={{ background: "var(--ar-paper-alt)", padding: 8, borderRadius: "var(--ar-r1)", marginBottom: 8, fontSize: "0.85em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div><strong>URL:</strong> {w.url}</div>
-              {w.secret && <div><strong>Secret:</strong> ***</div>}
-            </div>
-            <Button onClick={() => {
-              const currentChannels = notificationSettings.channels || {};
-              const newWebhooks = [...(currentChannels.webhook || [])];
-              newWebhooks.splice(idx, 1);
-              updateNotificationSettings({ ...notificationSettings, channels: { ...currentChannels, webhook: newWebhooks } });
-            }} style={{ background: "var(--ar-danger)", color: "var(--ar-canvas)", border: "none", padding: "4px 8px", borderRadius: "var(--ar-r1)", cursor: "pointer" }}>삭제</Button>
+      <div>
+        <h4 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: "var(--pc-text)" }}>웹훅 목록</h4>
+        {notificationSettings.channels?.webhook?.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+            {notificationSettings.channels?.webhook?.map((w: any, idx: number) => (
+              <div key={idx} style={{ background: "var(--pc-surface)", padding: 16, borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                  <div><strong style={{ color: "var(--pc-text)" }}>URL:</strong> {w.url}</div>
+                  {w.secret && <div><strong style={{ color: "var(--pc-text)" }}>Secret:</strong> ***</div>}
+                </div>
+                <button onClick={() => {
+                  const currentChannels = notificationSettings.channels || {};
+                  const newWebhooks = [...(currentChannels.webhook || [])];
+                  newWebhooks.splice(idx, 1);
+                  updateNotificationSettings({ ...notificationSettings, channels: { ...currentChannels, webhook: newWebhooks } });
+                }} className="pc-btn pc-btn-danger">삭제</button>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <Input placeholder="https://my-server.com/webhook" value={newWebhookUrl} onChange={e => setNewWebhookUrl(e.target.value)} style={{ padding: 6, fontSize: "0.85em" }} />
-        <Input placeholder="Secret (optional)" value={newWebhookSecret} onChange={e => setNewWebhookSecret(e.target.value)} style={{ padding: 6, fontSize: "0.85em" }} />
-        <Button onClick={addWebhook} disabled={busy || !newWebhookUrl} style={{ padding: "6px 12px", background: "var(--ar-accent)", color: "var(--ar-canvas)", border: "none", borderRadius: "var(--ar-r1)", cursor: "pointer", fontSize: "0.9em" }}>웹훅 추가</Button>
+        ) : (
+          <div style={{ color: "var(--pc-text-muted)", fontSize: 13, marginBottom: 16 }}>등록된 웹훅이 없습니다.</div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <input placeholder="https://my-server.com/webhook" value={newWebhookUrl} onChange={e => setNewWebhookUrl(e.target.value)} className="pc-input" />
+          <input placeholder="Secret (optional)" value={newWebhookSecret} onChange={e => setNewWebhookSecret(e.target.value)} className="pc-input" />
+          <button onClick={addWebhook} disabled={busy || !newWebhookUrl} className="pc-btn pc-btn-brand" style={{ alignSelf: "flex-start" }}>웹훅 추가</button>
+        </div>
       </div>
       
-      <div style={{ marginTop: 20, marginBottom: 12 }}>
-        <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em", color: "var(--ar-danger)" }}>Slack 웹훅 목록</h4>
-        {notificationSettings.channels?.slack?.map((s: any, idx: number) => (
-          <div key={idx} style={{ background: "var(--ar-danger-soft)", padding: 8, borderRadius: "var(--ar-r1)", marginBottom: 8, fontSize: "0.85em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div><strong>URL:</strong> {s.url}</div>
-            </div>
-            <Button onClick={() => {
-              const currentChannels = notificationSettings.channels || {};
-              const newSlack = [...(currentChannels.slack || [])];
-              newSlack.splice(idx, 1);
-              updateNotificationSettings({ ...notificationSettings, channels: { ...currentChannels, slack: newSlack } });
-            }} style={{ background: "var(--ar-danger)", color: "var(--ar-canvas)", border: "none", padding: "4px 8px", borderRadius: "var(--ar-r1)", cursor: "pointer" }}>삭제</Button>
+      <div>
+        <h4 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: "var(--pc-danger)" }}>Slack 웹훅 목록</h4>
+        {notificationSettings.channels?.slack?.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+            {notificationSettings.channels?.slack?.map((s: any, idx: number) => (
+              <div key={idx} style={{ background: "var(--pc-danger-soft)", padding: 16, borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-danger)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                  <div><strong style={{ color: "var(--pc-text)" }}>URL:</strong> {s.url}</div>
+                </div>
+                <button onClick={() => {
+                  const currentChannels = notificationSettings.channels || {};
+                  const newSlack = [...(currentChannels.slack || [])];
+                  newSlack.splice(idx, 1);
+                  updateNotificationSettings({ ...notificationSettings, channels: { ...currentChannels, slack: newSlack } });
+                }} className="pc-btn pc-btn-danger">삭제</button>
+              </div>
+            ))}
           </div>
-        ))}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-          <Input placeholder="https://hooks.slack.com/services/..." value={newSlackWebhookUrl} onChange={e => setNewSlackWebhookUrl(e.target.value)} style={{ padding: 6, fontSize: "0.85em" }} />
-          <Button onClick={addSlackWebhook} disabled={busy || !newSlackWebhookUrl} style={{ padding: "6px 12px", background: "var(--ar-danger)", color: "var(--ar-canvas)", border: "none", borderRadius: "var(--ar-r1)", cursor: "pointer", fontSize: "0.9em" }}>Slack 웹훅 추가</Button>
+        ) : (
+          <div style={{ color: "var(--pc-text-muted)", fontSize: 13, marginBottom: 16 }}>등록된 Slack 웹훅이 없습니다.</div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <input placeholder="https://hooks.slack.com/services/..." value={newSlackWebhookUrl} onChange={e => setNewSlackWebhookUrl(e.target.value)} className="pc-input" />
+          <button onClick={addSlackWebhook} disabled={busy || !newSlackWebhookUrl} className="pc-btn" style={{ alignSelf: "flex-start", background: "var(--pc-danger)", color: "#fff", borderColor: "var(--pc-danger)" }}>Slack 웹훅 추가</button>
         </div>
       </div>
     </div>

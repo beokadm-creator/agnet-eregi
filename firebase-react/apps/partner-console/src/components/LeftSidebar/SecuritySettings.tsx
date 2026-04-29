@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button, Input } from "@agentregi/ui-components";
 import { getAuth, multiFactor, PhoneAuthProvider, PhoneMultiFactorGenerator, RecaptchaVerifier } from "firebase/auth";
 import { useAppContext } from "../../context/AppContext";
 
@@ -35,18 +34,14 @@ export default function SecuritySettings() {
     setLog("[Security] MFA(2FA) 등록 요청 중...");
 
     try {
-      // 1. 세션 가져오기
       const session = await multiFactor(user).getSession();
       
-      // 2. reCAPTCHA 생성 (Firebase Auth SMS 요구사항)
-      // 실제 환경에서는 button 등에 연결하지만 여기서는 보이지 않는 형태로 구성
       if (!window.recaptchaVerifier) {
         window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
           size: 'invisible',
         });
       }
 
-      // 3. SMS 전송
       const phoneAuthProvider = new PhoneAuthProvider(auth);
       const vid = await phoneAuthProvider.verifyPhoneNumber(
         { phoneNumber, session },
@@ -57,7 +52,6 @@ export default function SecuritySettings() {
       setLog("[Security] 인증 코드가 전송되었습니다. (SMS)");
     } catch (error: any) {
       setLog(`[Security] MFA 요청 실패: ${error.message}`);
-      // reCAPTCHA 초기화
       if (window.recaptchaVerifier) {
         window.recaptchaVerifier.clear();
         window.recaptchaVerifier = null;
@@ -75,7 +69,6 @@ export default function SecuritySettings() {
       const cred = PhoneAuthProvider.credential(verificationId, verificationCode);
       const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred);
       
-      // 4. 인증 수단 등록 완료
       await multiFactor(user).enroll(multiFactorAssertion, "운영자 휴대전화");
       setLog("[Security] 2FA (MFA) 등록이 완료되었습니다!");
       
@@ -105,40 +98,44 @@ export default function SecuritySettings() {
   }
 
   return (
-    <div style={{ marginTop: 24, padding: 16, border: "1px solid var(--ar-fog)", borderRadius: "var(--ar-r1)", background: "var(--ar-paper-alt)" }}>
-      <h3 style={{ margin: "0 0 12px" }}>보안 설정 (2FA / MFA)</h3>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <h3 style={{ margin: "0", fontSize: 16, fontWeight: 700, color: "var(--pc-text)" }}>보안 설정 (2FA / MFA)</h3>
       <div id="recaptcha-container"></div>
       
       {mfaEnrolled ? (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ color: "var(--ar-success)", fontWeight: "bold" }}>✅ 2FA가 활성화되어 있습니다.</span>
-          <Button variant="danger" size="sm" onClick={handleUnenrollMfa} disabled={busy}>해제</Button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--pc-success-soft)", padding: 16, borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-success)" }}>
+          <span style={{ color: "var(--pc-success)", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>✅ 2FA가 활성화되어 있습니다.</span>
+          <button onClick={handleUnenrollMfa} disabled={busy} className="pc-btn pc-btn-danger">해제</button>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <span style={{ color: "var(--ar-danger)", fontSize: "0.9em" }}>⚠️ 계정 보호를 위해 2단계 인증(MFA)을 등록하세요.</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, background: "var(--pc-surface)", padding: 24, borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-border)" }}>
+          <span style={{ color: "var(--pc-danger)", fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>⚠️ 계정 보호를 위해 2단계 인증(MFA)을 등록하세요.</span>
           
           {!verificationId ? (
             <div style={{ display: "flex", gap: 8 }}>
-              <Input 
+              <input 
                 value={phoneNumber} 
                 onChange={e => setPhoneNumber(e.target.value)} 
                 placeholder="+821012345678" 
+                className="pc-input"
+                style={{ flex: 1 }}
               />
-              <Button variant="primary" onClick={handleEnrollMfa} disabled={busy || !phoneNumber}>
+              <button onClick={handleEnrollMfa} disabled={busy || !phoneNumber} className="pc-btn pc-btn-brand">
                 SMS 인증
-              </Button>
+              </button>
             </div>
           ) : (
             <div style={{ display: "flex", gap: 8 }}>
-              <Input 
+              <input 
                 value={verificationCode} 
                 onChange={e => setVerificationCode(e.target.value)} 
                 placeholder="인증 코드 6자리" 
+                className="pc-input"
+                style={{ flex: 1 }}
               />
-              <Button variant="primary" onClick={handleVerifyCode} disabled={busy || !verificationCode}>
+              <button onClick={handleVerifyCode} disabled={busy || !verificationCode} className="pc-btn pc-btn-brand">
                 확인 및 등록
-              </Button>
+              </button>
             </div>
           )}
         </div>

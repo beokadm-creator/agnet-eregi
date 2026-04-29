@@ -20,6 +20,7 @@ import Release from "./pages/Release";
 import System from "./pages/System";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
+import PartnerApplications from "./pages/PartnerApplications";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, isReady, accessDenied } = useAuth();
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="access" element={<AccessControl />} />
             <Route path="observability" element={<Observability />} />
             <Route path="review-queue" element={<ReviewQueue />} />
+            <Route path="partner-applications" element={<PartnerApplications />} />
             <Route path="sla-dashboard" element={<SlaDashboard />} />
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="incidents" element={<Incidents />} />

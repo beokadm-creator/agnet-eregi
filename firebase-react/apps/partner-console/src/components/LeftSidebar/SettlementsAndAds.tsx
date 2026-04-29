@@ -1,4 +1,3 @@
-import { Button } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -24,22 +23,30 @@ export default function SettlementsAndAds() {
   }
 
   return (
-    <div style={{ borderTop: "2px solid var(--ar-surface-muted)", paddingTop: 16, marginTop: 16 }}>
-      <h3 style={{ margin: "0 0 12px 0", color: "var(--ar-success)", fontSize: "1.1em" }}>정산 및 광고 과금 (EP-06-03, EP-02-03)</h3>
-      
-      <div style={{ marginBottom: 16 }}>
-        <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em", color: "var(--ar-success)" }}>내 정산 원장</h4>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div>
+        <h4 style={{ margin: "0 0 12px 0", fontSize: 16, color: "var(--pc-text)", fontWeight: 700 }}>내 정산 원장</h4>
         {settlements.length === 0 ? (
-          <div style={{ color: "var(--ar-slate)", fontSize: "0.85em" }}>정산 내역이 없습니다. (배치 실행 후 생성됨)</div>
+          <div style={{ color: "var(--pc-text-muted)", fontSize: 14, background: "var(--pc-surface)", padding: 24, borderRadius: "var(--pc-radius)", textAlign: "center", border: "1px solid var(--pc-border)" }}>
+            정산 내역이 없습니다. (배치 실행 후 생성됨)
+          </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {settlements?.map(st => (
-              <div key={st.id} style={{ background: "var(--ar-success-soft)", padding: 8, borderRadius: "var(--ar-r1)", fontSize: "0.85em", border: "1px solid var(--ar-success-soft)" }}>
-                <div style={{ fontWeight: "bold", marginBottom: 4 }}>ID: {st.id} ({st.status.toUpperCase()})</div>
-                <div style={{ color: "var(--ar-graphite)" }}>
-                  총 결제: {st.totalPaymentAmount.toLocaleString()}원 | 환불: {st.totalRefundAmount.toLocaleString()}원<br/>
-                  플랫폼 수수료: -{st.platformFee.toLocaleString()}원 | 광고비 차감: -{st.adDeductionAmount.toLocaleString()}원<br/>
-                  <strong style={{ color: "var(--ar-warning)", fontSize: "1.1em" }}>최종 지급액: {st.netSettlementAmount.toLocaleString()}원</strong>
+              <div key={st.id} style={{ background: "var(--pc-success-soft)", padding: 16, borderRadius: "var(--pc-radius)", fontSize: 14, border: "1px solid var(--pc-success)" }}>
+                <div style={{ fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                  ID: {st.id}
+                  <span className="pc-badge pc-badge-success">{st.status.toUpperCase()}</span>
+                </div>
+                <div style={{ color: "var(--pc-text-muted)", lineHeight: 1.6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>총 결제:</span> <span>{st.totalPaymentAmount.toLocaleString()}원</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>환불:</span> <span>{st.totalRefundAmount.toLocaleString()}원</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>플랫폼 수수료:</span> <span>-{st.platformFee.toLocaleString()}원</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>광고비 차감:</span> <span>-{st.adDeductionAmount.toLocaleString()}원</span></div>
+                  <div style={{ borderTop: "1px dashed var(--pc-border)", margin: "8px 0" }}></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "var(--pc-text)", fontWeight: 700, fontSize: 16 }}>
+                    <span>최종 지급액:</span> <span>{st.netSettlementAmount.toLocaleString()}원</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -48,22 +55,27 @@ export default function SettlementsAndAds() {
       </div>
 
       <div>
-        <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95em", color: "var(--ar-accent)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h4 style={{ margin: "0 0 12px 0", fontSize: 16, color: "var(--pc-text)", fontWeight: 700, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           광고 캠페인
-          <Button onClick={createAdCampaign} disabled={busy} style={{ background: "var(--ar-accent)", color: "var(--ar-canvas)", border: "none", padding: "4px 8px", borderRadius: "var(--ar-r1)", cursor: "pointer", fontSize: "0.85em" }}>
+          <button onClick={createAdCampaign} disabled={busy} className="pc-btn pc-btn-brand">
             + 새 캠페인 (CPC)
-          </Button>
+          </button>
         </h4>
         {adCampaigns.length === 0 ? (
-          <div style={{ color: "var(--ar-slate)", fontSize: "0.85em" }}>활성 캠페인이 없습니다.</div>
+          <div style={{ color: "var(--pc-text-muted)", fontSize: 14, background: "var(--pc-surface)", padding: 24, borderRadius: "var(--pc-radius)", textAlign: "center", border: "1px solid var(--pc-border)" }}>
+            활성 캠페인이 없습니다.
+          </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {adCampaigns?.map(camp => (
-              <div key={camp.id} style={{ background: "var(--ar-accent-soft)", padding: 8, borderRadius: "var(--ar-r1)", fontSize: "0.85em", border: "1px solid var(--ar-accent-soft)" }}>
-                <div style={{ fontWeight: "bold", marginBottom: 4 }}>
-                  ID: {camp.id} <span style={{ color: camp.status === "active" ? "var(--ar-success)" : "var(--ar-danger)" }}>({camp.status})</span>
+              <div key={camp.id} style={{ background: "var(--pc-brand-soft)", padding: 16, borderRadius: "var(--pc-radius)", fontSize: 14, border: "1px solid var(--pc-brand)" }}>
+                <div style={{ fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                  ID: {camp.id} 
+                  <span className={`pc-badge ${camp.status === "active" ? "pc-badge-success" : "pc-badge-danger"}`}>
+                    {camp.status}
+                  </span>
                 </div>
-                <div style={{ color: "var(--ar-graphite)" }}>
+                <div style={{ color: "var(--pc-text-muted)", lineHeight: 1.6 }}>
                   유형: {camp.type} | 입찰가: {camp.bidAmount}원 | 일일 예산: {camp.dailyBudget.toLocaleString()}원
                 </div>
               </div>

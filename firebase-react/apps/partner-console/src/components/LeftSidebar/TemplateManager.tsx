@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Button, Input } from "@agentregi/ui-components";
 import { getAuth } from "firebase/auth";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
@@ -107,66 +106,75 @@ export default function TemplateManager() {
   }
 
   return (
-    <div style={{ marginTop: 24, padding: 16, border: "1px solid var(--ar-fog)", borderRadius: "var(--ar-r1)", background: "var(--ar-paper-alt)" }}>
-      <h3 style={{ margin: "0 0 12px" }}>폼 템플릿 관리</h3>
-      <p style={{ fontSize: "0.9em", color: "var(--ar-graphite)", marginBottom: 12 }}>
-        사용자에게 제공할 폼 빌더 템플릿(JSON Schema)을 등록하고 관리하세요.
-      </p>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-        <Input 
-          value={newName} 
-          onChange={(e: any) => setNewName(e.target.value)} 
-          placeholder="템플릿 이름 (예: 기본 고객 양식)" 
-        />
-        <Input 
-          value={newDescription} 
-          onChange={(e: any) => setNewDescription(e.target.value)} 
-          placeholder="설명 (선택 사항)" 
-        />
-        <textarea 
-          value={newSchema} 
-          onChange={(e: any) => setNewSchema(e.target.value)} 
-          placeholder={'Schema JSON (예: {"type": "object", "properties": {}})'} 
-          style={{ minHeight: "80px", fontFamily: "var(--ar-font-mono)", padding: "8px", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-fog)" }}
-        />
-        <textarea 
-          value={newUiSchema} 
-          onChange={(e: any) => setNewUiSchema(e.target.value)} 
-          placeholder={'UI Schema JSON (선택 사항)'} 
-          style={{ minHeight: "60px", fontFamily: "var(--ar-font-mono)", padding: "8px", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-fog)" }}
-        />
-        <Button variant="primary" onClick={handleCreateTemplate} disabled={busy || !newName || !newSchema}>
-          새 템플릿 등록
-        </Button>
+    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      <div>
+        <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--pc-text)" }}>새 템플릿 등록</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, background: "var(--pc-surface)", padding: 24, borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-border)" }}>
+          <input 
+            value={newName} 
+            onChange={(e: any) => setNewName(e.target.value)} 
+            placeholder="템플릿 이름 (예: 기본 고객 양식)" 
+            className="pc-input"
+          />
+          <input 
+            value={newDescription} 
+            onChange={(e: any) => setNewDescription(e.target.value)} 
+            placeholder="설명 (선택 사항)" 
+            className="pc-input"
+          />
+          <textarea 
+            value={newSchema} 
+            onChange={(e: any) => setNewSchema(e.target.value)} 
+            placeholder={'Schema JSON (예: {"type": "object", "properties": {}})'} 
+            className="pc-input pc-mono"
+            style={{ minHeight: "120px", resize: "vertical" }}
+          />
+          <textarea 
+            value={newUiSchema} 
+            onChange={(e: any) => setNewUiSchema(e.target.value)} 
+            placeholder={'UI Schema JSON (선택 사항)'} 
+            className="pc-input pc-mono"
+            style={{ minHeight: "80px", resize: "vertical" }}
+          />
+          <button onClick={handleCreateTemplate} disabled={busy || !newName || !newSchema} className="pc-btn pc-btn-brand" style={{ alignSelf: "flex-start", marginTop: 8 }}>
+            새 템플릿 등록
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ fontWeight: "bold" }}>등록된 템플릿 목록</div>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 16, color: "var(--pc-text)" }}>등록된 템플릿 목록</div>
         {items.length === 0 ? (
-          <div style={{ color: "var(--ar-graphite)", fontSize: "0.9em" }}>등록된 템플릿이 없습니다.</div>
+          <div style={{ color: "var(--pc-text-muted)", fontSize: 14, background: "var(--pc-surface)", padding: 24, borderRadius: "var(--pc-radius)", textAlign: "center", border: "1px solid var(--pc-border)" }}>
+            등록된 템플릿이 없습니다.
+          </div>
         ) : (
-          items?.map((t) => (
-            <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12, border: "1px solid var(--ar-hairline)", borderRadius: "var(--ar-r1)", background: "var(--ar-canvas)" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontWeight: "bold" }}>{t.name}</span>
-                <Button variant="danger" size="sm" onClick={() => handleDelete(t.id)} disabled={busy}>
-                  삭제
-                </Button>
-              </div>
-              {t.description && <div style={{ fontSize: "0.85em", color: "var(--ar-graphite)" }}>{t.description}</div>}
-              <div style={{ fontSize: "0.8em", color: "var(--ar-graphite)", background: "var(--ar-paper-alt)", padding: 8, borderRadius: "var(--ar-r1)", overflowX: "auto" }}>
-                <strong>Schema:</strong>
-                <pre style={{ margin: "4px 0 0", fontFamily: "var(--ar-font-mono)" }}>{JSON.stringify(t.schema, null, 2)}</pre>
-              </div>
-              {t.uiSchema && Object.keys(t.uiSchema).length > 0 && (
-                <div style={{ fontSize: "0.8em", color: "var(--ar-graphite)", background: "var(--ar-paper-alt)", padding: 8, borderRadius: "var(--ar-r1)", overflowX: "auto" }}>
-                  <strong>UI Schema:</strong>
-                  <pre style={{ margin: "4px 0 0", fontFamily: "var(--ar-font-mono)" }}>{JSON.stringify(t.uiSchema, null, 2)}</pre>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {items?.map((t) => (
+              <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: 12, padding: 20, border: "1px solid var(--pc-border)", borderRadius: "var(--pc-radius)", background: "var(--pc-bg)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontWeight: 700, fontSize: 16, color: "var(--pc-text)" }}>{t.name}</span>
+                  <button onClick={() => handleDelete(t.id)} disabled={busy} className="pc-btn pc-btn-danger">
+                    삭제
+                  </button>
                 </div>
-              )}
-            </div>
-          ))
+                {t.description && <div style={{ fontSize: 14, color: "var(--pc-text-muted)" }}>{t.description}</div>}
+                
+                <div style={{ display: "grid", gridTemplateColumns: t.uiSchema && Object.keys(t.uiSchema).length > 0 ? "1fr 1fr" : "1fr", gap: 16, marginTop: 8 }}>
+                  <div style={{ fontSize: 12, color: "var(--pc-text-muted)", background: "var(--pc-surface)", padding: 12, borderRadius: "var(--pc-radius)", overflowX: "auto", border: "1px solid var(--pc-border)" }}>
+                    <strong style={{ color: "var(--pc-text)", display: "block", marginBottom: 8 }}>Schema:</strong>
+                    <pre className="pc-mono" style={{ margin: 0 }}>{JSON.stringify(t.schema, null, 2)}</pre>
+                  </div>
+                  {t.uiSchema && Object.keys(t.uiSchema).length > 0 && (
+                    <div style={{ fontSize: 12, color: "var(--pc-text-muted)", background: "var(--pc-surface)", padding: 12, borderRadius: "var(--pc-radius)", overflowX: "auto", border: "1px solid var(--pc-border)" }}>
+                      <strong style={{ color: "var(--pc-text)", display: "block", marginBottom: 8 }}>UI Schema:</strong>
+                      <pre className="pc-mono" style={{ margin: 0 }}>{JSON.stringify(t.uiSchema, null, 2)}</pre>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

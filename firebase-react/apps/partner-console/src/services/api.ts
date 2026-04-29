@@ -51,6 +51,17 @@ export class ApiService {
     return data.data;
   }
 
+  async patch(path: string, body: any) {
+    const res = await fetch(`${this.getBaseUrl()}${path}`, {
+      method: "PATCH",
+      headers: this.headers,
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.messageKo || data.error?.code || "API Error");
+    return data.data;
+  }
+
   async delete(path: string) {
     const headers: Record<string, string> = { Authorization: `Bearer ${this.getToken()}` };
     if (this.actingPartnerId) headers["X-Partner-Id"] = this.actingPartnerId;

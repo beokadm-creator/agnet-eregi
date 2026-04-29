@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -35,68 +34,68 @@ export default function RefundsManager() {
   }
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", borderBottom: "1px solid var(--ar-surface-muted)", paddingBottom: 8 }}>💸 환불 요청 (Refunds)</h3>
+    <div className="pc-card">
+      <div className="pc-card-header" style={{ borderBottom: "1px solid var(--pc-border)", paddingBottom: 16, marginBottom: 16 }}>
+        <h3 className="pc-card-title" style={{ margin: 0, fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
+          <span>💸</span> 환불 요청
+        </h3>
+      </div>
       
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-        <Input 
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16, background: "var(--pc-surface)", padding: 16, borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-border)" }}>
+        <input 
           placeholder="결제 ID (Payment ID)" 
           value={newRefundPaymentId} 
           onChange={e => setNewRefundPaymentId(e.target.value)} 
-          style={{ flex: 1, padding: 6, minWidth: 150 }} 
+          className="pc-input"
         />
-        <Input 
+        <input 
           type="number"
           placeholder="환불 금액" 
           value={newRefundAmount || ""} 
           onChange={e => setNewRefundAmount(Number(e.target.value))} 
-          style={{ width: 100, padding: 6 }} 
+          className="pc-input"
         />
-        <Input 
+        <input 
           placeholder="환불 사유" 
           value={newRefundReason} 
           onChange={e => setNewRefundReason(e.target.value)} 
-          style={{ flex: 2, padding: 6, minWidth: 200 }} 
+          className="pc-input"
+          style={{ gridColumn: "span 2" }}
         />
-        <Button onClick={createRefund} disabled={busy || !newRefundPaymentId || !newRefundAmount || !newRefundReason} style={{ padding: "6px 12px", background: "var(--ar-warning)", color: "var(--ar-canvas)", border: "none", borderRadius: "var(--ar-r1)", cursor: "pointer", fontWeight: "bold" }}>
+        <button onClick={createRefund} disabled={busy || !newRefundPaymentId || !newRefundAmount || !newRefundReason} className="pc-btn pc-btn-brand" style={{ gridColumn: "span 2", background: "var(--pc-warning)", borderColor: "var(--pc-warning)" }}>
           환불 요청
-        </Button>
+        </button>
       </div>
 
       {refunds.length === 0 ? (
-        <div style={{ color: "var(--ar-slate)", fontSize: "0.9em" }}>환불 요청 내역이 없습니다.</div>
+        <div style={{ color: "var(--pc-text-muted)", fontSize: 13, textAlign: "center", padding: 24 }}>환불 요청 내역이 없습니다.</div>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>결제 ID</th>
-              <th style={{ textAlign: "right", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>금액</th>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>사유</th>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>상태</th>
-            </tr>
-          </thead>
-          <tbody>
-            {refunds?.map(r => (
-              <tr key={r.id}>
-                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)", fontFamily: "var(--ar-font-mono)" }}>{r.paymentId}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)", textAlign: "right", fontWeight: "bold" }}>{r.amount.toLocaleString()}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)" }}>{r.reason}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)" }}>
-                  <span style={{ 
-                    padding: "2px 6px", 
-                    borderRadius: "var(--ar-r1)", 
-                    fontSize: "0.85em", 
-                    fontWeight: "bold",
-                    background: r.status === "executed" ? "var(--ar-success-soft)" : r.status === "approved" ? "var(--ar-accent-soft)" : r.status === "rejected" ? "var(--ar-danger-soft)" : "var(--ar-warning-soft)",
-                    color: r.status === "executed" ? "var(--ar-success)" : r.status === "approved" ? "var(--ar-accent)" : r.status === "rejected" ? "var(--ar-danger)" : "var(--ar-warning)"
-                  }}>
-                    {r.status.toUpperCase()}
-                  </span>
-                </td>
+        <div style={{ border: "1px solid var(--pc-border)", borderRadius: "var(--pc-radius)", overflow: "hidden" }}>
+          <table className="pc-table" style={{ margin: 0 }}>
+            <thead>
+              <tr>
+                <th>결제 ID</th>
+                <th style={{ textAlign: "right" }}>금액</th>
+                <th>사유</th>
+                <th>상태</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {refunds?.map(r => (
+                <tr key={r.id}>
+                  <td className="pc-mono" style={{ fontSize: 12 }}>{r.paymentId}</td>
+                  <td style={{ textAlign: "right", fontWeight: 700, color: "var(--pc-text)" }}>{r.amount.toLocaleString()}</td>
+                  <td style={{ fontSize: 13 }}>{r.reason}</td>
+                  <td>
+                    <span className={`pc-badge ${r.status === "executed" ? "pc-badge-success" : r.status === "approved" ? "pc-badge-brand" : r.status === "rejected" ? "pc-badge-danger" : "pc-badge-warning"}`}>
+                      {r.status.toUpperCase()}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

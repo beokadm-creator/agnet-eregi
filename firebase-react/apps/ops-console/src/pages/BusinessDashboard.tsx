@@ -65,14 +65,14 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_VARIANT: Record<string, string> = {
-  completed: "ar-badge-success",
-  collecting: "ar-badge-info",
-  packaging: "ar-badge-info",
-  ready: "ar-badge-info",
-  waiting_partner: "ar-badge-warning",
-  draft: "ar-badge-neutral",
-  failed: "ar-badge-danger",
-  cancelled: "ar-badge-danger",
+  completed: "ops-badge-success",
+  collecting: "ops-badge-brand",
+  packaging: "ops-badge-brand",
+  ready: "ops-badge-brand",
+  waiting_partner: "ops-badge-warning",
+  draft: "ops-badge-neutral",
+  failed: "ops-badge-danger",
+  cancelled: "ops-badge-danger",
 };
 
 const PAYMENT_STATUS_LABELS: Record<string, string> = {
@@ -84,23 +84,23 @@ const PAYMENT_STATUS_LABELS: Record<string, string> = {
 };
 
 const PAYMENT_STATUS_VARIANT: Record<string, string> = {
-  succeeded: "ar-badge-success",
-  pending: "ar-badge-warning",
-  failed: "ar-badge-danger",
-  refunded: "ar-badge-neutral",
-  cancelled: "ar-badge-neutral",
+  succeeded: "ops-badge-success",
+  pending: "ops-badge-warning",
+  failed: "ops-badge-danger",
+  refunded: "ops-badge-neutral",
+  cancelled: "ops-badge-neutral",
 };
 
 const BAR_COLORS: Record<string, string> = {
-  completed: "var(--ar-success)",
-  collecting: "var(--ar-info)",
-  packaging: "var(--ar-info)",
-  ready: "var(--ar-info)",
-  waiting_partner: "var(--ar-warning)",
-  draft: "var(--ar-warning)",
-  failed: "var(--ar-danger)",
-  cancelled: "var(--ar-danger)",
-  unknown: "var(--ar-fog)",
+  completed: "var(--ops-success)",
+  collecting: "var(--ops-brand)",
+  packaging: "var(--ops-brand)",
+  ready: "var(--ops-brand)",
+  waiting_partner: "var(--ops-warning)",
+  draft: "var(--ops-warning)",
+  failed: "var(--ops-danger)",
+  cancelled: "var(--ops-danger)",
+  unknown: "var(--ops-border)",
 };
 
 // --- Helpers ---
@@ -144,8 +144,7 @@ export default function BusinessDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/v1/ops/business/summary`, {
+      const res = await fetch(`${getApiBaseUrl()}/v1/ops/business/summary`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -165,14 +164,12 @@ export default function BusinessDashboard() {
     fetchSummary();
   }, [fetchSummary]);
 
-  // Revenue change calculation
   const revenueChange = data
     ? data.payments.lastMonthRevenue
       ? ((data.payments.thisMonthRevenue - data.payments.lastMonthRevenue) / data.payments.lastMonthRevenue) * 100
       : 0
     : 0;
 
-  // Case status totals for bar chart
   const statusEntries = data
     ? Object.entries(data.cases.byStatus).sort((a, b) => b[1] - a[1])
     : [];
@@ -183,203 +180,173 @@ export default function BusinessDashboard() {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>
-            비즈니스 대시보드
-          </h1>
-          <div className="ar-eyebrow" style={{ marginTop: 6, marginBottom: 0 }}>
-            플랫폼 핵심 지표 현황
-          </div>
+          <h1 className="ops-title">비즈니스 대시보드</h1>
+          <p className="ops-subtitle">플랫폼 핵심 지표 현황을 실시간으로 확인합니다.</p>
         </div>
         <button
-          className="ar-btn ar-btn-sm ar-btn-ink"
+          className="ops-btn"
           onClick={fetchSummary}
           disabled={loading}
         >
-          {loading ? "불러오는 중..." : "새로고침"}
+          {loading ? "갱신 중..." : "↻ 새로고침"}
         </button>
       </div>
 
       {error && (
-        <div style={{ color: "var(--ar-danger)", fontSize: 13 }}>{error}</div>
+        <div style={{ color: "var(--ops-danger)", fontSize: 13, padding: "12px", background: "var(--ops-danger-soft)", borderRadius: "var(--ops-radius)" }}>
+          {error}
+        </div>
       )}
 
       {/* KPI Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+      <div className="ops-grid">
         {/* 케이스 */}
-        <div className="ar-card" style={{ padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 20 }}>📋</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ar-slate)" }}>케이스</span>
-          </div>
-          <div className="ar-tabular" style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1 }}>
-            {data?.cases.total ?? "-"}
-          </div>
-          <div style={{ fontSize: 11, color: "var(--ar-slate)", marginTop: 8 }}>
-            {data ? (
-              <>
-                <span style={{ color: "var(--ar-success)" }}>+{data.cases.today}</span> 오늘 /{" "}
-                <span style={{ color: "var(--ar-accent)" }}>+{data.cases.thisMonth}</span> 이번달
-              </>
-            ) : "-"}
+        <div className="ops-metric">
+          <div className="ops-metric-label">총 케이스</div>
+          <div className="ops-metric-value">{data?.cases.total ?? "-"}</div>
+          <div className="ops-metric-change">
+            <span style={{ color: "var(--ops-success)" }}>+{data?.cases.today ?? 0}</span> 오늘 / <span style={{ color: "var(--ops-brand)" }}>+{data?.cases.thisMonth ?? 0}</span> 이번달
           </div>
         </div>
 
         {/* 활성 파트너 */}
-        <div className="ar-card" style={{ padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 20 }}>👥</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ar-slate)" }}>활성 파트너</span>
-          </div>
-          <div className="ar-tabular" style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1 }}>
-            {data ? `${data.partners.active}` : "-"}
-          </div>
-          <div style={{ fontSize: 11, color: "var(--ar-slate)", marginTop: 8 }}>
-            {data ? `전체 ${data.partners.total}명 중 활성` : "-"}
+        <div className="ops-metric">
+          <div className="ops-metric-label">활성 파트너</div>
+          <div className="ops-metric-value">{data ? `${data.partners.active}` : "-"}</div>
+          <div className="ops-metric-change">
+            <span style={{ color: "var(--ops-text-muted)" }}>전체 {data?.partners.total ?? 0}명 중 활성</span>
           </div>
         </div>
 
         {/* 이번달 매출 */}
-        <div className="ar-card" style={{ padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 20 }}>💰</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ar-slate)" }}>이번달 매출</span>
-          </div>
-          <div className="ar-tabular" style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1 }}>
-            {data ? formatKRW(data.payments.thisMonthRevenue) : "-"}
-          </div>
-          <div style={{ fontSize: 11, color: "var(--ar-slate)", marginTop: 8 }}>
+        <div className="ops-metric">
+          <div className="ops-metric-label">이번달 매출</div>
+          <div className="ops-metric-value">{data ? formatKRW(data.payments.thisMonthRevenue) : "-"}</div>
+          <div className="ops-metric-change">
             {data && data.payments.lastMonthRevenue > 0 ? (
-              <span style={{ color: revenueChange >= 0 ? "var(--ar-success)" : "var(--ar-danger)" }}>
+              <span className={revenueChange >= 0 ? "ops-metric-up" : "ops-metric-down"}>
                 {revenueChange >= 0 ? "▲" : "▼"} {Math.abs(revenueChange).toFixed(1)}% 지난달 대비
               </span>
-            ) : data ? (
-              "이전 데이터 없음"
-            ) : (
-              "-"
-            )}
+            ) : "이전 데이터 없음"}
           </div>
         </div>
 
         {/* 전환율 */}
-        <div className="ar-card" style={{ padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 20 }}>🎯</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ar-slate)" }}>전환율</span>
-          </div>
-          <div className="ar-tabular" style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1 }}>
-            {data ? `${(data.funnel.conversionRate * 100).toFixed(1)}%` : "-"}
-          </div>
-          <div style={{ fontSize: 11, color: "var(--ar-slate)", marginTop: 8 }}>
-            {data ? `${data.funnel.completedThisMonth} / ${data.funnel.sessionsThisMonth} 세션` : "-"}
+        <div className="ops-metric">
+          <div className="ops-metric-label">전환율 (이번달)</div>
+          <div className="ops-metric-value">{data ? `${(data.funnel.conversionRate * 100).toFixed(1)}%` : "-"}</div>
+          <div className="ops-metric-change">
+            <span style={{ color: "var(--ops-text-muted)" }}>{data?.funnel.completedThisMonth ?? 0} / {data?.funnel.sessionsThisMonth ?? 0} 세션</span>
           </div>
         </div>
       </div>
 
-      {/* Two-column grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16 }}>
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Case status bar chart */}
-          <div className="ar-card" style={{ padding: 20 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px" }}>케이스 상태 분포</h3>
-            {statusEntries.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {statusEntries.map(([status, count]) => {
-                  const pct = totalByStatus > 0 ? (count / totalByStatus) * 100 : 0;
-                  return (
-                    <div key={status}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ar-graphite)" }}>
-                          {statusLabel(status)}
-                        </span>
-                        <span className="ar-tabular" style={{ fontSize: 12, color: "var(--ar-slate)" }}>
-                          {count} ({pct.toFixed(1)}%)
-                        </span>
+          <div className="ops-panel">
+            <div className="ops-panel-header"><h3 className="ops-panel-title">케이스 상태 분포</h3></div>
+            <div className="ops-panel-body">
+              {statusEntries.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {statusEntries.map(([status, count]) => {
+                    const pct = totalByStatus > 0 ? (count / totalByStatus) * 100 : 0;
+                    return (
+                      <div key={status}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ops-text-muted)" }}>
+                            {statusLabel(status)}
+                          </span>
+                          <span className="ops-mono" style={{ fontSize: 12, color: "var(--ops-text-muted)" }}>
+                            {count} ({pct.toFixed(1)}%)
+                          </span>
+                        </div>
+                        <div style={{ height: 6, borderRadius: 3, background: "var(--ops-surface-active)", overflow: "hidden" }}>
+                          <div
+                            style={{
+                              height: 6,
+                              borderRadius: 3,
+                              background: barColor(status),
+                              width: `${pct}%`,
+                              transition: "width 0.4s ease",
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div style={{ height: 8, borderRadius: 4, background: "var(--ar-canvas)", overflow: "hidden" }}>
-                        <div
-                          style={{
-                            height: 8,
-                            borderRadius: 4,
-                            background: barColor(status),
-                            width: `${pct}%`,
-                            transition: "width 0.4s ease",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{ color: "var(--ar-slate)", textAlign: "center", padding: 20, fontSize: 13 }}>
-                데이터가 없습니다.
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ color: "var(--ops-text-muted)", textAlign: "center", padding: 20, fontSize: 12 }}>데이터가 없습니다.</div>
+              )}
+            </div>
           </div>
 
           {/* Recent cases table */}
-          <div className="ar-card" style={{ padding: 0, overflow: "hidden" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--ar-hairline)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>최근 케이스</h3>
-              {data && <span className="ar-badge ar-badge-accent">{data.cases.recent.length}</span>}
+          <div className="ops-panel">
+            <div className="ops-panel-header">
+              <h3 className="ops-panel-title">최근 케이스</h3>
+              {data && <span className="ops-badge ops-badge-brand">{data.cases.recent.length}</span>}
             </div>
-            <table className="ar-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>상태</th>
-                  <th>파트너</th>
-                  <th>생성일</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data && data.cases.recent.length > 0 ? (
-                  data.cases.recent.slice(0, 10).map((c) => (
-                    <tr key={c.id}>
-                      <td className="ar-mono" style={{ fontSize: 12 }}>{c.id.slice(0, 12)}</td>
-                      <td>
-                        <span className={`ar-badge ${STATUS_VARIANT[c.status] || "ar-badge-neutral"}`}>
-                          {statusLabel(c.status)}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: 13 }}>{c.partnerId ? c.partnerId.slice(0, 10) + "…" : "-"}</td>
-                      <td className="ar-tabular" style={{ fontSize: 12, color: "var(--ar-slate)" }}>
-                        {formatDate(c.createdAt)}
+            <div className="ops-table-wrap">
+              <table className="ops-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>상태</th>
+                    <th>파트너</th>
+                    <th>생성일</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data && data.cases.recent.length > 0 ? (
+                    data.cases.recent.slice(0, 10).map((c) => (
+                      <tr key={c.id}>
+                        <td className="ops-mono" style={{ fontSize: 11 }}>{c.id.slice(0, 12)}</td>
+                        <td>
+                          <span className={`ops-badge ${STATUS_VARIANT[c.status] || "ops-badge-neutral"}`}>
+                            {statusLabel(c.status)}
+                          </span>
+                        </td>
+                        <td className="ops-mono" style={{ fontSize: 11, color: "var(--ops-text-muted)" }}>{c.partnerId ? c.partnerId.slice(0, 10) + "…" : "-"}</td>
+                        <td className="ops-mono" style={{ fontSize: 11, color: "var(--ops-text-muted)" }}>
+                          {formatDate(c.createdAt)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: "center", padding: "32px", color: "var(--ops-text-muted)" }}>
+                        케이스가 없습니다.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} style={{ textAlign: "center", padding: "32px", color: "var(--ar-slate)" }}>
-                      케이스가 없습니다.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Revenue summary card */}
-          <div className="ar-card" style={{ padding: 20 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px" }}>매출 현황</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="ops-panel">
+            <div className="ops-panel-header"><h3 className="ops-panel-title">매출 현황</h3></div>
+            <div className="ops-panel-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {[
                 { label: "총 매출", value: data?.payments.totalRevenue ?? 0, accent: false },
                 { label: "이번달", value: data?.payments.thisMonthRevenue ?? 0, accent: true },
                 { label: "지난달", value: data?.payments.lastMonthRevenue ?? 0, accent: false },
               ].map((row) => (
-                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "var(--ar-graphite)" }}>{row.label}</span>
+                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 12, borderBottom: "1px solid var(--ops-border)" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ops-text-muted)" }}>{row.label}</span>
                   <span
-                    className="ar-tabular"
+                    className="ops-mono"
                     style={{
-                      fontSize: row.accent ? 16 : 14,
+                      fontSize: row.accent ? 16 : 13,
                       fontWeight: row.accent ? 700 : 500,
-                      color: row.accent ? "var(--ar-ink)" : "var(--ar-slate)",
+                      color: row.accent ? "var(--ops-text)" : "var(--ops-text-muted)",
                     }}
                   >
                     {data ? formatKRW(row.value) : "-"}
@@ -390,49 +357,49 @@ export default function BusinessDashboard() {
           </div>
 
           {/* Recent payments table */}
-          <div className="ar-card" style={{ padding: 0, overflow: "hidden" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--ar-hairline)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>최근 결제</h3>
-              {data && <span className="ar-badge ar-badge-accent">{data.payments.recent.length}</span>}
+          <div className="ops-panel">
+            <div className="ops-panel-header">
+              <h3 className="ops-panel-title">최근 결제</h3>
+              {data && <span className="ops-badge ops-badge-brand">{data.payments.recent.length}</span>}
             </div>
-            <table className="ar-table">
-              <thead>
-                <tr>
-                  <th>금액</th>
-                  <th>통화</th>
-                  <th>상태</th>
-                  <th>결제수단</th>
-                  <th>일자</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data && data.payments.recent.length > 0 ? (
-                  data.payments.recent.slice(0, 10).map((p) => (
-                    <tr key={p.id}>
-                      <td className="ar-tabular" style={{ fontSize: 13, fontWeight: 600 }}>
-                        {data ? formatKRW(p.amount) : "-"}
-                      </td>
-                      <td style={{ fontSize: 12, color: "var(--ar-slate)" }}>{(p.currency || "").toUpperCase()}</td>
-                      <td>
-                        <span className={`ar-badge ${PAYMENT_STATUS_VARIANT[p.status] || "ar-badge-neutral"}`}>
-                          {paymentStatusLabel(p.status)}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: 12, color: "var(--ar-slate)" }}>{p.provider || "-"}</td>
-                      <td className="ar-tabular" style={{ fontSize: 12, color: "var(--ar-slate)" }}>
-                        {formatDate(p.createdAt)}
+            <div className="ops-table-wrap">
+              <table className="ops-table">
+                <thead>
+                  <tr>
+                    <th>금액</th>
+                    <th>상태</th>
+                    <th>수단</th>
+                    <th>일자</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data && data.payments.recent.length > 0 ? (
+                    data.payments.recent.slice(0, 10).map((p) => (
+                      <tr key={p.id}>
+                        <td className="ops-mono" style={{ fontSize: 12, fontWeight: 600, color: "var(--ops-text)" }}>
+                          {data ? formatKRW(p.amount) : "-"}
+                        </td>
+                        <td>
+                          <span className={`ops-badge ${PAYMENT_STATUS_VARIANT[p.status] || "ops-badge-neutral"}`}>
+                            {paymentStatusLabel(p.status)}
+                          </span>
+                        </td>
+                        <td className="ops-mono" style={{ fontSize: 11, color: "var(--ops-text-muted)" }}>{p.provider || "-"}</td>
+                        <td className="ops-mono" style={{ fontSize: 11, color: "var(--ops-text-muted)" }}>
+                          {formatDate(p.createdAt)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: "center", padding: "32px", color: "var(--ops-text-muted)" }}>
+                        결제 내역이 없습니다.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: "center", padding: "32px", color: "var(--ar-slate)" }}>
-                      결제 내역이 없습니다.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

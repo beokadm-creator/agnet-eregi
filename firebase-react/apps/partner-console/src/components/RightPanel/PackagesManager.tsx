@@ -6,29 +6,40 @@ export default function PackagesManager() {
   if (!selectedCase) return null;
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1em", borderBottom: "1px solid var(--ar-surface-muted)", paddingBottom: 8 }}>📦 패키지물 (Packages)</h3>
+    <div className="pc-card">
+      <div className="pc-card-header" style={{ borderBottom: "1px solid var(--pc-border)", paddingBottom: 16, marginBottom: 16 }}>
+        <h3 className="pc-card-title" style={{ margin: 0, fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
+          <span>📦</span> 패키지 (제출용 통합문서)
+        </h3>
+      </div>
+
       {packages.length === 0 ? (
-        <div style={{ color: "var(--ar-slate)", fontSize: "0.9em" }}>생성된 패키지물이 없습니다.</div>
+        <div style={{ color: "var(--pc-text-muted)", fontSize: 13, textAlign: "center", padding: 24 }}>생성된 패키지가 없습니다.</div>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>파일 링크</th>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>상태</th>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "2px solid var(--ar-hairline)" }}>생성일</th>
-            </tr>
-          </thead>
-          <tbody>
-            {packages?.map((p: any) => (
-              <tr key={p.id}>
-                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)" }}>{p.filename}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)" }}>{p.status}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)" }}>{new Date(p.createdAt).toLocaleString()}</td>
+        <div style={{ border: "1px solid var(--pc-border)", borderRadius: "var(--pc-radius)", overflow: "hidden" }}>
+          <table className="pc-table" style={{ margin: 0 }}>
+            <thead>
+              <tr>
+                <th>파일명</th>
+                <th>상태</th>
+                <th>생성일</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {packages?.map((p: any) => (
+                <tr key={p.id}>
+                  <td style={{ fontWeight: 600 }}>{p.filename}</td>
+                  <td>
+                    <span className={`pc-badge ${p.status === 'completed' ? 'pc-badge-success' : 'pc-badge-neutral'}`}>
+                      {p.status}
+                    </span>
+                  </td>
+                  <td className="pc-mono" style={{ fontSize: 12, color: "var(--pc-text-muted)" }}>{new Date(p.createdAt).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

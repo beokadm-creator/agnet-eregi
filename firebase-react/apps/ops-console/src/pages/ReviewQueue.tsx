@@ -24,74 +24,85 @@ export default function ReviewQueue() {
   }
 
   return (
-    <div className="im-panel">
-      <h2 className="im-panel-title">검토 대기열</h2>
-      <p className="im-lede">운영자 수동 검토가 필요한 케이스 대기열입니다.</p>
-      
-      <div className="im-actions">
-        <Button disabled={busy} variant="secondary" onClick={refresh}>
-          새로고침
-        </Button>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1 className="ops-title">검토 대기열</h1>
+          <p className="ops-subtitle">운영자 수동 검토가 필요한 케이스 및 이슈 대기열입니다.</p>
+        </div>
+        <button className="ops-btn" onClick={refresh} disabled={busy}>
+          {busy ? "갱신 중..." : "↻ 새로고침"}
+        </button>
       </div>
 
       {error && (
-        <div className="im-log" style={{ marginTop: "2rem", background: "var(--ar-danger-soft)", color: "var(--ar-danger)" }}>
+        <div style={{ padding: "12px 16px", background: "var(--ops-danger-soft)", color: "var(--ops-danger)", borderRadius: "var(--ops-radius)", fontSize: 13 }}>
           {error}
         </div>
       )}
 
-      {!error && data && (
-        <div style={{ marginTop: "2rem", display: "grid", gap: "1.25rem" }}>
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-              <div style={{ fontWeight: 600 }}>승인 대기</div>
-              <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>{approvals.length}</div>
+      {/* Main content grid */}
+      {!error && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+          {/* Approvals */}
+          <div className="ops-panel">
+            <div className="ops-panel-header">
+              <h2 className="ops-panel-title">승인 대기 중</h2>
+              <span className="ops-badge ops-badge-warning">{approvals.length}</span>
             </div>
-            {approvals.length === 0 ? (
-              <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>대기 중인 승인 요청이 없습니다.</div>
-            ) : (
-              <div style={{ display: "grid", gap: "0.75rem" }}>
-                {approvals?.map((a: any) => (
-                  <div key={a.id} style={{ border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", padding: "1rem", borderRadius: "var(--ar-r1)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
-                      <div style={{ fontWeight: 600 }}>{a.actionType || "approval"}</div>
-                      <div style={{ color: "var(--ar-slate)", fontSize: "0.8125rem" }}>{a.caseId || a.target?.caseId || a.id}</div>
+            <div className="ops-panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {approvals.length === 0 ? (
+                <div style={{ color: "var(--ops-text-muted)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>
+                  대기 중인 승인 요청이 없습니다.
+                </div>
+              ) : (
+                approvals.map((a: any) => (
+                  <div key={a.id} style={{ border: "1px solid var(--ops-border)", background: "var(--ops-bg)", padding: 12, borderRadius: "var(--ops-radius-sm)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div className="ops-mono" style={{ fontWeight: 600, color: "var(--ops-brand)" }}>{a.actionType || "approval"}</div>
+                      <div className="ops-mono" style={{ color: "var(--ops-text-faint)", fontSize: 11 }}>{a.caseId || a.target?.caseId || a.id}</div>
                     </div>
-                    <div style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "var(--ar-graphite)", lineHeight: 1.5 }}>
-                      {a.reason || a.summary || "승인 대기"}
+                    <div style={{ marginTop: 8, fontSize: 13, color: "var(--ops-text)", lineHeight: 1.5 }}>
+                      {a.reason || a.summary || "승인 대기 내역"}
                     </div>
-                    <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-                      <Button disabled={busy} onClick={() => approve(a.id)}>승인</Button>
-                      <Button disabled={busy} variant="secondary" onClick={() => reject(a.id)}>거부</Button>
+                    <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button className="ops-btn ops-btn-danger" disabled={busy} onClick={() => reject(a.id)}>거부</button>
+                      <button className="ops-btn ops-btn-brand" disabled={busy} onClick={() => approve(a.id)}>승인</button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
 
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-              <div style={{ fontWeight: 600 }}>최근 인시던트</div>
-              <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>{incidents.length}</div>
+          {/* Incidents Check */}
+          <div className="ops-panel">
+            <div className="ops-panel-header">
+              <h2 className="ops-panel-title">관련 인시던트 (최근 10건)</h2>
+              <span className="ops-badge ops-badge-danger">{incidents.length}</span>
             </div>
-            {incidents.length === 0 ? (
-              <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>최근 인시던트가 없습니다.</div>
-            ) : (
-              <div style={{ display: "grid", gap: "0.75rem" }}>
-                {incidents?.slice(0, 10)?.map((it: any) => (
-                  <div key={it.id} style={{ border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", padding: "1rem", borderRadius: "var(--ar-r1)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
-                      <div style={{ fontWeight: 600 }}>{it.gateKey || "unknown"}</div>
-                      <div style={{ color: "var(--ar-slate)", fontSize: "0.8125rem" }}>{it.status || "unknown"}</div>
+            <div className="ops-panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {incidents.length === 0 ? (
+                <div style={{ color: "var(--ops-text-muted)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>
+                  최근 인시던트가 없습니다.
+                </div>
+              ) : (
+                incidents.slice(0, 10).map((it: any) => (
+                  <div key={it.id} style={{ border: "1px solid var(--ops-border)", background: "var(--ops-bg)", padding: 12, borderRadius: "var(--ops-radius-sm)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div className="ops-mono" style={{ fontWeight: 600 }}>{it.gateKey || "unknown"}</div>
+                      <span className={`ops-badge ${it.status === 'ACTIVE' ? 'ops-badge-danger' : 'ops-badge-warning'}`}>
+                        {it.status || "unknown"}
+                      </span>
                     </div>
-                    <div style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "var(--ar-graphite)", lineHeight: 1.5 }}>
+                    <div style={{ marginTop: 8, fontSize: 13, color: "var(--ops-text-muted)", lineHeight: 1.5 }}>
                       {it.summary || it.title || it.id}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}

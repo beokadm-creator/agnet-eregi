@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button } from "@agentregi/ui-components";
 import { useOpsApi } from "../hooks";
 
 export default function AuditLogs() {
@@ -34,82 +33,93 @@ export default function AuditLogs() {
   }
 
   return (
-    <div className="im-panel">
-      <h2 className="im-panel-title">감사 로그</h2>
-      <p className="im-lede">시스템 내 모든 감사 로그(Audit) 내역입니다.</p>
-      
-      <div className="im-actions">
-        <Button disabled={busy} variant="secondary" onClick={() => callApi(`/v1/ops/audit-logs?${query}`)}>
-          새로고침
-        </Button>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1 className="ops-title">감사 로그</h1>
+          <p className="ops-subtitle">시스템 내 모든 감사(Audit) 로그 내역을 조회합니다.</p>
+        </div>
+        <button className="ops-btn" onClick={() => callApi(`/v1/ops/audit-logs?${query}`)} disabled={busy}>
+          {busy ? "조회 중..." : "↻ 새로고침"}
+        </button>
       </div>
 
-      <div style={{ marginTop: "1rem", display: "grid", gap: "0.75rem" }}>
-        <div style={{ display: "grid", gap: "0.5rem", gridTemplateColumns: "1fr 1fr 1fr" }}>
-          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
-            액션
-            <select value={action} onChange={(e) => setAction(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }}>
-              <option value="all">all</option>
+      <div className="ops-panel" style={{ padding: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--ops-text-muted)" }}>액션</label>
+            <select className="ops-input" value={action} onChange={(e) => setAction(e.target.value)}>
+              <option value="all">전체 (All)</option>
               <option value="grant">grant</option>
               <option value="revoke">revoke</option>
               <option value="breakglass">breakglass</option>
               <option value="circuit_breaker_reset">circuit_breaker_reset</option>
               <option value="settlement_batch">settlement_batch</option>
-              <option value="ops_auth.denied">ops_auth.denied</option>
-              <option value="ops_approvals.approve">ops_approvals.approve</option>
-              <option value="ops_approvals.reject">ops_approvals.reject</option>
             </select>
-          </label>
-
-          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
-            시작일
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }} />
-          </label>
-
-          <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
-            종료일
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }} />
-          </label>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--ops-text-muted)" }}>시작일</label>
+            <input type="date" className="ops-input" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--ops-text-muted)" }}>종료일</label>
+            <input type="date" className="ops-input" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--ops-text-muted)" }}>작업자 UID</label>
+            <input type="text" className="ops-input" value={actorUid} onChange={(e) => setActorUid(e.target.value)} placeholder="UID 검색" />
+          </div>
         </div>
-
-        <label style={{ display: "grid", gap: "0.35rem", fontSize: "0.875rem", color: "var(--ar-graphite)" }}>
-          작업자 UID
-          <input value={actorUid} onChange={(e) => setActorUid(e.target.value)} placeholder="UID 검색" style={{ padding: "0.5rem", border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", borderRadius: "var(--ar-r1)", fontFamily: "var(--ar-font-ui)" }} />
-        </label>
       </div>
 
       {error && (
-        <div className="im-log" style={{ marginTop: "2rem", background: "var(--ar-danger-soft)", color: "var(--ar-danger)" }}>
+        <div style={{ padding: "12px 16px", background: "var(--ops-danger-soft)", color: "var(--ops-danger)", borderRadius: "var(--ops-radius)", fontSize: 13 }}>
           {error}
         </div>
       )}
 
-      {!error && data && (
-        <div style={{ marginTop: "2rem" }}>
-          {items.length === 0 ? (
-            <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>감사 로그가 없습니다.</div>
-          ) : (
-            <div style={{ display: "grid", gap: "0.75rem" }}>
-              {items?.map((it) => (
-                <div key={it.id} style={{ border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", padding: "1rem", borderRadius: "var(--ar-r1)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "baseline" }}>
-                    <div style={{ fontWeight: 600, fontFamily: "var(--ar-font-mono)", fontSize: "0.8125rem" }}>{it.action}</div>
-                    <div style={{ color: "var(--ar-slate)", fontSize: "0.8125rem" }}>{formatTs(it.createdAt)}</div>
-                  </div>
-                  <div style={{ marginTop: "0.35rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "var(--ar-slate)", fontSize: "0.8125rem" }}>
-                    <span>{it.status}</span>
-                    <span>·</span>
-                    <span>{it.gateKey || "no gate"}</span>
-                    <span>·</span>
-                    <span style={{ fontFamily: "var(--ar-font-mono)" }}>{it.actorUid}</span>
-                  </div>
-                  <div style={{ marginTop: "0.75rem", fontSize: "0.875rem", color: "var(--ar-graphite)", lineHeight: 1.5 }}>
-                    {it.summary}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      {!error && (
+        <div className="ops-panel">
+          <div className="ops-table-wrap">
+            <table className="ops-table">
+              <thead>
+                <tr>
+                  <th>시간</th>
+                  <th>액션</th>
+                  <th>상태</th>
+                  <th>Gate Key</th>
+                  <th>작업자 UID</th>
+                  <th>요약</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: "center", padding: "40px", color: "var(--ops-text-muted)" }}>
+                      조회된 감사 로그가 없습니다.
+                    </td>
+                  </tr>
+                ) : (
+                  items.map((it) => (
+                    <tr key={it.id}>
+                      <td className="ops-mono" style={{ color: "var(--ops-text-muted)" }}>{formatTs(it.createdAt)}</td>
+                      <td className="ops-mono" style={{ color: "var(--ops-brand)" }}>{it.action}</td>
+                      <td>
+                        <span className={`ops-badge ${it.status === 'SUCCESS' ? 'ops-badge-success' : 'ops-badge-danger'}`}>
+                          {it.status}
+                        </span>
+                      </td>
+                      <td className="ops-mono">{it.gateKey || "-"}</td>
+                      <td className="ops-mono" style={{ fontSize: 11 }}>{it.actorUid}</td>
+                      <td style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.summary}>
+                        {it.summary}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

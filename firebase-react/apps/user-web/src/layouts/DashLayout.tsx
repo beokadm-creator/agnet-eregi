@@ -1,30 +1,54 @@
 import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { auth } from '@rp/firebase';
 
 export default function DashLayout({ onLogout }: { onLogout: () => void }) {
-  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   return (
-    <div className="dash-root">
-      <div className="dash-container">
-        <header className="dash-header">
-          <h1 className="dash-title" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>AgentRegi</h1>
-          <div className="dash-nav">
-            <span>{t('auth_load') || auth.currentUser?.email || 'User'}</span>
-            <span style={{color: 'var(--ar-hairline-strong)'}}>·</span>
-            <button onClick={() => navigate('/partner/apply')} className="dash-nav-btn">파트너 신청</button>
-            <button onClick={() => i18n.changeLanguage('ko')} className="dash-nav-btn" style={{ fontWeight: i18n.language?.startsWith('ko') ? 700 : 400, color: i18n.language?.startsWith('ko') ? 'var(--ar-accent-ink)' : '' }}>KO</button>
-            <span style={{color: 'var(--ar-hairline-strong)'}}>·</span>
-            <button onClick={() => i18n.changeLanguage('en')} className="dash-nav-btn" style={{ fontWeight: i18n.language?.startsWith('en') ? 700 : 400, color: i18n.language?.startsWith('en') ? 'var(--ar-accent-ink)' : '' }}>EN</button>
-            <span style={{color: 'var(--ar-hairline-strong)'}}>·</span>
-            <button onClick={onLogout} className="dash-nav-btn">로그아웃</button>
-          </div>
-        </header>
+    <div className="uw-root" style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+      <header className="uw-topnav">
+        <div className="uw-logo" onClick={() => navigate('/')}>
+          <div className="uw-logo-mark">⚖</div>
+          AgentRegi
+        </div>
+        
+        <nav className="uw-nav-links">
+          <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); navigate('/'); }}>대시보드</a>
+          <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); navigate('/partner/apply'); }}>법무사 파트너 지원</a>
+          <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); }}>고객 지원</a>
+        </nav>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {auth.currentUser ? (
+            <>
+              <span style={{ fontSize: '14px', color: 'var(--uw-slate)', fontWeight: 500 }}>
+                {auth.currentUser.email}
+              </span>
+              <button onClick={onLogout} className="uw-btn uw-btn-outline uw-btn-sm">
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <button onClick={() => navigate('/login')} className="uw-btn uw-btn-brand uw-btn-sm">
+              로그인
+            </button>
+          )}
+        </div>
+      </header>
+
+      <main style={{ flex: 1 }}>
         <Outlet />
-      </div>
+      </main>
+      
+      <footer style={{ padding: '40px', textAlign: 'center', color: 'var(--uw-fog)', fontSize: '13px', borderTop: '1px solid var(--uw-border)', background: 'var(--uw-surface)' }}>
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center', gap: '24px' }}>
+          <a href="#" style={{ color: 'var(--uw-slate)', textDecoration: 'none' }}>이용약관</a>
+          <a href="#" style={{ color: 'var(--uw-slate)', textDecoration: 'none' }}>개인정보처리방침</a>
+          <a href="#" style={{ color: 'var(--uw-slate)', textDecoration: 'none' }}>자주 묻는 질문</a>
+        </div>
+        © 2026 AgentRegi. All rights reserved.
+      </footer>
     </div>
   );
 }

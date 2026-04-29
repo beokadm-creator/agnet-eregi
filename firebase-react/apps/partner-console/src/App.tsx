@@ -21,6 +21,7 @@ interface PartnerOption {
   status: string;
 }
 
+/* ── Partner Selector ─────────────────────────────── */
 function PartnerSelector() {
   const { idToken, setActingPartnerId } = useAppContext();
   const [partners, setPartners] = useState<PartnerOption[]>([]);
@@ -29,12 +30,12 @@ function PartnerSelector() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    async function fetchPartners() {
+    if (!idToken) return;
+    (async () => {
       try {
         setLoading(true);
-        const baseUrl = getApiBaseUrl();
-        const res = await fetch(`${baseUrl}/v1/partners`, {
-          headers: { Authorization: `Bearer ${idToken}` }
+        const res = await fetch(`${getApiBaseUrl()}/v1/partners`, {
+          headers: { Authorization: `Bearer ${idToken}` },
         });
         const data = await res.json();
         if (data.ok) {
@@ -42,56 +43,107 @@ function PartnerSelector() {
         } else {
           setError(data.error?.messageKo || "파트너 목록을 불러올 수 없습니다.");
         }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "네트워크 오류");
+      } catch (e: any) {
+        setError(e?.message || "네트워크 오류");
       } finally {
         setLoading(false);
       }
-    }
-    if (idToken) fetchPartners();
+    })();
   }, [idToken]);
 
-  const filtered = partners.filter(p =>
-    p.bizName.toLowerCase().includes(search.toLowerCase()) ||
-    p.id.toLowerCase().includes(search.toLowerCase())
+  const filtered = partners.filter(
+    (p) =>
+      p.bizName?.toLowerCase().includes(search.toLowerCase()) ||
+      p.id?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const email = auth.currentUser?.email || "";
+  const initial = email.charAt(0).toUpperCase();
+
   return (
-    <div className="im-shell">
-      <div className="im-container">
-        <header className="im-header">
-          <h1 className="im-title">Partner Console</h1>
-          <div className="im-lang">
-            <span style={{ fontSize: '0.875rem', color: 'var(--ar-graphite)' }}>
-              🔐 슈퍼어드민 모드 — {auth.currentUser?.email}
-            </span>
-            <button type="button" className="im-link" onClick={() => auth.signOut()} style={{ marginLeft: '1rem' }}>
-              로그아웃
-            </button>
+    <div className="pc-selector-shell ar-root">
+      {/* Topbar */}
+      <header className="pc-selector-topbar">
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            style={{
+              width: 28, height: 28, background: "var(--ar-accent)",
+              borderRadius: 8, display: "flex", alignItems: "center",
+              justifyContent: "center", fontSize: 14,
+            }}
+          >
+            ⚖
           </div>
-        </header>
+          <span style={{ fontSize: 15, fontWeight: 800, color: "var(--ar-ink)", letterSpacing: "-0.01em" }}>
+            AgentRegi <span style={{ color: "var(--ar-accent)" }}>Partner</span>
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 13, color: "var(--ar-slate)" }}>
+            🔐 슈퍼어드민 · {email}
+          </span>
+          <button
+            className="ar-btn ar-btn-ghost ar-btn-sm"
+            onClick={() => auth.signOut()}
+          >
+            로그아웃
+          </button>
+        </div>
+      </header>
 
-        <div className="im-panel" style={{ marginTop: '1rem' }}>
-          <h3 className="im-panel-title">파트너를 선택하세요</h3>
-          <p style={{ color: 'var(--ar-graphite)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-            관리할 파트너 계정을 선택하면 해당 파트너의 데이터에 접근할 수 있습니다.
+      {/* Body */}
+      <div className="pc-selector-body">
+        <div style={{ marginBottom: 32 }}>
+          <div className="ar-eyebrow" style={{ marginBottom: 8 }}>Ops Admin</div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.025em", margin: 0, color: "var(--ar-ink)" }}>
+            파트너 선택
+          </h1>
+          <p style={{ color: "var(--ar-slate)", fontSize: 14, marginTop: 8 }}>
+            관리할 파트너 계정을 선택하면 해당 파트너 콘솔로 진입합니다.
           </p>
+        </div>
 
-          {error && <div style={{ color: 'var(--ar-danger)', fontSize: '0.8125rem', marginBottom: '1rem' }}>{error}</div>}
-
+        {/* Search */}
+        <div style={{ position: "relative", marginBottom: 16 }}>
+          <span style={{
+            position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+            color: "var(--ar-fog)", pointerEvents: "none",
+          }}>
+            🔍
+          </span>
           <input
-            className="ar-input ar-input-sm"
+            className="ar-input"
             type="text"
-            placeholder="파트너명 또는 ID로 검색..."
+            placeholder="파트너명 또는 ID 검색..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ marginBottom: '1rem' }}
+            style={{ paddingLeft: 38 }}
           />
+        </div>
 
+        {error && (
+          <div className="pc-alert pc-alert-danger" style={{ marginBottom: 16 }}>
+            {error}
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="pc-section">
+          <div className="pc-section-header">
+            <h2 className="pc-section-title">파트너 목록</h2>
+            <span className="ar-badge ar-badge-neutral">{filtered.length}개</span>
+          </div>
           {loading ? (
-            <div className="im-log">불러오는 중...</div>
+            <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--ar-slate)" }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 12 }}>
+                <div className="pc-loading-dot" style={{ background: "var(--ar-accent)" }} />
+                <div className="pc-loading-dot" style={{ background: "var(--ar-accent)" }} />
+                <div className="pc-loading-dot" style={{ background: "var(--ar-accent)" }} />
+              </div>
+              불러오는 중...
+            </div>
           ) : (
-            <div style={{ maxHeight: 400, overflow: 'auto' }}>
+            <div className="ar-table-wrap" style={{ borderRadius: 0, border: "none" }}>
               <table className="ar-table">
                 <thead>
                   <tr>
@@ -99,30 +151,33 @@ function PartnerSelector() {
                     <th>상호명</th>
                     <th>사업자등록번호</th>
                     <th>상태</th>
-                    <th></th>
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((p) => (
                     <tr key={p.id}>
-                      <td className="ar-mono" style={{ fontSize: 12 }}>{p.id}</td>
-                      <td style={{ fontWeight: 600 }}>{p.bizName || "-"}</td>
-                      <td className="ar-mono" style={{ fontSize: 12 }}>{p.bizRegNo || "-"}</td>
+                      <td className="ar-mono" style={{ fontSize: 12, color: "var(--ar-slate)" }}>{p.id}</td>
+                      <td className="ink">{p.bizName || "—"}</td>
+                      <td className="ar-mono" style={{ fontSize: 12 }}>{p.bizRegNo || "—"}</td>
                       <td>
-                        <span className={`ar-badge ${p.status === 'ACTIVE' ? 'ar-badge-success' : 'ar-badge-neutral'}`}>
-                          {p.status || "-"}
+                        <span className={`ar-badge ${p.status === "ACTIVE" ? "ar-badge-success" : "ar-badge-neutral"}`}>
+                          {p.status || "—"}
                         </span>
                       </td>
-                      <td>
-                        <button className="ar-btn ar-btn-sm ar-btn-accent" onClick={() => setActingPartnerId(p.id)}>
-                          선택
+                      <td style={{ width: 100, textAlign: "right" }}>
+                        <button
+                          className="ar-btn ar-btn-accent ar-btn-sm"
+                          onClick={() => setActingPartnerId(p.id)}
+                        >
+                          선택 →
                         </button>
                       </td>
                     </tr>
                   ))}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--ar-slate)' }}>
+                      <td colSpan={5} style={{ textAlign: "center", padding: "40px 24px", color: "var(--ar-fog)" }}>
                         검색 결과가 없습니다.
                       </td>
                     </tr>
@@ -137,14 +192,26 @@ function PartnerSelector() {
   );
 }
 
+/* ── Auth Guard ──────────────────────────────────── */
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { authReady, accessDenied, isOpsAdmin, claims, actingPartnerId } = useAppContext();
 
   if (!authReady) {
     return (
-      <div className="im-shell">
-        <div className="im-container">
-          <div className="im-log">loading...</div>
+      <div className="pc-loading-shell">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+          <div style={{
+            width: 40, height: 40, background: "var(--ar-accent)",
+            borderRadius: 12, display: "flex", alignItems: "center",
+            justifyContent: "center", fontSize: 22,
+          }}>
+            ⚖
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <div className="pc-loading-dot" />
+            <div className="pc-loading-dot" />
+            <div className="pc-loading-dot" />
+          </div>
         </div>
       </div>
     );
@@ -154,20 +221,19 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (accessDenied) {
     return (
-      <div className="im-shell">
-        <div className="im-container">
-          <header className="im-header">
-            <h1 className="im-title">Partner Console</h1>
-            <div className="im-lang">
-              <span style={{ fontSize: '0.875rem', color: 'var(--ar-graphite)' }}>{auth.currentUser?.email}</span>
-              <button type="button" className="im-link" onClick={() => auth.signOut()} style={{ marginLeft: '1rem' }}>
-                로그아웃
-              </button>
-            </div>
-          </header>
-          <div className="im-log" style={{ background: 'var(--ar-danger-soft)', color: 'var(--ar-danger)', marginTop: '16px' }}>
-            권한이 없습니다. partnerId 커스텀 클레임이 필요합니다.
-          </div>
+      <div className="pc-auth-shell ar-root">
+        <div className="pc-auth-card" style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>🚫</div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 8px", color: "var(--ar-ink)" }}>
+            접근 권한 없음
+          </h2>
+          <p style={{ color: "var(--ar-slate)", fontSize: 14, margin: "0 0 24px", lineHeight: 1.6 }}>
+            partnerId 커스텀 클레임이 필요합니다.<br />
+            <code style={{ fontSize: 12, color: "var(--ar-graphite)" }}>{auth.currentUser?.email}</code>
+          </p>
+          <button className="ar-btn ar-btn-ghost" onClick={() => auth.signOut()}>
+            로그아웃
+          </button>
         </div>
       </div>
     );
@@ -180,31 +246,39 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/* ── Login Route ─────────────────────────────────── */
 function LoginRoute() {
   const { authReady } = useAppContext();
-  
   if (!authReady) {
     return (
-      <div className="im-shell">
-        <div className="im-container">
-          <div className="im-log">loading...</div>
+      <div className="pc-loading-shell">
+        <div style={{ display: "flex", gap: 6 }}>
+          <div className="pc-loading-dot" />
+          <div className="pc-loading-dot" />
+          <div className="pc-loading-dot" />
         </div>
       </div>
     );
   }
-
   if (auth.currentUser) return <Navigate to="/" replace />;
   return <AuthScreen />;
 }
 
+/* ── App ─────────────────────────────────────────── */
 function AppContent() {
   const { logout } = useAppContext();
-
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
-        <Route path="/" element={<AuthGuard><PartnerLayout onLogout={logout} /></AuthGuard>}>
+        <Route
+          path="/"
+          element={
+            <AuthGuard>
+              <PartnerLayout onLogout={logout} />
+            </AuthGuard>
+          }
+        >
           <Route index element={<Dashboard />} />
           <Route path="cases" element={<Cases />} />
           <Route path="templates" element={<Templates />} />

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Button, Input } from "@agentregi/ui-components";
 import { getAuth } from "firebase/auth";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
@@ -102,63 +101,67 @@ export default function DeveloperSettings() {
   }
 
   return (
-    <>
-      <div style={{ marginTop: 24, padding: 16, border: "1px solid var(--ar-fog)", borderRadius: "var(--ar-r1)", background: "var(--ar-paper-alt)" }}>
-        <h3 style={{ margin: "0 0 12px" }}>개발자 설정 (API 연동)</h3>
-      <p style={{ fontSize: "0.9em", color: "var(--ar-graphite)", marginBottom: 12 }}>
-        B2B/B2G 파트너 시스템 연동을 위한 API 키를 발급받을 수 있습니다. 발급된 키는 안전하게 보관하세요.
-      </p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      <div>
+        <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--pc-text)" }}>개발자 설정 (API 연동)</h3>
+        <p style={{ fontSize: 14, color: "var(--pc-text-muted)", marginBottom: 24, lineHeight: 1.6 }}>
+          B2B/B2G 파트너 시스템 연동을 위한 API 키를 발급받을 수 있습니다. 발급된 키는 안전하게 보관하세요.
+        </p>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        <Button variant="primary" onClick={handleGenerateApiKey} disabled={busy}>
-          새 API 키 생성
-        </Button>
-        <Button variant="secondary" onClick={handleRotate} disabled={busy}>
-          API 키 회전(전체 회수)
-        </Button>
-      </div>
-
-      {apiKey && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-          <span style={{ color: "var(--ar-success)", fontWeight: "bold" }}>✅ 새 API 키가 발급되었습니다.</span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Input value={apiKey} readOnly style={{ flex: 1, fontFamily: "var(--ar-font-mono)" }} />
-            <Button variant="secondary" onClick={copyToClipboard}>
-              복사
-            </Button>
-          </div>
-          <span style={{ color: "var(--ar-danger)", fontSize: "0.85em" }}>
-            ⚠️ 이 창을 닫으면 API 키를 다시 확인할 수 없습니다. 즉시 복사하여 안전한 곳에 저장하세요.
-          </span>
-          <Button variant="secondary" size="sm" onClick={() => setApiKey("")} style={{ alignSelf: "flex-start", marginTop: 8 }}>
-            완료 (숨기기)
-          </Button>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
+          <button onClick={handleGenerateApiKey} disabled={busy} className="pc-btn pc-btn-brand">
+            새 API 키 생성
+          </button>
+          <button onClick={handleRotate} disabled={busy} className="pc-btn">
+            API 키 회전 (전체 회수)
+          </button>
         </div>
-      )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ fontWeight: "bold" }}>발급된 키 목록</div>
-        {items.length === 0 ? (
-          <div style={{ color: "var(--ar-graphite)", fontSize: "0.9em" }}>발급된 키가 없습니다.</div>
-        ) : (
-          items?.map((k) => (
-            <div key={k.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: 8, border: "1px solid var(--ar-hairline)", borderRadius: "var(--ar-r1)", background: "var(--ar-canvas)" }}>
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <span style={{ fontFamily: "var(--ar-font-mono)" }}>{k.prefix ? `ar_${k.prefix}.********` : k.id}</span>
-                <span style={{ fontSize: "0.85em", color: "var(--ar-graphite)" }}>{k.status || "unknown"}</span>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <Button variant="danger" size="sm" onClick={() => handleRevoke(k.id)} disabled={busy || k.status !== "active"}>
-                  회수
-                </Button>
-              </div>
+        {apiKey && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24, background: "var(--pc-success-soft)", padding: 20, borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-success)" }}>
+            <span style={{ color: "var(--pc-success)", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+              ✅ 새 API 키가 발급되었습니다.
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input value={apiKey} readOnly className="pc-input pc-mono" style={{ flex: 1 }} />
+              <button onClick={copyToClipboard} className="pc-btn">
+                복사
+              </button>
             </div>
-          ))
+            <span style={{ color: "var(--pc-danger)", fontSize: 13 }}>
+              ⚠️ 이 창을 닫으면 API 키를 다시 확인할 수 없습니다. 즉시 복사하여 안전한 곳에 저장하세요.
+            </span>
+            <button onClick={() => setApiKey("")} className="pc-btn" style={{ alignSelf: "flex-start", marginTop: 8 }}>
+              완료 (숨기기)
+            </button>
+          </div>
         )}
-      </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, color: "var(--pc-text)" }}>발급된 키 목록</div>
+          {items.length === 0 ? (
+            <div style={{ color: "var(--pc-text-muted)", fontSize: 14, background: "var(--pc-surface)", padding: 24, borderRadius: "var(--pc-radius)", textAlign: "center", border: "1px solid var(--pc-border)" }}>
+              발급된 키가 없습니다.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {items?.map((k) => (
+                <div key={k.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: 16, border: "1px solid var(--pc-border)", borderRadius: "var(--pc-radius)", background: "var(--pc-surface)" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span className="pc-mono" style={{ fontSize: 14, fontWeight: 600, color: "var(--pc-text)" }}>{k.prefix ? `ar_${k.prefix}.********` : k.id}</span>
+                    <span style={{ fontSize: 12, color: "var(--pc-text-muted)" }}>{k.status || "unknown"}</span>
+                  </div>
+                  <button onClick={() => handleRevoke(k.id)} disabled={busy || k.status !== "active"} className="pc-btn pc-btn-danger">
+                    회수
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       
       <WebhookSettings />
-    </>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button, Input } from "@agentregi/ui-components";
 import { useAppContext } from "../../context/AppContext";
 import { getApi } from "../../services/api";
 
@@ -49,61 +48,63 @@ export default function TeamMembers() {
   }
 
   return (
-    <div style={{ borderTop: "2px solid var(--ar-surface-muted)", paddingTop: 16, marginTop: 16 }}>
-      <h3 style={{ margin: "0 0 12px 0", color: "var(--ar-ink)", fontSize: "1.1em", display: "flex", justifyContent: "space-between" }}>
-        팀 멤버 관리 (EP-07-04)
-        <Button onClick={loadTeamMembers} disabled={busy} style={{ background: "var(--ar-surface-muted)", border: "1px solid var(--ar-fog)", padding: "4px 8px", borderRadius: "var(--ar-r1)", cursor: "pointer", fontSize: "0.8em" }}>새로고침</Button>
-      </h3>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h3 style={{ margin: 0, color: "var(--pc-text)", fontSize: 14, fontWeight: 600 }}>팀 멤버 목록</h3>
+        <button onClick={loadTeamMembers} disabled={busy} className="pc-btn">새로고침</button>
+      </div>
       
       {/* 팀원 초대 폼 */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, background: "var(--ar-paper-alt)", padding: 12, borderRadius: "var(--ar-r1)" }}>
-        <Input 
+      <div style={{ display: "flex", gap: 8, background: "var(--pc-surface)", padding: 16, borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-border)" }}>
+        <input 
           type="email" 
           placeholder="초대할 이메일" 
           value={newInviteEmail} 
           onChange={e => setNewInviteEmail(e.target.value)} 
-          style={{ flex: 2, padding: 6 }} 
+          className="pc-input"
+          style={{ flex: 2 }} 
         />
         <select 
           value={newInviteRole} 
           onChange={e => setNewInviteRole(e.target.value)} 
-          style={{ flex: 1, padding: 6 }}
+          className="pc-input"
+          style={{ flex: 1 }}
         >
           <option value="owner">최고 관리자</option>
           <option value="admin">관리자</option>
           <option value="editor">편집자</option>
           <option value="viewer">조회자</option>
         </select>
-        <Button onClick={inviteTeamMember} disabled={busy || !newInviteEmail} style={{ padding: "6px 12px", background: "var(--ar-ink)", color: "var(--ar-canvas)", border: "none", borderRadius: "var(--ar-r1)", cursor: "pointer", fontWeight: "bold" }}>
+        <button onClick={inviteTeamMember} disabled={busy || !newInviteEmail} className="pc-btn pc-btn-brand">
           초대하기
-        </Button>
+        </button>
       </div>
 
       {/* 팀원 목록 */}
       {teamMembers.length === 0 ? (
-        <div style={{ color: "var(--ar-slate)", fontSize: "0.85em" }}>소속된 팀원이 없습니다.</div>
+        <div style={{ color: "var(--pc-text-muted)", fontSize: 13, background: "var(--pc-surface)", padding: 16, borderRadius: "var(--pc-radius)", textAlign: "center" }}>소속된 팀원이 없습니다.</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {teamMembers?.map(member => (
-            <div key={member.userId} style={{ background: "var(--ar-canvas)", padding: 12, borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-hairline)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={member.userId} style={{ background: "var(--pc-surface)", padding: 16, borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontWeight: "bold", fontSize: "0.95em", marginBottom: 4 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
                   {member.email} 
-                  <span style={{ marginLeft: 8, fontSize: "0.8em", padding: "2px 6px", borderRadius: "var(--ar-r2)", background: member.role === "owner" ? "var(--ar-warning-soft)" : "var(--ar-accent-soft)", color: member.role === "owner" ? "var(--ar-warning)" : "var(--ar-accent)" }}>
+                  <span className={`pc-badge ${member.role === "owner" ? "pc-badge-warning" : "pc-badge-brand"}`}>
                     {member.role.toUpperCase()}
                   </span>
                 </div>
-                <div style={{ fontSize: "0.8em", color: "var(--ar-graphite)" }}>
+                <div className="pc-mono" style={{ fontSize: 12, color: "var(--pc-text-muted)" }}>
                   상태: {member.status} | 합류일: {new Date(member.joinedAt).toLocaleDateString()}
                 </div>
               </div>
-              <Button 
+              <button 
                 onClick={() => removeTeamMember(member.userId)} 
                 disabled={busy}
-                style={{ background: "var(--ar-danger-soft)", color: "var(--ar-danger)", border: "1px solid var(--ar-danger-soft)", padding: "6px 10px", borderRadius: "var(--ar-r1)", cursor: "pointer", fontSize: "0.85em" }}
+                className="pc-btn pc-btn-danger"
               >
                 추방
-              </Button>
+              </button>
             </div>
           ))}
         </div>
