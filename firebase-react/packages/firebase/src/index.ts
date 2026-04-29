@@ -14,7 +14,7 @@ function runtimeAuthDomain(): string | null {
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAaVp-7itlHDgHlLvkZAb5k8ZXh-GiRaMo",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || runtimeAuthDomain() || "agent-eregi.firebaseapp.com",
+  authDomain: runtimeAuthDomain() || import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "agent-eregi.firebaseapp.com",
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "agent-eregi",
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "agent-eregi.firebasestorage.app",
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "337988126020",

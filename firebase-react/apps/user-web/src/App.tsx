@@ -83,12 +83,12 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginRoute />} />
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/app" element={
+          <Route path="/" element={
             <AuthGuard>
               <DashLayout onLogout={() => signOut(auth)} />
             </AuthGuard>
           }>
+            <Route index element={<Dashboard />} />
             {/* Detail logic will be moved to its own page next */}
             <Route path="submissions/:id" element={
               <Suspense fallback={<div>Loading...</div>}>
