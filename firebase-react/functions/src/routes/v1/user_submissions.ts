@@ -211,7 +211,7 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
       }
 
       const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      return ok(res, { items });
+      return ok(res, items);
     } catch (err: any) {
       logError({ endpoint: "user/submissions/list", code: "INTERNAL", messageKo: "제출 목록 조회 실패", err });
       return fail(res, 500, "INTERNAL", err.message);
