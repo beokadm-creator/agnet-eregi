@@ -124,6 +124,29 @@ body {
   color: var(--ar-ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+.uw-topnav { padding: 20px 56px; gap: 24px; }
+.uw-topnav-left { gap: 36px; }
+.uw-topnav-links { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+.uw-topnav-actions { gap: 12px; }
+
+.uw-hero { padding: 72px 56px 56px; grid-template-columns: 1.1fr 1fr; }
+.uw-hero-title { font-size: clamp(44px, 6.2vw, 84px); line-height: 1.02; }
+.uw-hero-stack { height: 520px; }
+
+@media (max-width: 960px) {
+  .uw-topnav { padding: 16px 20px; }
+  .uw-topnav-left { gap: 20px; }
+  .uw-topnav-links { gap: 16px; font-size: 13px; }
+  .uw-topnav-actions { gap: 10px; }
+  .uw-hero { padding: 48px 20px 40px; grid-template-columns: 1fr; gap: 32px; }
+  .uw-hero-stack { height: 420px; }
+}
+
+@media (max-width: 520px) {
+  .uw-hero-stack { height: 340px; }
 }
 
 /* ── Dashboard layout ─────────────────────────────── */

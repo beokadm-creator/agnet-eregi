@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
+import { auth } from '@rp/firebase';
 import { useAuth } from '../context/AuthContext';
 import { getApiBaseUrl } from '../apiBase';
 
@@ -46,6 +48,7 @@ export default function Dashboard() {
   const { t } = useTranslation();
   const { token } = useAuth();
   const navigate = useNavigate();
+  const intentInputRef = useRef<HTMLInputElement | null>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState("");
@@ -146,37 +149,54 @@ export default function Dashboard() {
     } catch (e: any) { setLog(`[Error] ${e.message}`); } finally { setBusy(false); }
   }
 
+  async function handleTopLogin() {
+    try {
+      if (token) await signOut(auth);
+    } finally {
+      navigate("/login");
+    }
+  }
+
+  async function handleStart() {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    intentInputRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    intentInputRef.current?.focus();
+  }
+
   return (
     <div className="ar-root ar-paper" style={{ width: '100%', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
       {/* Top nav */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 56px', borderBottom: '1px solid var(--ar-hairline)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
+      <div className="uw-topnav" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--ar-hairline)' }}>
+        <div className="uw-topnav-left" style={{ display: 'flex', alignItems: 'center' }}>
           <ARLogo size={26} />
-          <nav style={{ display: 'flex', gap: 24, fontSize: 14, fontWeight: 600, color: 'var(--ar-graphite)' }}>
+          <nav className="uw-topnav-links" style={{ fontSize: 14, fontWeight: 600, color: 'var(--ar-graphite)' }}>
             <span style={{ color: 'var(--ar-ink)' }}>법인 등기</span>
             <span>부동산 등기</span>
             <span>법무사 찾기</span>
             <span>가격 안내</span>
           </nav>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="ar-btn ar-btn-quiet ar-btn-sm">로그인</button>
-          <button className="ar-btn ar-btn-sm ar-btn-ink">시작하기</button>
+        <div className="uw-topnav-actions" style={{ display: 'flex', alignItems: 'center' }}>
+          <button className="ar-btn ar-btn-quiet ar-btn-sm" type="button" onClick={handleTopLogin}>로그인</button>
+          <button className="ar-btn ar-btn-sm ar-btn-ink" type="button" onClick={handleStart}>시작하기</button>
         </div>
       </div>
 
       {/* Hero */}
-      <div style={{ padding: '72px 56px 56px', display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 56, alignItems: 'center' }}>
+      <div className="uw-hero" style={{ display: 'grid', gap: 56, alignItems: 'center' }}>
         <div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 999, background: 'var(--ar-accent-soft)', color: 'var(--ar-accent-ink)', fontSize: 13, fontWeight: 700, marginBottom: 24 }}>
             <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--ar-accent)' }} />
             전국 1,200곳의 법무사가 입점
           </div>
-          <h1 style={{ fontSize: 84, fontWeight: 800, lineHeight: 0.98, margin: 0, letterSpacing: '-0.04em' }}>
+          <h1 className="uw-hero-title" style={{ fontWeight: 800, margin: 0, letterSpacing: '-0.04em' }}>
             법인 등기,<br/>
             <span style={{ color: 'var(--ar-accent)' }}>5분</span>이면 시작.
           </h1>
-          <p style={{ marginTop: 28, fontSize: 19, color: 'var(--ar-graphite)', lineHeight: 1.55, maxWidth: 520 }}>
+          <p className="uw-hero-subtitle" style={{ marginTop: 28, fontSize: 19, color: 'var(--ar-graphite)', lineHeight: 1.55, maxWidth: 520 }}>
             동네 법무사 사무소를 한눈에 비교하고, 카톡으로 서류받고, 등기까지 비대면으로. 평균 처리 6시간.
           </p>
           
@@ -185,6 +205,7 @@ export default function Dashboard() {
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px' }}>
               <Ic.search />
               <input 
+                ref={intentInputRef}
                 style={{ flex: 1, height: 56, border: 'none', outline: 'none', fontSize: 17, fontWeight: 500, background: 'transparent', color: 'var(--ar-ink)' }} 
                 placeholder="어떤 등기가 필요하세요? 예) 본점 이전" 
                 value={funnelIntent}
@@ -283,7 +304,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right — featured law office card stack */}
-        <div style={{ position: 'relative', height: 520 }}>
+        <div className="uw-hero-stack" style={{ position: 'relative' }}>
           <FeaturedOfficeCard
             style={{ position: 'absolute', top: 40, left: 40, width: 340, transform: 'rotate(-3deg)' }}
             office="해담 법무사"
