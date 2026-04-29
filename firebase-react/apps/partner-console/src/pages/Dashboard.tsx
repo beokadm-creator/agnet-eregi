@@ -1,47 +1,13 @@
 import React from 'react';
 
-const ARLogo = ({ size = 24 }) => (
-  <div style={{ width: size, height: size, background: 'var(--ar-accent)', borderRadius: '50%', display: 'inline-block' }} />
-);
-
-const Avatar = ({ name, size = 32 }) => (
-  <div style={{ width: size, height: size, background: 'var(--ar-accent-soft)', color: 'var(--ar-accent-ink)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-    {name}
-  </div>
-);
-
 const Ic = {
-  chev: () => <span>›</span>,
-  layers: () => <span>📚</span>,
-  inbox: () => <span>📥</span>,
-  doc: () => <span>📄</span>,
-  bolt: () => <span>⚡</span>,
-  user: () => <span>👤</span>,
-  shield: () => <span>🛡️</span>,
-  card: () => <span>💳</span>,
-  bell: () => <span>🔔</span>,
   search: () => <span>🔍</span>,
   filter: () => <span>⚙️</span>,
   plus: () => <span>+</span>,
   alert: () => <span>⚠️</span>,
   chat: () => <span>💬</span>,
+  doc: () => <span>📄</span>,
 };
-
-function NavItem({ active, icon, label, badge, badgeAccent }) {
-  return (
-    <div className={`ar-nav-item ${active ? 'active' : ''}`}>
-      <span style={{ color: active ? 'white' : 'var(--ar-slate)' }}>{icon}</span>
-      <span style={{ flex: 1 }}>{label}</span>
-      {badge && (
-        <span style={{
-          fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 999,
-          background: badgeAccent ? 'var(--ar-accent)' : (active ? 'rgba(255,255,255,0.18)' : 'var(--ar-paper-alt)'),
-          color: badgeAccent ? 'white' : (active ? 'white' : 'var(--ar-graphite)')
-        }}>{badge}</span>
-      )}
-    </div>
-  );
-}
 
 function StatTile({ label, value, delta, hint, accent }) {
   return (
@@ -108,42 +74,7 @@ function CaseCard({ title, client, amount, age, tags = [], progress, flag, statu
 
 export default function Dashboard() {
   return (
-    <div className="ar-root ar-paper" style={{ width: '100%', minHeight: '100dvh', display: 'flex' }}>
-      {/* Sidebar */}
-      <aside style={{ width: 240, background: 'var(--ar-canvas)', borderRight: '1px solid var(--ar-hairline)', padding: '20px 14px', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '6px 8px 16px' }}>
-          <ARLogo size={22} />
-        </div>
-        <div className="ar-card" style={{ padding: 12, margin: '4px 0 12px', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--ar-paper-alt)', border: 'none' }}>
-          <Avatar name="해" size={32} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>해담 법무사</div>
-            <div style={{ fontSize: 11, color: 'var(--ar-slate)' }}>강남 사무소 · 김재원</div>
-          </div>
-          <Ic.chev />
-        </div>
-
-        <div className="ar-nav-section">메인</div>
-        <NavItem active icon={<Ic.layers />} label="케이스 워크보드" badge="12" />
-        <NavItem icon={<Ic.inbox />} label="신규 의뢰" badge="3" badgeAccent />
-        <NavItem icon={<Ic.doc />} label="서류함" />
-        <NavItem icon={<Ic.bolt />} label="견적 · 청구" />
-
-        <div className="ar-nav-section">설정</div>
-        <NavItem icon={<Ic.user />} label="팀원" />
-        <NavItem icon={<Ic.shield />} label="템플릿" />
-        <NavItem icon={<Ic.card />} label="정산" />
-        <NavItem icon={<Ic.bell />} label="알림 설정" />
-
-        <div style={{ marginTop: 'auto', padding: 12, background: 'var(--ar-accent-soft)', borderRadius: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ar-accent-ink)' }}>이번 주 SLA 98%</div>
-          <div style={{ fontSize: 11, color: 'var(--ar-accent-ink)', opacity: 0.8, marginTop: 4 }}>품질 등급 유지 중</div>
-        </div>
-      </aside>
-
-      {/* Main */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Top bar */}
+    <>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 32px', borderBottom: '1px solid var(--ar-hairline)' }}>
           <div>
             <div className="ar-eyebrow" style={{ marginBottom: 4 }}>워크보드</div>
@@ -158,7 +89,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Stat row */}
         <div style={{ padding: '20px 32px 0', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
           <StatTile label="신규 의뢰 (오늘)" value="3건" delta={50} hint="평균 응답 18분" />
           <StatTile label="서명 대기" value="5건" hint="고객 응답 대기 중" accent />
@@ -166,7 +96,6 @@ export default function Dashboard() {
           <StatTile label="평균 처리 시간" value="5.4h" delta={-12} hint="목표 6시간" />
         </div>
 
-        {/* Workboard */}
         <div style={{ padding: 32, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, flex: 1 }}>
           <Column title="신규 의뢰" count={3} accent="var(--ar-info)">
             <CaseCard title="(주)호두컴퍼니 — 본점 이전" client="김민수" amount="33,000" age="12분 전" tags={['본점 이전']} priority />
@@ -189,7 +118,6 @@ export default function Dashboard() {
             <CaseCard title="(주)테이크원 — 상호 변경" client="한지원" amount="29,000" age="오늘 11:48" tags={['상호 변경']} status="done" />
           </Column>
         </div>
-      </main>
-    </div>
+    </>
   );
 }
