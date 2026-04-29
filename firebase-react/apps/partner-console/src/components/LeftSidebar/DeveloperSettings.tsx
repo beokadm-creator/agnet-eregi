@@ -141,7 +141,7 @@ export default function DeveloperSettings() {
         {items.length === 0 ? (
           <div style={{ color: "var(--ar-graphite)", fontSize: "0.9em" }}>발급된 키가 없습니다.</div>
         ) : (
-          items.map((k) => (
+          items?.map((k) => (
             <div key={k.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: 8, border: "1px solid var(--ar-hairline)", borderRadius: "var(--ar-r1)", background: "var(--ar-canvas)" }}>
               <div style={{ display: "flex", flexDirection: "column" }}>
                 <span style={{ fontFamily: "var(--ar-font-mono)" }}>{k.prefix ? `ar_${k.prefix}.********` : k.id}</span>

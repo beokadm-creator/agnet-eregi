@@ -68,7 +68,7 @@ export default function Subscriptions() {
         <div style={{ flex: 2, minWidth: 300 }}>
           <h4 style={{ margin: "0 0 12px 0", color: "var(--ar-ink)" }}>이용 가능한 플랜</h4>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {subscriptionPlans.map(plan => (
+            {subscriptionPlans?.map(plan => (
               <div key={plan.id} style={{ background: "var(--ar-canvas)", padding: 16, borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-hairline)", flex: 1, minWidth: 200 }}>
                 <div style={{ fontWeight: "bold", fontSize: "1.1em", marginBottom: 4 }}>{plan.name}</div>
                 <div style={{ color: "var(--ar-warning)", fontWeight: "bold", marginBottom: 8 }}>{plan.price.toLocaleString()}원 / {plan.interval === "month" ? "월" : "년"}</div>

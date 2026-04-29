@@ -20,7 +20,7 @@ export default function PackagesManager() {
             </tr>
           </thead>
           <tbody>
-            {packages.map((p: any) => (
+            {packages?.map((p: any) => (
               <tr key={p.id}>
                 <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)" }}>{p.filename}</td>
                 <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)" }}>{p.status}</td>

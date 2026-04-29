@@ -85,7 +85,7 @@ export default function TeamMembers() {
         <div style={{ color: "var(--ar-slate)", fontSize: "0.85em" }}>소속된 팀원이 없습니다.</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {teamMembers.map(member => (
+          {teamMembers?.map(member => (
             <div key={member.userId} style={{ background: "var(--ar-canvas)", padding: 12, borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-hairline)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontWeight: "bold", fontSize: "0.95em", marginBottom: 4 }}>

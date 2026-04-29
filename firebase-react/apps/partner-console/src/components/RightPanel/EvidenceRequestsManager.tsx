@@ -20,7 +20,7 @@ export default function EvidenceRequestsManager() {
             </tr>
           </thead>
           <tbody>
-            {evidenceRequests.map((req: any) => (
+            {evidenceRequests?.map((req: any) => (
               <tr key={req.id}>
                 <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)", fontWeight: "bold" }}>{req.itemTitle}</td>
                 <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)", color: "var(--ar-graphite)" }}>{req.messageToUser}</td>

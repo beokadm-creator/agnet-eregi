@@ -97,7 +97,7 @@ export default function Dashboard() {
       {/* Stats (Real SLA Breaches mapped here) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         {dashboardData.sla.length > 0 ? (
-          dashboardData.sla.slice(0, 4).map((s: any, idx: number) => (
+          dashboardData.sla.slice(0, 4)?.map((s: any, idx: number) => (
             <SloTile 
               key={idx}
               label={s.gateKey || "SLA Metric"} 
@@ -140,7 +140,7 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {dashboardData.incidents.length > 0 ? (
-                    dashboardData.incidents.map((it: any) => (
+                    dashboardData.incidents?.map((it: any) => (
                       <tr key={it.id}>
                         <td className="ar-mono" style={{ fontSize: 12 }}>{it.gateKey}</td>
                         <td style={{ fontSize: 13 }}>{it.summary || it.id}</td>

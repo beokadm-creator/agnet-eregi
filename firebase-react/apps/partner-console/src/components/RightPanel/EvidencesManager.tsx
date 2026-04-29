@@ -90,7 +90,7 @@ export default function EvidencesManager() {
             </tr>
           </thead>
           <tbody>
-            {evidences.map(e => (
+            {evidences?.map(e => (
               <React.Fragment key={e.id}>
                 <tr 
                   style={{ cursor: "pointer", background: expandedEvidenceId === e.id ? "var(--ar-paper-alt)" : "transparent" }}
@@ -133,7 +133,7 @@ export default function EvidencesManager() {
                         <div style={{ marginBottom: 12, padding: 12, background: "var(--ar-danger-soft)", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-danger-soft)" }}>
                           <h4 style={{ margin: "0 0 8px 0", color: "var(--ar-danger)", fontSize: "0.95em" }}>🚨 문서 결함 사유 (Document AI 검증 실패)</h4>
                           <ul style={{ margin: 0, paddingLeft: 20, color: "var(--ar-danger)", fontSize: "0.85em" }}>
-                            {e.defectReasons.map((reason: string, idx: number) => (
+                            {e.defectReasons?.map((reason: string, idx: number) => (
                               <li key={idx}>{reason}</li>
                             ))}
                           </ul>
@@ -144,7 +144,7 @@ export default function EvidencesManager() {
                         <div style={{ padding: 12, background: "var(--ar-accent-soft)", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-accent-soft)" }}>
                           <h4 style={{ margin: "0 0 8px 0", color: "var(--ar-accent)", fontSize: "0.95em" }}>🤖 AI 자동 인식 데이터</h4>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: "0.85em", color: "var(--ar-accent)", marginBottom: 12 }}>
-                            {Object.entries(e.aiExtraction).map(([key, data]: [string, any]) => (
+                            {Object.entries(e.aiExtraction)?.map(([key, data]: [string, any]) => (
                               <div key={key} style={{ background: "var(--ar-canvas)", padding: "4px 8px", borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-accent-soft)" }}>
                                 <strong style={{ textTransform: "capitalize", marginRight: 8, color: "var(--ar-ink)" }}>{key}:</strong> 
                                 {typeof data.value === "boolean" ? (data.value ? "Yes" : "No") : data.value}

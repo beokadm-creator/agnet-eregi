@@ -146,7 +146,7 @@ export default function TemplateManager() {
         {items.length === 0 ? (
           <div style={{ color: "var(--ar-graphite)", fontSize: "0.9em" }}>등록된 템플릿이 없습니다.</div>
         ) : (
-          items.map((t) => (
+          items?.map((t) => (
             <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12, border: "1px solid var(--ar-hairline)", borderRadius: "var(--ar-r1)", background: "var(--ar-canvas)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: "bold" }}>{t.name}</span>

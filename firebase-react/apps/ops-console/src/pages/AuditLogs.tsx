@@ -90,7 +90,7 @@ export default function AuditLogs() {
             <div style={{ color: "var(--ar-slate)", fontSize: "0.875rem" }}>감사 로그가 없습니다.</div>
           ) : (
             <div style={{ display: "grid", gap: "0.75rem" }}>
-              {items.map((it) => (
+              {items?.map((it) => (
                 <div key={it.id} style={{ border: "1px solid var(--ar-hairline)", background: "var(--ar-paper)", padding: "1rem", borderRadius: "var(--ar-r1)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "baseline" }}>
                     <div style={{ fontWeight: 600, fontFamily: "var(--ar-font-mono)", fontSize: "0.8125rem" }}>{it.action}</div>

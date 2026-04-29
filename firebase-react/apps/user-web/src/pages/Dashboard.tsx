@@ -195,7 +195,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-            {['법인 설립', '본점 이전', '임원 변경', '자본금 증자', '상호 변경', '청산'].map(t => (
+            {['법인 설립', '본점 이전', '임원 변경', '자본금 증자', '상호 변경', '청산']?.map(t => (
               <button key={t} className="ar-btn ar-btn-sm ar-btn-ghost" style={{ background: 'var(--ar-canvas)' }} onClick={() => setFunnelIntent(t)}>{t}</button>
             ))}
           </div>
@@ -319,7 +319,7 @@ export default function Dashboard() {
           { n: '평균 6시간', t: '신청 → 완료' },
           { n: '4.9 / 5.0', t: '실 사용자 평점' },
           { n: '1,200+', t: '입점 법무사 사무소' },
-        ].map(x => (
+        ]?.map(x => (
           <div key={x.n}>
             <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-0.02em' }}>{x.n}</div>
             <div style={{ fontSize: 13, color: '#A0A0A0', marginTop: 4 }}>{x.t}</div>

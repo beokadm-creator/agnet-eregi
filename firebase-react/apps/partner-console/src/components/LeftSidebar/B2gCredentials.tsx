@@ -54,7 +54,7 @@ export default function B2gCredentials() {
         <div style={{ color: "var(--ar-slate)", fontSize: "0.85em" }}>등록된 공공기관 인증서가 없습니다.</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {b2gCredentials.map((cred: any) => (
+          {b2gCredentials?.map((cred: any) => (
             <div key={cred.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--ar-canvas)", padding: 12, borderRadius: "var(--ar-r1)", border: "1px solid var(--ar-accent-soft)" }}>
               <div>
                 <div style={{ fontWeight: "bold", color: "var(--ar-accent)" }}>{cred.agencyType}</div>

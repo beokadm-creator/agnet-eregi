@@ -87,7 +87,7 @@ export default function OrganizationSettings() {
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
           <select value={selectedOrgId} onChange={(e) => setSelectedOrgId(e.target.value)} style={{ flex: 1, padding: "6px 10px" }}>
             <option value="">조직 선택</option>
-            {organizations.map((o) => (
+            {organizations?.map((o) => (
               <option key={o.id} value={String(o.id)}>{o.name} ({o.id})</option>
             ))}
           </select>
@@ -119,7 +119,7 @@ export default function OrganizationSettings() {
           <div style={{ color: "var(--ar-slate)" }}>조직이 없습니다.</div>
         ) : (
           <div style={{ display: "grid", gap: 6 }}>
-            {organizations.map((o) => (
+            {organizations?.map((o) => (
               <div key={o.id} style={{ border: "1px solid var(--ar-surface-muted)", borderRadius: "var(--ar-r1)", padding: 10, background: "var(--ar-paper-alt)" }}>
                 <div style={{ fontWeight: 600 }}>{o.name}</div>
                 <div style={{ color: "var(--ar-graphite)", fontSize: "0.85em" }}>ID: {o.id}</div>
@@ -135,7 +135,7 @@ export default function OrganizationSettings() {
           <div style={{ color: "var(--ar-slate)" }}>생성된 워크스페이스가 없습니다.</div>
         ) : (
           <div style={{ display: "grid", gap: 6 }}>
-            {workspaces.map((w) => (
+            {workspaces?.map((w) => (
               <div key={w.id} style={{ border: "1px solid var(--ar-surface-muted)", borderRadius: "var(--ar-r1)", padding: 10, background: "var(--ar-paper-alt)" }}>
                 <div style={{ fontWeight: 600 }}>{w.name}</div>
                 <div style={{ color: "var(--ar-graphite)", fontSize: "0.85em" }}>ID: {w.id}</div>

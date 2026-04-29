@@ -20,7 +20,7 @@ export default function B2gSubmissions() {
             </tr>
           </thead>
           <tbody>
-            {b2gSubmissions.map((s: any) => (
+            {b2gSubmissions?.map((s: any) => (
               <tr key={s.id}>
                 <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)", fontWeight: "bold" }}>{s.agency || s.agencyType || "-"}</td>
                 <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)" }}>{s.receiptNumber || "-"}</td>

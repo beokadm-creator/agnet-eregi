@@ -41,7 +41,7 @@ export default function QuotesManager() {
     setBusy(true);
     setLog("견적 최종 확정 중...");
     try {
-      const assumptions = finalizeQuoteAssumptions.split(",").map(s => s.trim()).filter(Boolean);
+      const assumptions = finalizeQuoteAssumptions.split(",")?.map(s => s.trim()).filter(Boolean);
       await getApi().post(`/v1/partner/cases/${selectedCase.id}/quotes/${quoteId}/finalize`, {
         finalPrice: finalizeQuotePrice,
         assumptionsKo: assumptions
@@ -107,7 +107,7 @@ export default function QuotesManager() {
         <div style={{ color: "var(--ar-slate)", fontSize: "0.9em" }}>견적 이력이 없습니다.</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {quotes.map(q => (
+          {quotes?.map(q => (
             <div key={q.id} style={{ padding: 12, border: "1px solid var(--ar-surface-muted)", borderRadius: "var(--ar-r1)", background: "var(--ar-canvas)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                 <div>
@@ -131,7 +131,7 @@ export default function QuotesManager() {
               
               {q.assumptionsKo && q.assumptionsKo.length > 0 && (
                 <ul style={{ margin: "4px 0 8px 0", paddingLeft: 20, fontSize: "0.85em", color: "var(--ar-graphite)" }}>
-                  {q.assumptionsKo.map((asm: string, idx: number) => <li key={idx}>{asm}</li>)}
+                  {q.assumptionsKo?.map((asm: string, idx: number) => <li key={idx}>{asm}</li>)}
                 </ul>
               )}
 

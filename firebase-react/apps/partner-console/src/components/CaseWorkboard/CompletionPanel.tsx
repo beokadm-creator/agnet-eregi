@@ -221,7 +221,7 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
               <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--ar-danger)" }}>다음 액션 가이드:</div>
               <div style={{ color: "var(--ar-danger)", marginBottom: 8 }}>누락된 서명본/접수증을 업로드한 뒤 다시 'ZIP 포함 파일 검증'을 눌러주세요.</div>
               <ul style={{ margin: 0, paddingLeft: 20, color: "var(--ar-danger)" }}>
-                {validation.missing.map((slot: string) => (
+                {validation.missing?.map((slot: string) => (
                   <li key={slot}>
                     {getSlotLabel(slot)} <span style={{ fontSize: "0.8em", color: "var(--ar-danger)" }}>({slot})</span>
                     <div style={{ fontSize: "0.85em", color: "var(--ar-graphite)", marginTop: 2 }}>

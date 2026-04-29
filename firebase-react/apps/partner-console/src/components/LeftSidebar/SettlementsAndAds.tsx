@@ -33,7 +33,7 @@ export default function SettlementsAndAds() {
           <div style={{ color: "var(--ar-slate)", fontSize: "0.85em" }}>정산 내역이 없습니다. (배치 실행 후 생성됨)</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {settlements.map(st => (
+            {settlements?.map(st => (
               <div key={st.id} style={{ background: "var(--ar-success-soft)", padding: 8, borderRadius: "var(--ar-r1)", fontSize: "0.85em", border: "1px solid var(--ar-success-soft)" }}>
                 <div style={{ fontWeight: "bold", marginBottom: 4 }}>ID: {st.id} ({st.status.toUpperCase()})</div>
                 <div style={{ color: "var(--ar-graphite)" }}>
@@ -58,7 +58,7 @@ export default function SettlementsAndAds() {
           <div style={{ color: "var(--ar-slate)", fontSize: "0.85em" }}>활성 캠페인이 없습니다.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {adCampaigns.map(camp => (
+            {adCampaigns?.map(camp => (
               <div key={camp.id} style={{ background: "var(--ar-accent-soft)", padding: 8, borderRadius: "var(--ar-r1)", fontSize: "0.85em", border: "1px solid var(--ar-accent-soft)" }}>
                 <div style={{ fontWeight: "bold", marginBottom: 4 }}>
                   ID: {camp.id} <span style={{ color: camp.status === "active" ? "var(--ar-success)" : "var(--ar-danger)" }}>({camp.status})</span>

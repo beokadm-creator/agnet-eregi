@@ -76,7 +76,7 @@ export default function RefundsManager() {
             </tr>
           </thead>
           <tbody>
-            {refunds.map(r => (
+            {refunds?.map(r => (
               <tr key={r.id}>
                 <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)", fontFamily: "var(--ar-font-mono)" }}>{r.paymentId}</td>
                 <td style={{ padding: 8, borderBottom: "1px solid var(--ar-surface-muted)", textAlign: "right", fontWeight: "bold" }}>{r.amount.toLocaleString()}</td>

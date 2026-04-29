@@ -156,7 +156,7 @@ export default function WebhookSettings() {
         {items.length === 0 ? (
           <div style={{ color: "var(--ar-graphite)", fontSize: "0.9em" }}>등록된 웹훅이 없습니다.</div>
         ) : (
-          items.map((k) => (
+          items?.map((k) => (
             <div key={k.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: 8, border: "1px solid var(--ar-hairline)", borderRadius: "var(--ar-r1)", background: "var(--ar-canvas)" }}>
               <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 <span style={{ fontFamily: "var(--ar-font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
