@@ -6,7 +6,7 @@ import { getApi } from "../../services/api";
 export default function TeamMembers() {
   const { teamMembers, setTeamMembers, busy, setBusy, setLog } = useAppContext();
   const [newInviteEmail, setNewInviteEmail] = useState("");
-  const [newInviteRole, setNewInviteRole] = useState("member");
+  const [newInviteRole, setNewInviteRole] = useState("viewer");
 
   async function loadTeamMembers() {
     try {
@@ -69,11 +69,10 @@ export default function TeamMembers() {
           onChange={e => setNewInviteRole(e.target.value)} 
           style={{ flex: 1, padding: 6 }}
         >
-          <option value="owner">Owner (최고 관리자)</option>
-          <option value="admin">Admin (관리자)</option>
-          <option value="editor">Editor (편집자)</option>
-          <option value="viewer">Viewer (조회자)</option>
-          <option value="member">Member (일반)</option>
+          <option value="owner">최고 관리자</option>
+          <option value="admin">관리자</option>
+          <option value="editor">편집자</option>
+          <option value="viewer">조회자</option>
         </select>
         <Button onClick={inviteTeamMember} disabled={busy || !newInviteEmail} style={{ padding: "6px 12px", background: "var(--ar-ink)", color: "var(--ar-canvas)", border: "none", borderRadius: "var(--ar-r1)", cursor: "pointer", fontWeight: "bold" }}>
           초대하기

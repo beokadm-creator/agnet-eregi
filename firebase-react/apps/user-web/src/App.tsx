@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import DashLayout from "./layouts/DashLayout";
 import WelcomeScreen from "./components/WelcomeScreen";
 import Dashboard from "./pages/Dashboard";
+import PartnerApply from "./pages/PartnerApply";
 
 // Keep existing complex logic in SubmissionDetail (will refactor later if needed)
 const SubmissionDetail = lazy(() => import("./pages/SubmissionDetail"));
@@ -89,6 +90,7 @@ export default function App() {
             </AuthGuard>
           }>
             <Route index element={<Dashboard />} />
+            <Route path="partner/apply" element={<PartnerApply />} />
             {/* Detail logic will be moved to its own page next */}
             <Route path="submissions/:id" element={
               <Suspense fallback={<div>Loading...</div>}>

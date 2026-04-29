@@ -844,4 +844,71 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
       return fail(res, 500, "INTERNAL", "파트너 통계 조회에 실패했습니다.", { error: error.message, requestId });
     }
   });
+
+  app.post("/v1/partners/applications", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const auth = (req as any).user;
+    const uid = String(auth.uid);
+    const email = auth.email ? String(auth.email) : "";
+    const { bizName, bizRegNo, contactName, contactPhone, note } = req.body || {};
+
+    if (!bizName || !contactName) {
+      return fail(res, 400, "INVALID_ARGUMENT", "bizName, contactName은 필수입니다.", { requestId });
+    }
+
+    try {
+      const ref = db.collection("partner_applications").doc(uid);
+      const snap = await ref.get();
+      const currentStatus = snap.exists ? String(snap.data()?.status || "") : "";
+      if (currentStatus === "approved") {
+        return fail(res, 409, "ALREADY_EXISTS", "이미 승인된 신청입니다.", { requestId });
+      }
+
+      if (!snap.exists) {
+        await ref.set({
+          uid,
+          email,
+          bizName: String(bizName),
+          bizRegNo: bizRegNo ? String(bizRegNo) : "",
+          contactName: String(contactName),
+          contactPhone: contactPhone ? String(contactPhone) : "",
+          note: note ? String(note) : "",
+          status: "pending",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } else {
+        await ref.update({
+          email,
+          bizName: String(bizName),
+          bizRegNo: bizRegNo ? String(bizRegNo) : "",
+          contactName: String(contactName),
+          contactPhone: contactPhone ? String(contactPhone) : "",
+          note: note ? String(note) : "",
+          status: "pending",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      return ok(res, { uid, status: "pending" }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "POST /v1/partners/applications", code: "INTERNAL", messageKo: "파트너 신청 실패", err: error });
+      return fail(res, 500, "INTERNAL", "파트너 신청에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  app.get("/v1/partners/applications/me", requireAuth, async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const auth = (req as any).user;
+    const uid = String(auth.uid);
+
+    try {
+      const snap = await db.collection("partner_applications").doc(uid).get();
+      if (!snap.exists) return ok(res, { application: null }, requestId);
+      return ok(res, { application: { id: snap.id, ...snap.data() } }, requestId);
+    } catch (error: any) {
+      logError({ endpoint: "GET /v1/partners/applications/me", code: "INTERNAL", messageKo: "파트너 신청 상태 조회 실패", err: error });
+      return fail(res, 500, "INTERNAL", "파트너 신청 상태 조회에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
 }

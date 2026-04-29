@@ -9,7 +9,7 @@ export default function AccessControl() {
   const [accessReason, setAccessReason] = useState("");
   const [partnerTargetUid, setPartnerTargetUid] = useState("");
   const [partnerId, setPartnerId] = useState("");
-  const [partnerRole, setPartnerRole] = useState("member");
+  const [partnerRole, setPartnerRole] = useState("viewer");
   const [partnerApprove, setPartnerApprove] = useState(true);
   const [partnerReason, setPartnerReason] = useState("");
 
@@ -37,7 +37,7 @@ export default function AccessControl() {
       <div style={{ display: 'grid', gap: '1rem', marginTop: '1rem', marginBottom: '2rem' }}>
         <Input label="대상 UID" value={partnerTargetUid} onChange={(e) => setPartnerTargetUid(e.target.value)} />
         <Input label="파트너 ID" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} placeholder="partners/{partnerId}" />
-        <Input label="파트너 역할" value={partnerRole} onChange={(e) => setPartnerRole(e.target.value)} placeholder="owner, admin, member" />
+        <Input label="파트너 역할" value={partnerRole} onChange={(e) => setPartnerRole(e.target.value)} placeholder="owner, admin, editor, viewer" />
         <Input label="파트너 승인 여부 (true/false)" value={String(partnerApprove)} onChange={(e) => setPartnerApprove(e.target.value === "true")} />
         <Input label="사유 (감사 로그)" value={partnerReason} onChange={(e) => setPartnerReason(e.target.value)} />
       </div>

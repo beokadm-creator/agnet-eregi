@@ -48,6 +48,7 @@ import { registerOpsReviewRoutes } from "./routes/v1/ops_reviews";
 import { registerOpsSlaRoutes } from "./routes/v1/ops_sla";
 import { registerOpsAuditLogRoutes } from "./routes/v1/ops_audit_logs";
 import { registerOpsBusinessRoutes } from "./routes/v1/ops_business";
+import { registerOpsPartnerApplicationRoutes } from "./routes/v1/ops_partner_applications";
 
 import { processRetryJobs } from "./lib/ops_retry_worker";
 import { processOpsAlertJobs } from "./lib/ops_alert_worker";
@@ -167,6 +168,7 @@ registerOpsReviewRoutes(app, admin);
 registerOpsSlaRoutes(app, admin);
 registerOpsAuditLogRoutes(app, admin);
 registerOpsBusinessRoutes(app, admin);
+registerOpsPartnerApplicationRoutes(app, admin);
 registerAuthRoutes(app, admin);
 registerB2gRoutes(app, admin);
 registerB2bRoutes(app, admin);

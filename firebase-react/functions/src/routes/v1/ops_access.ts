@@ -176,7 +176,7 @@ export function registerOpsAccessRoutes(app: express.Application, adminApp: type
         return fail(res, 400, "INVALID_ARGUMENT", "targetUid, partnerId, partnerRole, reason은 필수입니다.");
       }
 
-      if (!["owner", "admin", "member"].includes(String(partnerRole))) {
+      if (!["owner", "admin", "editor", "viewer"].includes(String(partnerRole))) {
         return fail(res, 400, "INVALID_ARGUMENT", "올바르지 않은 partnerRole 입니다.");
       }
 
@@ -189,8 +189,31 @@ export function registerOpsAccessRoutes(app: express.Application, adminApp: type
         partnerRole: String(partnerRole),
       });
 
+      // Ensure partner_team_members is consistent with claims
+      const db = adminApp.firestore();
+      const memberDocId = `${String(partnerId)}_${String(targetUid)}`;
+      const memberRef = db.collection("partner_team_members").doc(memberDocId);
+      const memberSnap = await memberRef.get();
+      if (!memberSnap.exists) {
+        await memberRef.set({
+          partnerId: String(partnerId),
+          userId: String(targetUid),
+          email: user.email || "",
+          role: String(partnerRole),
+          status: "active",
+          invitedBy: auth.uid,
+          joinedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } else {
+        await memberRef.update({
+          role: String(partnerRole),
+          status: "active",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
       if (approvePartner === true) {
-        const db = adminApp.firestore();
         await db.collection("partners").doc(String(partnerId)).set({
           status: "active",
           approvedBy: auth.uid,
@@ -236,6 +259,20 @@ export function registerOpsAccessRoutes(app: express.Application, adminApp: type
       delete (newClaims as any).partnerRole;
 
       await adminApp.auth().setCustomUserClaims(String(targetUid), newClaims);
+
+      // Suspend team membership if it exists
+      const existingPartnerId = (currentClaims as any).partnerId;
+      if (existingPartnerId) {
+        const memberDocId = `${String(existingPartnerId)}_${String(targetUid)}`;
+        const memberRef = adminApp.firestore().collection("partner_team_members").doc(memberDocId);
+        const memberSnap = await memberRef.get();
+        if (memberSnap.exists) {
+          await memberRef.update({
+            status: "suspended",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+      }
 
       await logOpsEvent(adminApp, {
         gateKey: "system",
