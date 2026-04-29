@@ -4,6 +4,44 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getApiBaseUrl } from '../apiBase';
 
+const ARLogo = ({ size = 24 }: { size?: number }) => (
+  <div style={{ width: size, height: size, background: 'var(--ar-accent)', borderRadius: '50%', display: 'inline-block' }} />
+);
+
+const Ic = {
+  search: () => <span>🔍</span>,
+  arrow: () => <span>→</span>,
+  pin: () => <span>📍</span>,
+  star: () => <span>⭐</span>,
+};
+
+function FeaturedOfficeCard({ style, office, area, rating, count, price, eta, featured, tagColor }: any) {
+  return (
+    <div className="ar-card-soft" style={{ ...style, padding: 0, overflow: 'hidden' }}>
+      <div style={{ height: 140, background: tagColor, position: 'relative' }}>
+        {featured && (
+          <div style={{ position: 'absolute', top: 14, left: 14, background: 'var(--ar-accent)', color: 'white', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999 }}>
+            ★ 이번 주 인기
+          </div>
+        )}
+        <div style={{ position: 'absolute', bottom: 14, right: 14, background: 'rgba(10,10,10,0.7)', color: 'white', fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999 }}>
+          평균 {eta}
+        </div>
+      </div>
+      <div style={{ padding: 18 }}>
+        <div style={{ fontSize: 17, fontWeight: 700 }}>{office}</div>
+        <div style={{ fontSize: 12, color: 'var(--ar-slate)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+          <Ic.pin /> {area} · ★ {rating} · 후기 {count}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14 }}>
+          <div className="ar-tabular" style={{ fontSize: 20, fontWeight: 800 }}>{price}<span style={{ fontSize: 12, color: 'var(--ar-slate)' }}>원~</span></div>
+          <span className="ar-badge ar-badge-success">예약 가능</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { t } = useTranslation();
   const { token } = useAuth();
@@ -71,12 +109,13 @@ export default function Dashboard() {
     } catch (e: any) { setLog(`[Error] ${e.message}`); } finally { setBusy(false); }
   }
 
-  async function submitFunnelAnswer() {
-    if (!funnelSessionId || !currentQuestion || funnelAnswer === undefined) return;
+  async function submitFunnelAnswer(manualAnswer?: any) {
+    const finalAnswer = manualAnswer !== undefined ? manualAnswer : funnelAnswer;
+    if (!funnelSessionId || !currentQuestion || finalAnswer === undefined) return;
     setBusy(true); setLog("답변 제출 중...");
     try {
       const res = await apiPost(`/v1/funnel/sessions/${funnelSessionId}/answer`, { 
-        questionId: currentQuestion.id, answer: funnelAnswer
+        questionId: currentQuestion.id, answer: finalAnswer
       });
       setFunnelPreview(res.preview);
       if (res.isCompleted) {
@@ -102,117 +141,228 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '5rem' }}>
-      {log && <div className="wc-log wc-log--neutral" style={{ marginBottom: '2rem' }}>{log}</div>}
-
-      <section className="dash-section">
-        <div className="dash-section-header">
-          <h2 className="dash-section-title">신규 의뢰 시작</h2>
+    <div className="ar-root ar-paper" style={{ width: '100%', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      {/* Top nav */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 56px', borderBottom: '1px solid var(--ar-hairline)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
+          <ARLogo size={26} />
+          <nav style={{ display: 'flex', gap: 24, fontSize: 14, fontWeight: 600, color: 'var(--ar-graphite)' }}>
+            <span style={{ color: 'var(--ar-ink)' }}>법인 등기</span>
+            <span>부동산 등기</span>
+            <span>법무사 찾기</span>
+            <span>가격 안내</span>
+          </nav>
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <input 
-            value={funnelIntent} onChange={e => setFunnelIntent(e.target.value)} 
-            placeholder={t('funnel_placeholder')} className="dash-input"
-          />
-          <button onClick={startFunnel} disabled={busy || !funnelIntent} className="dash-button" style={{ whiteSpace: 'nowrap' }}>
-            {t('funnel_start')}
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className="ar-btn ar-btn-quiet ar-btn-sm">로그인</button>
+          <button className="ar-btn ar-btn-sm ar-btn-ink">시작하기</button>
         </div>
+      </div>
 
-        {funnelSessionId && currentQuestion && (
-          <div className="dash-card" style={{ marginTop: '1.5rem' }}>
-            <h3 className="dash-card-title" style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>{currentQuestion.text}</h3>
-            {currentQuestion.type === "single_choice" && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                {currentQuestion.options.map((opt: string) => (
-                  <button 
-                    key={opt} 
-                    onClick={() => { setFunnelAnswer(opt); submitFunnelAnswer(); }} 
-                    disabled={busy} 
-                    className={`dash-button dash-button--outline${funnelAnswer === opt ? ' selected' : ''}`}
-                    style={funnelAnswer === opt ? {} : {}}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            )}
-            {currentQuestion.type === "number" && (
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <input type="number" value={funnelAnswer} onChange={e => setFunnelAnswer(e.target.value)} className="dash-input" style={{ width: '150px' }} />
-                <button onClick={submitFunnelAnswer} disabled={busy || !funnelAnswer} className="dash-button">다음</button>
-              </div>
-            )}
+      {/* Hero */}
+      <div style={{ padding: '72px 56px 56px', display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 56, alignItems: 'center' }}>
+        <div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 999, background: 'var(--ar-accent-soft)', color: 'var(--ar-accent-ink)', fontSize: 13, fontWeight: 700, marginBottom: 24 }}>
+            <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--ar-accent)' }} />
+            전국 1,200곳의 법무사가 입점
           </div>
-        )}
-
-        {funnelPreview && !funnelResults && (
-          <div className="dash-card" style={{ marginTop: '1.5rem', backgroundColor: 'var(--ar-accent-soft)' }}>
-            <h4 className="dash-card-title" style={{ fontSize: '1rem' }}>가치 프리뷰</h4>
-            <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
-              <div>
-                <span className="dash-label">예상 비용</span>
-                <div className="dash-value" style={{ marginBottom: 0 }}>{funnelPreview.minPrice.toLocaleString()}원 ~ {funnelPreview.maxPrice.toLocaleString()}원</div>
-              </div>
-              <div>
-                <span className="dash-label">소요 시간</span>
-                <div className="dash-value" style={{ marginBottom: 0 }}>{funnelPreview.etaDays}일</div>
-              </div>
+          <h1 style={{ fontSize: 84, fontWeight: 800, lineHeight: 0.98, margin: 0, letterSpacing: '-0.04em' }}>
+            법인 등기,<br/>
+            <span style={{ color: 'var(--ar-accent)' }}>5분</span>이면 시작.
+          </h1>
+          <p style={{ marginTop: 28, fontSize: 19, color: 'var(--ar-graphite)', lineHeight: 1.55, maxWidth: 520 }}>
+            동네 법무사 사무소를 한눈에 비교하고, 카톡으로 서류받고, 등기까지 비대면으로. 평균 처리 6시간.
+          </p>
+          
+          {/* Big search - Wired to funnelIntent */}
+          <div className="ar-card-soft" style={{ marginTop: 36, padding: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px' }}>
+              <Ic.search />
+              <input 
+                style={{ flex: 1, height: 56, border: 'none', outline: 'none', fontSize: 17, fontWeight: 500, background: 'transparent', color: 'var(--ar-ink)' }} 
+                placeholder="어떤 등기가 필요하세요? 예) 본점 이전" 
+                value={funnelIntent}
+                onChange={e => setFunnelIntent(e.target.value)}
+              />
             </div>
+            <button 
+              className="ar-btn ar-btn-lg ar-btn-accent" 
+              style={{ height: 56, padding: '0 24px' }}
+              disabled={busy || !funnelIntent}
+              onClick={startFunnel}
+            >
+              찾아보기 <Ic.arrow />
+            </button>
           </div>
-        )}
+          <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+            {['법인 설립', '본점 이전', '임원 변경', '자본금 증자', '상호 변경', '청산'].map(t => (
+              <button key={t} className="ar-btn ar-btn-sm ar-btn-ghost" style={{ background: 'var(--ar-canvas)' }} onClick={() => setFunnelIntent(t)}>{t}</button>
+            ))}
+          </div>
 
-        {funnelResults && (
-          <div className="dash-card" style={{ marginTop: '1.5rem' }}>
-            <h3 className="dash-card-title">매칭 결과</h3>
-            {funnelResults.recommended && (
-              <div style={{ marginTop: '2rem' }}>
-                <span className="dash-label" style={{ color: 'var(--ar-accent-ink)' }}>추천 파트너</span>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem', border: '1px solid var(--ar-hairline)', borderRadius: 'var(--ar-r2)' }}>
-                  <div>
-                    <div style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.25rem' }}>{funnelResults.recommended.name}</div>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--ar-graphite)' }}>
-                      예상 가격: {funnelResults.recommended.price?.toLocaleString()}원 · ETA: {funnelResults.recommended.etaHours}시간
+          {/* Active Funnel Section */}
+          {(funnelSessionId && (currentQuestion || funnelPreview || funnelResults)) && (
+            <div style={{ marginTop: 48, paddingTop: 48, borderTop: '1px solid var(--ar-hairline)' }}>
+              {log && <div style={{ fontSize: 13, color: 'var(--ar-slate)', marginBottom: 16 }}>{log}</div>}
+              
+              {currentQuestion && (
+                <div className="ar-card" style={{ padding: 32 }}>
+                  <div className="ar-eyebrow" style={{ color: 'var(--ar-accent)', marginBottom: 8 }}>질문</div>
+                  <h3 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', margin: '0 0 24px' }}>{currentQuestion.text}</h3>
+                  
+                  {currentQuestion.type === "single_choice" && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                      {currentQuestion.options.map((opt: string) => (
+                        <button 
+                          key={opt} 
+                          onClick={() => { setFunnelAnswer(opt); submitFunnelAnswer(opt); }} 
+                          disabled={busy} 
+                          className="ar-btn ar-btn-soft"
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {currentQuestion.type === "number" && (
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      <input 
+                        type="number" 
+                        value={funnelAnswer} 
+                        onChange={e => setFunnelAnswer(e.target.value)} 
+                        className="ar-input" 
+                        style={{ width: 160 }} 
+                      />
+                      <button onClick={() => submitFunnelAnswer()} disabled={busy || !funnelAnswer} className="ar-btn ar-btn-ink">다음 <Ic.arrow /></button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {funnelPreview && !funnelResults && (
+                <div className="ar-card-soft" style={{ marginTop: 24, padding: 24, background: 'var(--ar-accent-soft)' }}>
+                  <div style={{ display: 'flex', gap: 48 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ar-accent-ink)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.05em' }}>예상 비용</div>
+                      <div className="ar-tabular" style={{ fontSize: 28, fontWeight: 800, color: 'var(--ar-accent-ink)', marginTop: 4 }}>{funnelPreview.minPrice.toLocaleString()}원~</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ar-accent-ink)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.05em' }}>소요 시간</div>
+                      <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--ar-accent-ink)', marginTop: 4 }}>{funnelPreview.etaDays}일</div>
                     </div>
                   </div>
-                  <button onClick={() => createSubmissionFromFunnel(funnelResults.recommended.partnerId)} disabled={busy} className="dash-button">
-                    선택
-                  </button>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
+              )}
 
-      <section className="dash-section">
-        <div className="dash-section-header">
-          <h2 className="dash-section-title">{t('my_submissions')}</h2>
-          <button onClick={loadSubmissions} disabled={busy} className="dash-nav-btn" style={{ fontSize: '0.875rem' }}>{t('refresh')}</button>
+              {funnelResults && (
+                <div style={{ marginTop: 24 }}>
+                   <div className="ar-eyebrow" style={{ marginBottom: 12 }}>매칭된 파트너</div>
+                   {funnelResults.recommended && (
+                     <div className="ar-card" style={{ padding: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                       <div>
+                         <div style={{ fontSize: 20, fontWeight: 800 }}>{funnelResults.recommended.name}</div>
+                         <div style={{ fontSize: 14, color: 'var(--ar-slate)', marginTop: 4 }}>
+                           예상 가격: {funnelResults.recommended.price?.toLocaleString()}원 · ETA: {funnelResults.recommended.etaHours}시간
+                         </div>
+                       </div>
+                       <button onClick={() => createSubmissionFromFunnel(funnelResults.recommended.partnerId)} disabled={busy} className="ar-btn ar-btn-ink">
+                         지금 신청하기 <Ic.arrow />
+                       </button>
+                     </div>
+                   )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right — featured law office card stack */}
+        <div style={{ position: 'relative', height: 520 }}>
+          <FeaturedOfficeCard
+            style={{ position: 'absolute', top: 40, left: 40, width: 340, transform: 'rotate(-3deg)' }}
+            office="해담 법무사"
+            area="서울 강남"
+            rating={4.9}
+            count={428}
+            price="33,000"
+            eta="4시간"
+            tagColor="#E0B0FF"
+          />
+          <FeaturedOfficeCard
+            style={{ position: 'absolute', top: 0, right: 0, width: 360, transform: 'rotate(2deg)' }}
+            office="이로운 법무법인"
+            area="서울 마포"
+            rating={4.8}
+            count={892}
+            price="29,000"
+            eta="3시간"
+            featured
+            tagColor="var(--ar-accent-soft)"
+          />
+          <FeaturedOfficeCard
+            style={{ position: 'absolute', bottom: 0, left: 0, width: 320, transform: 'rotate(-1deg)' }}
+            office="청람 법무사"
+            area="경기 성남"
+            rating={4.9}
+            count={314}
+            price="35,000"
+            eta="5시간"
+            tagColor="#90EE90"
+          />
+        </div>
+      </div>
+
+      {/* Trust bar */}
+      <div style={{ background: 'var(--ar-ink)', color: 'white', padding: '36px 56px', display: 'flex', justifyContent: 'space-between', gap: 56 }}>
+        {[
+          { n: '12,400+', t: '누적 등기 처리' },
+          { n: '평균 6시간', t: '신청 → 완료' },
+          { n: '4.9 / 5.0', t: '실 사용자 평점' },
+          { n: '1,200+', t: '입점 법무사 사무소' },
+        ].map(x => (
+          <div key={x.n}>
+            <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-0.02em' }}>{x.n}</div>
+            <div style={{ fontSize: 13, color: '#A0A0A0', marginTop: 4 }}>{x.t}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Submissions Section */}
+      <div style={{ padding: '72px 56px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 36 }}>
+          <div>
+            <div className="ar-eyebrow" style={{ color: 'var(--ar-accent-ink)', marginBottom: 10 }}>My Submissions</div>
+            <h2 style={{ fontSize: 44, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>진행 중인 사건 {submissions.length}건</h2>
+          </div>
+          <button className="ar-btn ar-btn-ghost" onClick={loadSubmissions} disabled={busy}>새로고침 <Ic.arrow /></button>
         </div>
 
         {submissions.length === 0 ? (
-          <div style={{ padding: '3rem 0', textAlign: 'center', color: 'var(--ar-fog)', fontSize: '0.875rem' }}>
-            {t('empty_submissions')}
+          <div className="ar-card-soft" style={{ padding: '64px', textAlign: 'center', color: 'var(--ar-slate)' }}>
+            아직 진행 중인 사건이 없습니다. 위 검색창에서 등기를 시작해 보세요.
           </div>
         ) : (
-          <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
             {submissions.map(s => (
-              <div key={s.id} className="dash-item" onClick={() => navigate(`/submissions/${s.id}`)} style={{ cursor: 'pointer' }}>
-                <div className="dash-item-header">
-                  <div className="dash-item-title">{s.input?.type || '알 수 없는 유형'}</div>
-                  <div className={`dash-item-status ${["failed", "cancelled"].includes(s.status) ? "dash-item-status--error" : ""}`}>
-                    {statusText[s.status] || s.status.toUpperCase()}
+              <div key={s.id} className="ar-card" style={{ padding: 24, cursor: 'pointer' }} onClick={() => navigate(`/submissions/${s.id}`)}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ar-slate)', marginBottom: 6 }}>{new Date(s.updatedAt).toLocaleDateString()}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800 }}>{s.input?.type || '등기 신청'}</div>
                   </div>
+                  <span className={`ar-badge ${["failed", "cancelled"].includes(s.status) ? "ar-badge-danger" : (s.status === "completed" ? "ar-badge-success" : "ar-badge-accent")}`}>
+                    {statusText[s.status] || s.status}
+                  </span>
                 </div>
-                <div className="dash-item-meta">
-                  {new Date(s.updatedAt).toLocaleString()} · ID: {s.id.slice(0,8)}...
+                <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="ar-mono" style={{ fontSize: 12, color: 'var(--ar-slate)' }}>ID: {s.id.slice(0, 12)}...</div>
+                  <button className="ar-btn ar-btn-sm ar-btn-ghost">상세 보기 <Ic.arrow /></button>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </section>
+      </div>
     </div>
   );
 }
