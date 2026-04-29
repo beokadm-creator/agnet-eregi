@@ -46,7 +46,8 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
           flexDirection: 'column',
           gap: '2px',
         }}>
-          <NavLink to="/" end style={({ isActive }) => navLinkStyle(isActive)}>Gate / Operations</NavLink>
+          <NavLink to="/business" style={({ isActive }) => navLinkStyle(isActive)}>비즈니스 대시보드</NavLink>
+          <NavLink to="/" end style={({ isActive }) => navLinkStyle(isActive)}>운영 관리</NavLink>
           <NavLink to="/case-packs" style={({ isActive }) => navLinkStyle(isActive)}>Case Packs</NavLink>
           <NavLink to="/access" style={({ isActive }) => navLinkStyle(isActive)}>Access Control</NavLink>
           <NavLink to="/observability" style={({ isActive }) => navLinkStyle(isActive)}>Observability</NavLink>

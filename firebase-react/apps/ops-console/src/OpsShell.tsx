@@ -14,6 +14,7 @@ import Observability from "./pages/Observability";
 import ReviewQueue from "./pages/ReviewQueue";
 import SlaDashboard from "./pages/SlaDashboard";
 import AuditLogs from "./pages/AuditLogs";
+import BusinessDashboard from "./pages/BusinessDashboard";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, isReady, accessDenied } = useAuth();
@@ -54,6 +55,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginRoute />} />
           <Route path="/" element={<AuthGuard><OpsLayout onLogout={() => signOut(auth)} /></AuthGuard>}>
+            <Route path="business" element={<BusinessDashboard />} />
             <Route index element={<Dashboard />} />
             <Route path="case-packs" element={<CasePacks />} />
             <Route path="access" element={<AccessControl />} />
