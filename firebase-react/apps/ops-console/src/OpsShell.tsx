@@ -19,6 +19,7 @@ import Incidents from "./pages/Incidents";
 import Release from "./pages/Release";
 import System from "./pages/System";
 import Settings from "./pages/Settings";
+import Reports from "./pages/Reports";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, isReady, accessDenied } = useAuth();
@@ -71,6 +72,7 @@ export default function App() {
             <Route path="release" element={<Release />} />
             <Route path="system" element={<System />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="reports" element={<Reports />} />
           </Route>
         </Routes>
       </BrowserRouter>

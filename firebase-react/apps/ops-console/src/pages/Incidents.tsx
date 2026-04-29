@@ -139,6 +139,11 @@ export default function Incidents() {
   const [actionRunning, setActionRunning] = useState(false);
   const [actionResult, setActionResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  // Risk mitigation
+  const [mitigateGateKey, setMitigateGateKey] = useState("");
+  const [mitigateRunning, setMitigateRunning] = useState(false);
+  const [mitigateResult, setMitigateResult] = useState<{ ok: boolean; message: string } | null>(null);
+
   // --- Data Fetching ---
 
   const fetchAll = useCallback(async () => {
@@ -246,6 +251,42 @@ export default function Incidents() {
       }
     },
     [token, selectedId, fetchAll],
+  );
+
+  const mitigateRisk = useCallback(
+    async (gateKey: string) => {
+      setMitigateRunning(true);
+      setMitigateResult(null);
+      try {
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/v1/ops/risk/${encodeURIComponent(gateKey)}/mitigate`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+        });
+        const json = await res.json();
+        if (json.ok) {
+          setMitigateResult({ ok: true, message: json.data ? JSON.stringify(json.data) : "완화 성공" });
+          fetchAll();
+        } else {
+          setMitigateResult({
+            ok: false,
+            message: json.error?.messageKo || json.error?.message || "실패",
+          });
+        }
+      } catch (e) {
+        setMitigateResult({
+          ok: false,
+          message: e instanceof Error ? e.message : "요청 실패",
+        });
+      } finally {
+        setMitigateRunning(false);
+      }
+    },
+    [token, fetchAll],
   );
 
   const rebuildIncidents = useCallback(async () => {
@@ -368,7 +409,40 @@ export default function Incidents() {
         >
           인시던트 재빌드
         </button>
+        <span style={{ margin: "0 4px", color: "var(--ar-hairline)" }}>|</span>
+        <input
+          className="ar-input ar-input-sm"
+          style={{ width: 160 }}
+          placeholder="리스크 완화 Gate Key"
+          value={mitigateGateKey}
+          onChange={(e) => setMitigateGateKey(e.target.value)}
+        />
+        <button
+          className="ar-btn ar-btn-sm ar-btn-accent"
+          disabled={mitigateRunning || !mitigateGateKey.trim()}
+          onClick={() => {
+            mitigateRisk(mitigateGateKey.trim());
+          }}
+        >
+          {mitigateRunning ? "실행 중..." : "🛡️ 리스크 완화"}
+        </button>
       </div>
+
+      {mitigateResult && (
+        <div
+          style={{
+            padding: "10px 14px",
+            borderRadius: "var(--ar-r1)",
+            background: mitigateResult.ok ? "var(--ar-success-soft)" : "var(--ar-danger-soft)",
+            color: mitigateResult.ok ? "var(--ar-success)" : "var(--ar-danger)",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          {mitigateResult.ok ? "✅" : "❌"} 리스크 완화:{" "}
+          <span style={{ fontWeight: 500 }}>{mitigateResult.message}</span>
+        </div>
+      )}
 
       {/* Stats Row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
@@ -597,6 +671,25 @@ export default function Incidents() {
                         ))}
                       </div>
                     )}
+                    <div
+                      style={{
+                        marginTop: 8,
+                        paddingTop: 8,
+                        borderTop: "1px solid var(--ar-hairline)",
+                      }}
+                    >
+                      <button
+                        className="ar-btn ar-btn-sm ar-btn-accent"
+                        disabled={mitigateRunning}
+                        onClick={() => {
+                          setMitigateGateKey(detail.gateKey);
+                          mitigateRisk(detail.gateKey);
+                        }}
+                        style={{ width: "100%" }}
+                      >
+                        {mitigateRunning ? "실행 중..." : "🛡️ 리스크 완화 실행"}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div style={{ color: "var(--ar-slate)", fontSize: 13 }}>

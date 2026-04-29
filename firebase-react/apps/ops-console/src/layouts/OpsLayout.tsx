@@ -63,6 +63,7 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
 
           <div className="ar-nav-section" style={{ color: 'var(--ar-fog)' }}>기록</div>
           <NavLink to="/audit-logs" style={({ isActive }) => navLinkStyle(isActive)}>감사 로그</NavLink>
+          <NavLink to="/reports" style={({ isActive }) => navLinkStyle(isActive)}>📰 리포트 & 알림</NavLink>
 
           <div className="ar-nav-section" style={{ color: 'var(--ar-fog)' }}>설정</div>
           <NavLink to="/settings" style={({ isActive }) => navLinkStyle(isActive)}>통합 설정</NavLink>
