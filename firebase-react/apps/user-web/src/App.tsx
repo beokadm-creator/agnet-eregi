@@ -9,6 +9,9 @@ import DashLayout from "./layouts/DashLayout";
 import WelcomeScreen from "./components/WelcomeScreen";
 import Dashboard from "./pages/Dashboard";
 import PartnerApply from "./pages/PartnerApply";
+import Settings from "./pages/Settings";
+import Funnel from "./pages/Funnel";
+import FunnelResults from "./pages/FunnelResults";
 
 // Keep existing complex logic in SubmissionDetail (will refactor later if needed)
 const SubmissionDetail = lazy(() => import("./pages/SubmissionDetail"));
@@ -90,7 +93,11 @@ export default function App() {
             </AuthGuard>
           }>
             <Route index element={<Dashboard />} />
+            <Route path="funnel" element={<Funnel />} />
+            <Route path="funnel/:sessionId" element={<Funnel />} />
+            <Route path="funnel/:sessionId/results" element={<FunnelResults />} />
             <Route path="partner/apply" element={<PartnerApply />} />
+            <Route path="settings" element={<Settings />} />
             {/* Detail logic will be moved to its own page next */}
             <Route path="submissions/:id" element={
               <Suspense fallback={<div>Loading...</div>}>
