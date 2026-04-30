@@ -22,6 +22,8 @@ npm run deploy:staging
 npm run deploy:prod
 ```
 
+위 스크립트는 내부적으로 `npm run build`를 먼저 수행한 뒤 deploy를 진행합니다.
+
 ## Hosting URL
 
 - Staging
@@ -36,4 +38,3 @@ npm run deploy:prod
 ## Ops 콘솔에서 환경 확인
 
 Ops 콘솔 상단 바에 `STAGING/PROD` 뱃지와 현재 hostname을 표시합니다.
-
