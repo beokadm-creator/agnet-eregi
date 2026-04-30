@@ -2,6 +2,7 @@
   "projects": {
     "default": "agent-eregi",
     "agent-eregi": "agent-eregi",
+    "project-prod": "agent-eregi",
     "project-staging": "agentregi-d77a3"
   },
   "targets": {

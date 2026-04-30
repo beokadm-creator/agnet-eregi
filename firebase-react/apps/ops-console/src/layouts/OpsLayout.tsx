@@ -4,6 +4,10 @@ import { auth } from '@rp/firebase';
 
 export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
+  const host = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isStaging = host.includes('d77a3') || host.includes('staging');
+  const envLabel = isStaging ? 'STAGING' : 'PROD';
+  const envBadgeClass = `ops-badge ${isStaging ? 'ops-badge-warning' : 'ops-badge-brand'}`;
 
   return (
     <div className="ops-root ops-layout">
@@ -54,10 +58,10 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
       <div className="ops-main">
         <header className="ops-topbar">
           <div style={{ fontSize: '12px', color: 'var(--ops-text-muted)', display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span className="ops-badge ops-badge-brand">PROD</span>
-            <span>ap-northeast-2</span>
+            <span className={envBadgeClass}>{envLabel}</span>
+            <span>asia-northeast3</span>
             <span>·</span>
-            <span style={{ color: 'var(--ops-success)' }}>● All Systems Operational</span>
+            <span style={{ color: 'var(--ops-text-muted)' }}>{host}</span>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button className="ops-btn">Search (⌘K)</button>
