@@ -19,6 +19,7 @@ interface FunnelResults {
   recommended: PartnerInfo;
   compareTop3: PartnerInfo[];
   sponsored: PartnerInfo[];
+  ai?: any;
 }
 
 function formatPrice(n: number): string {
@@ -130,6 +131,8 @@ export default function FunnelResults() {
   const { token } = useAuth();
 
   const [results, setResults] = useState<FunnelResults | null>(null);
+  const [ai, setAi] = useState<any | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [selectingPartner, setSelectingPartner] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -173,10 +176,25 @@ export default function FunnelResults() {
     try {
       const data = await apiGet<FunnelResults>(`/v1/funnel/sessions/${sessionId}/results`);
       setResults(data);
+      setAi((data as any)?.ai || null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t('results.load_error'));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function generateAi() {
+    if (!sessionId) return;
+    setAiBusy(true);
+    setError(null);
+    try {
+      const data = await apiPost<{ ai: any }>(`/v1/funnel/sessions/${sessionId}/ai/suggestions`, {});
+      setAi((data as any)?.ai || null);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "AI 추천 생성 실패");
+    } finally {
+      setAiBusy(false);
     }
   }
 
@@ -239,6 +257,38 @@ export default function FunnelResults() {
       >
         {t('results.back_to_dashboard')}
       </button>
+
+      <div className="uw-card" style={{ padding: 24, marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>AI 추천</div>
+          <button onClick={generateAi} disabled={aiBusy || busy} className="uw-btn uw-btn-outline">
+            {aiBusy ? "생성 중..." : ai ? "갱신" : "생성"}
+          </button>
+        </div>
+        {ai ? (
+          <div style={{ display: "grid", gap: 10, fontSize: 14 }}>
+            {ai.summaryKo && <div style={{ padding: 12, borderRadius: 12, background: "var(--uw-surface)" }}>{ai.summaryKo}</div>}
+            {Array.isArray(ai.recommendedNextStepsKo) && ai.recommendedNextStepsKo.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 6 }}>다음 단계</div>
+                <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                  {ai.recommendedNextStepsKo.map((x: string, i: number) => <li key={i}>{x}</li>)}
+                </ul>
+              </div>
+            )}
+            {Array.isArray(ai.recommendedPartnerCriteriaKo) && ai.recommendedPartnerCriteriaKo.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 6 }}>추천 기준</div>
+                <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                  {ai.recommendedPartnerCriteriaKo.map((x: string, i: number) => <li key={i}>{x}</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ color: "var(--uw-fog)", fontSize: 13 }}>진단 결과를 요약하고 추천 기준/다음 단계를 제안합니다.</div>
+        )}
+      </div>
 
       <div className="animate-slide-up" style={{ marginBottom: 48 }}>
         <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>

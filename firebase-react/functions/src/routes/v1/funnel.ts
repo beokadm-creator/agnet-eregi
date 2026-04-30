@@ -1,6 +1,17 @@
 import { Express } from "express";
 import * as admin from "firebase-admin";
 import { ok, fail, logError } from "../../lib/http";
+import { llmChatComplete } from "../../lib/llm_engine";
+
+function parseJsonText(text: string): any {
+  const t = String(text || "").trim();
+  try {
+    return JSON.parse(t);
+  } catch {
+    const cleaned = t.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
+    return JSON.parse(cleaned);
+  }
+}
 
 // 더미 질문 데이터 (SDUI 구조 예시)
 const QUESTIONS: Record<string, any> = {
@@ -238,12 +249,101 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
       return ok(res, {
         recommended,
         compareTop3,
-        sponsored: sponsoredPartners
+        sponsored: sponsoredPartners,
+        ai: sessionData.aiSuggestions || null
       }, requestId);
 
     } catch (error: any) {
       logError("GET /v1/funnel/sessions/:sessionId/results", "N/A", "INTERNAL", "매칭 결과 조회 중 오류가 발생했습니다.", error, requestId);
       return fail(res, 500, "INTERNAL", "매칭 결과 조회에 실패했습니다.", { error: error.message, requestId });
+    }
+  });
+
+  // 4. AI 추천/요약 생성 (기존 흐름은 유지)
+  app.post("/v1/funnel/sessions/:sessionId/ai/suggestions", async (req, res) => {
+    const requestId = (req as any).requestId || "req-unknown";
+    const sessionId = String(req.params.sessionId);
+
+    try {
+      const sessionRef = db.collection("funnel_sessions").doc(sessionId);
+      const sessionDoc = await sessionRef.get();
+      if (!sessionDoc.exists) {
+        return fail(res, 404, "NOT_FOUND", "해당 진단 세션을 찾을 수 없습니다.", { requestId });
+      }
+
+      const sessionData = sessionDoc.data() as any;
+
+      const snapshot = await db.collection("partners")
+        .where("status", "==", "active")
+        .where("isOverloaded", "!=", true)
+        .orderBy("isOverloaded")
+        .orderBy("rankingScore", "desc")
+        .limit(8)
+        .get();
+
+      const partners = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          partnerId: doc.id,
+          name: data.name,
+          price: data.price || 0,
+          etaHours: data.etaHours || 24,
+          rating: data.rating || 0,
+          reviewCount: data.reviewCount || 0,
+          rankingScore: data.rankingScore || 0,
+          qualityTier: data.qualityTier || "Bronze"
+        };
+      });
+
+      const prompt = `
+당신은 사용자 퍼널 진단/매칭을 돕는 AI입니다.
+아래 입력을 바탕으로 사용자가 이해하기 쉬운 요약과 다음 단계 안내를 만들어 주세요.
+반드시 오직 JSON으로만 응답하세요. 마크다운 백틱(\`\`\`)은 쓰지 마세요.
+
+입력:
+${JSON.stringify(
+  {
+    intent: sessionData.intent,
+    answers: sessionData.answers,
+    preview: sessionData.preview,
+    topPartners: partners.slice(0, 5),
+  },
+  null,
+  2
+)}
+
+출력(JSON):
+{
+  "summaryKo": "요약(1~2문장)",
+  "recommendedNextStepsKo": ["다음 단계 1", "다음 단계 2"],
+  "recommendedPartnerCriteriaKo": ["추천 기준 1", "추천 기준 2"],
+  "suggestedQuestionsKo": ["추가로 물어볼 질문 1", "질문 2"]
+}
+`;
+
+      const out = await llmChatComplete(
+        adminApp,
+        [
+          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." },
+          { role: "user", content: prompt }
+        ],
+        { temperature: 0.2, maxTokens: 900, expectJson: true }
+      );
+
+      const parsed = parseJsonText(out.text || "{}");
+      const aiSuggestions = {
+        ...parsed,
+        provider: out.provider,
+        model: out.model,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await sessionRef.set({ aiSuggestions }, { merge: true });
+      return ok(res, { ai: aiSuggestions }, requestId);
+
+    } catch (error: any) {
+      logError("POST /v1/funnel/sessions/:sessionId/ai/suggestions", "N/A", "INTERNAL", "AI 추천 생성 중 오류가 발생했습니다.", error, requestId);
+      return fail(res, 500, "INTERNAL", "AI 추천 생성에 실패했습니다.", { error: error.message, requestId });
     }
   });
 }

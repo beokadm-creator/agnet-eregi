@@ -18,6 +18,8 @@ export default function SubmissionDetail() {
   const [quotes, setQuotes] = useState<any[]>([]);
   const [workflowState, setWorkflowState] = useState<any | null>(null);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [aiAssist, setAiAssist] = useState<any | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState("");
   const [showTossModal, setShowTossModal] = useState(false);
@@ -88,7 +90,25 @@ export default function SubmissionDetail() {
       setWorkflowState(wf);
       const docs = await apiGet(`/v1/cases/${subId}/documents`);
       setDocuments(asArray(docs));
+      try {
+        const ai = await apiGet(`/v1/user/submissions/${subId}/ai/assist`);
+        setAiAssist(ai?.ai || null);
+      } catch {
+      }
     } catch (e: any) { setLog(`[Error] ${e.message}`); } finally { setBusy(false); }
+  }
+
+  async function generateAiAssist() {
+    if (!id) return;
+    setAiBusy(true);
+    try {
+      const ai = await apiPost(`/v1/user/submissions/${id}/ai/assist`, {});
+      setAiAssist(ai?.ai || null);
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setAiBusy(false);
+    }
   }
 
   async function acceptQuote(quoteId: string) {
@@ -174,6 +194,46 @@ export default function SubmissionDetail() {
       <div className="uw-detail-grid">
         {/* Left Column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+
+          <div className="uw-card" style={{ padding: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>AI 도우미</h2>
+              <button onClick={generateAiAssist} disabled={busy || aiBusy} className="uw-btn uw-btn-outline">
+                {aiBusy ? "생성 중..." : aiAssist ? "갱신" : "생성"}
+              </button>
+            </div>
+            {aiAssist ? (
+              <div style={{ display: "grid", gap: 12, fontSize: 14, color: "var(--uw-ink)" }}>
+                {aiAssist.summaryKo && <div style={{ padding: 12, borderRadius: 12, background: "var(--uw-surface)" }}>{aiAssist.summaryKo}</div>}
+                {Array.isArray(aiAssist.nextActionsKo) && aiAssist.nextActionsKo.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>다음 할 일</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                      {aiAssist.nextActionsKo.map((x: string, i: number) => <li key={i}>{x}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {Array.isArray(aiAssist.missingDocsKo) && aiAssist.missingDocsKo.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>준비/확인 서류</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                      {aiAssist.missingDocsKo.map((x: string, i: number) => <li key={i}>{x}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {Array.isArray(aiAssist.cautionsKo) && aiAssist.cautionsKo.length > 0 && (
+                  <div style={{ padding: 12, borderRadius: 12, background: "var(--uw-warning-soft)", color: "var(--uw-warning)" }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>주의</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                      {aiAssist.cautionsKo.map((x: string, i: number) => <li key={i}>{x}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ color: "var(--uw-fog)", fontSize: 13 }}>현재 단계 기준으로 요약/다음 액션을 자동 생성합니다.</div>
+            )}
+          </div>
           
           {/* Quotes Section */}
           {quotes.length > 0 && (

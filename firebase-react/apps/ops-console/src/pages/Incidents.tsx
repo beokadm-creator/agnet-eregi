@@ -13,6 +13,7 @@ interface Incident {
   endAt?: string | { _seconds: number; _nanoseconds: number };
   counters?: Record<string, number>;
   triage?: Record<string, unknown>;
+  aiTriage?: any;
 }
 interface PlaybookAction {
   key: string;
@@ -68,6 +69,8 @@ export default function Incidents() {
 
   const [actionRunning, setActionRunning] = useState(false);
   const [actionResult, setActionResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [aiRunning, setAiRunning] = useState(false);
+  const [aiResult, setAiResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const [mitigateGateKey, setMitigateGateKey] = useState("");
   const [mitigateRunning, setMitigateRunning] = useState(false);
@@ -111,6 +114,25 @@ export default function Incidents() {
       else setActionResult({ ok: false, message: json.error?.messageKo || json.error?.message || "실패" });
     } catch (e) { setActionResult({ ok: false, message: "요청 실패" }); } finally { setActionRunning(false); }
   }, [token, selectedId, fetchAll]);
+
+  const runAiTriage = useCallback(async () => {
+    if (!selectedId) return;
+    setAiRunning(true); setAiResult(null);
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/v1/ops/incidents/${selectedId}/ai/triage`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (json.ok) {
+        setAiResult({ ok: true, message: "AI triage 생성 완료" });
+        await selectIncident(selectedId);
+      } else {
+        setAiResult({ ok: false, message: json.error?.messageKo || json.error?.message || "실패" });
+      }
+    } catch {
+      setAiResult({ ok: false, message: "요청 실패" });
+    } finally {
+      setAiRunning(false);
+    }
+  }, [token, selectedId, selectIncident]);
 
   const mitigateRisk = useCallback(async (gateKey: string) => {
     setMitigateRunning(true); setMitigateResult(null);
@@ -256,6 +278,49 @@ export default function Incidents() {
                   <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--ops-text-muted)" }}>상태</span><span className={`ops-badge ${statusBadge(detail.status)}`}>{detail.status}</span></div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--ops-text-muted)" }}>발생시간</span><span className="ops-mono" style={{ color: "var(--ops-text)" }}>{formatTimestamp(detail.startAt)}</span></div>
                   {detail.summary && <div style={{ marginTop: 8, padding: 12, background: "var(--ops-surface-active)", borderRadius: "var(--ops-radius-sm)", fontSize: 12, color: "var(--ops-text)" }}>{detail.summary}</div>}
+
+                  <div style={{ marginTop: 6, paddingTop: 10, borderTop: "1px solid var(--ops-border)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>AI Triage</span>
+                      <button className="ops-btn ops-btn-brand" disabled={aiRunning} onClick={runAiTriage}>{aiRunning ? "생성 중..." : "생성/갱신"}</button>
+                    </div>
+                    {aiResult && (
+                      <div style={{ padding: "8px 10px", borderRadius: "var(--ops-radius-sm)", background: aiResult.ok ? "var(--ops-success-soft)" : "var(--ops-danger-soft)", color: aiResult.ok ? "var(--ops-success)" : "var(--ops-danger)", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+                        {aiResult.message}
+                      </div>
+                    )}
+                    {detail.aiTriage ? (
+                      <div style={{ display: "grid", gap: 10, fontSize: 12 }}>
+                        {detail.aiTriage.summaryKo && <div style={{ padding: 10, background: "var(--ops-surface-active)", borderRadius: "var(--ops-radius-sm)" }}>{detail.aiTriage.summaryKo}</div>}
+                        {Array.isArray(detail.aiTriage.probableCausesKo) && detail.aiTriage.probableCausesKo.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--ops-text-muted)", marginBottom: 6 }}>원인 가설</div>
+                            <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                              {detail.aiTriage.probableCausesKo.map((x: string, i: number) => <li key={i}>{x}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {Array.isArray(detail.aiTriage.checksKo) && detail.aiTriage.checksKo.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--ops-text-muted)", marginBottom: 6 }}>확인</div>
+                            <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                              {detail.aiTriage.checksKo.map((x: string, i: number) => <li key={i}>{x}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {Array.isArray(detail.aiTriage.suggestedActionsKo) && detail.aiTriage.suggestedActionsKo.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--ops-text-muted)", marginBottom: 6 }}>권고 조치</div>
+                            <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                              {detail.aiTriage.suggestedActionsKo.map((x: string, i: number) => <li key={i}>{x}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ color: "var(--ops-text-muted)", fontSize: 12 }}>이 인시던트의 triage 요약/권고 조치를 생성합니다.</div>
+                    )}
+                  </div>
                   
                   {playbookActions.length > 0 && (
                     <div style={{ marginTop: 16, borderTop: "1px solid var(--ops-border)", paddingTop: 16 }}>

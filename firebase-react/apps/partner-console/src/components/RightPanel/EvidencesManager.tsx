@@ -56,6 +56,21 @@ export default function EvidencesManager() {
     }
   }
 
+  async function runAiReview(evidenceId: string) {
+    if (!selectedCase) return;
+    setBusy(true);
+    setLog("AI 검토 생성 중...");
+    try {
+      await getApi().post(`/v1/partner/cases/${selectedCase.id}/evidences/${evidenceId}/ai/review`, {});
+      setLog("AI 검토 생성 완료");
+      await loadCaseDetail(selectedCase.id);
+    } catch (e: any) {
+      setLog(`[Error] ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="pc-card">
       <div className="pc-card-header" style={{ borderBottom: "1px solid var(--pc-border)", paddingBottom: 16, marginBottom: 16 }}>
@@ -128,6 +143,10 @@ export default function EvidencesManager() {
                   {expandedEvidenceId === e.id && (
                     <tr>
                       <td colSpan={3} style={{ padding: 16, background: "var(--pc-surface)" }}>
+
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                          <button onClick={(event) => { event.stopPropagation(); runAiReview(e.id); }} disabled={busy} className="pc-btn pc-btn-brand">AI 검토</button>
+                        </div>
                         
                         {e.defectReasons && e.defectReasons.length > 0 && (
                           <div style={{ marginBottom: 12, padding: 16, background: "var(--pc-danger-soft)", borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-danger)" }}>
@@ -137,6 +156,34 @@ export default function EvidencesManager() {
                                 <li key={idx}>{reason}</li>
                               ))}
                             </ul>
+                          </div>
+                        )}
+
+                        {e.aiReview && (
+                          <div style={{ marginBottom: 12, padding: 16, background: "var(--pc-bg)", borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-border)" }}>
+                            <h4 style={{ margin: "0 0 8px 0", color: "var(--pc-text)", fontSize: 14, fontWeight: 700 }}>🤖 AI 검토</h4>
+                            {e.aiReview.shortSummaryKo && <div style={{ fontSize: 13, color: "var(--pc-text)", marginBottom: 10 }}>{e.aiReview.shortSummaryKo}</div>}
+                            {Array.isArray(e.aiReview.defectsKo) && e.aiReview.defectsKo.length > 0 && (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--pc-text-muted)", marginBottom: 6 }}>결함</div>
+                                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
+                                  {e.aiReview.defectsKo.map((x: string, idx: number) => <li key={idx}>{x}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            {Array.isArray(e.aiReview.missingFieldsKo) && e.aiReview.missingFieldsKo.length > 0 && (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--pc-text-muted)", marginBottom: 6 }}>누락/보완</div>
+                                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
+                                  {e.aiReview.missingFieldsKo.map((x: string, idx: number) => <li key={idx}>{x}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            {e.aiReview.suggestedRequestMessageKo && (
+                              <div style={{ padding: 12, background: "var(--pc-surface)", borderRadius: "var(--pc-radius)", border: "1px solid var(--pc-border)", fontSize: 13, lineHeight: 1.6 }}>
+                                {e.aiReview.suggestedRequestMessageKo}
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -157,7 +204,7 @@ export default function EvidencesManager() {
                           </div>
                         )}
 
-                        {(!e.defectReasons || e.defectReasons.length === 0) && (!e.aiExtraction || Object.keys(e.aiExtraction).length === 0) && (
+                        {(!e.defectReasons || e.defectReasons.length === 0) && (!e.aiReview) && (!e.aiExtraction || Object.keys(e.aiExtraction).length === 0) && (
                           <div style={{ color: "var(--pc-text-muted)", fontSize: 13, textAlign: "center", padding: 12 }}>
                             AI 분석 데이터가 없습니다.
                           </div>

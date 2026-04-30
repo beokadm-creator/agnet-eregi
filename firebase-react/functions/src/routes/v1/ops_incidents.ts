@@ -10,6 +10,17 @@ import { resetCircuitBreaker } from "../../lib/ops_circuit_breaker";
 import { notifyOpsAlert } from "../../lib/ops_alert";
 import { createDeadLetterIssueAction } from "../../lib/ops_actions";
 import { safeQuery } from "../../lib/ops_query_health";
+import { llmChatComplete } from "../../lib/llm_engine";
+
+function parseJsonText(text: string): any {
+  const t = String(text || "").trim();
+  try {
+    return JSON.parse(t);
+  } catch {
+    const cleaned = t.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
+    return JSON.parse(cleaned);
+  }
+}
 
 export function registerOpsIncidentRoutes(app: express.Application, adminApp: typeof admin) {
   
@@ -72,6 +83,65 @@ export function registerOpsIncidentRoutes(app: express.Application, adminApp: ty
       return ok(res, { incident: { id: snap.id, ...data } });
     } catch (err: any) {
       return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 2-1) POST /v1/ops/incidents/:id/ai/triage
+  app.post("/v1/ops/incidents/:id/ai/triage", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const incidentId = String(req.params.id);
+      const docRef = adminApp.firestore().collection("ops_incidents").doc(incidentId);
+      const snap = await docRef.get();
+      if (!snap.exists) return fail(res, 404, "NOT_FOUND", "Incident를 찾을 수 없습니다.");
+
+      const data = snap.data() as any;
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", data?.gateKey);
+      if (!hasRole) return;
+
+      const prompt = `
+당신은 SRE/운영 담당자를 돕는 Incident triage AI입니다.
+아래 Incident JSON을 바탕으로 원인 가설/확인 체크리스트/권고 조치를 한국어로 정리해 주세요.
+반드시 오직 JSON으로만 응답하세요. 마크다운 백틱(\`\`\`)은 쓰지 마세요.
+
+입력:
+${JSON.stringify({ id: incidentId, ...data }, null, 2)}
+
+출력(JSON):
+{
+  "summaryKo": "요약(1~2문장)",
+  "probableCausesKo": ["원인 가설 1", "원인 가설 2"],
+  "checksKo": ["확인 항목 1", "확인 항목 2"],
+  "suggestedActionsKo": ["권고 조치 1", "권고 조치 2"]
+}
+`;
+
+      const out = await llmChatComplete(
+        adminApp,
+        [
+          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." },
+          { role: "user", content: prompt },
+        ],
+        { temperature: 0.2, maxTokens: 900, expectJson: true }
+      );
+
+      const parsed = parseJsonText(out.text || "{}");
+      const aiTriage = {
+        ...parsed,
+        provider: out.provider,
+        model: out.model,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: auth.uid,
+      };
+
+      await docRef.set({ aiTriage }, { merge: true });
+      return ok(res, { aiTriage });
+    } catch (err: any) {
+      logError({ endpoint: "ops/incidents/ai/triage", code: "INTERNAL", messageKo: "AI triage 생성 실패", err });
+      return fail(res, 500, "INTERNAL", "AI triage 생성 실패");
     }
   });
 

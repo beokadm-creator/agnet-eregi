@@ -290,6 +290,85 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
     }
   });
 
+  // 4-3) POST /v1/partner/cases/:caseId/evidences/:evidenceId/ai/review
+  app.post("/v1/partner/cases/:caseId/evidences/:evidenceId/ai/review", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const partnerId = partnerIdOf(auth);
+      if (!partnerId) return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.");
+
+      const caseId = String(req.params.caseId);
+      const evidenceId = String(req.params.evidenceId);
+
+      const db = adminApp.firestore();
+      const evidenceRef = db.collection("evidences").doc(evidenceId);
+      const snap = await evidenceRef.get();
+
+      if (!snap.exists) return fail(res, 404, "NOT_FOUND", "증거물을 찾을 수 없습니다.");
+      const ev = snap.data() as any;
+      if (ev.partnerId !== partnerId || ev.caseId !== caseId) {
+        return fail(res, 403, "FORBIDDEN", "접근할 수 없는 증거물입니다.");
+      }
+
+      const prompt = `
+당신은 파트너의 증거물(서류) 검토를 돕는 AI입니다.
+아래 입력(JSON)을 바탕으로 결함/누락/보완 요청 문구를 한국어로 생성해 주세요.
+반드시 오직 JSON으로만 응답하세요. 마크다운 백틱(\`\`\`)은 쓰지 마세요.
+
+입력:
+${JSON.stringify(
+  {
+    evidence: {
+      id: evidenceId,
+      type: ev.type,
+      itemCode: ev.itemCode,
+      status: ev.status,
+      contentType: ev.contentType,
+      aiValidationResult: ev.aiValidationResult,
+      extractedText: ev.extractedText ? String(ev.extractedText).slice(0, 4000) : "",
+      defectReasons: ev.defectReasons || [],
+    },
+  },
+  null,
+  2
+)}
+
+출력(JSON):
+{
+  "shortSummaryKo": "요약(1문장)",
+  "defectsKo": ["결함 1", "결함 2"],
+  "missingFieldsKo": ["누락 항목 1", "누락 항목 2"],
+  "suggestedRequestMessageKo": "고객에게 보낼 요청 메시지(정중하고 짧게)"
+}
+`;
+
+      const out = await llmChatComplete(
+        adminApp,
+        [
+          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." },
+          { role: "user", content: prompt },
+        ],
+        { temperature: 0.2, maxTokens: 700, expectJson: true }
+      );
+
+      const parsed = parseJsonText(out.text || "{}");
+      const aiReview = {
+        ...parsed,
+        provider: out.provider,
+        model: out.model,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await evidenceRef.set({ aiReview }, { merge: true });
+      return ok(res, { aiReview });
+    } catch (err: any) {
+      logError({ endpoint: "partner/evidences/ai/review", code: "INTERNAL", messageKo: "AI 검토 생성 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
   // 5) GET /v1/partner/cases/:caseId/evidences
   app.get("/v1/partner/cases/:caseId/evidences", async (req: express.Request, res: express.Response) => {
     try {

@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import { CaseEvidence } from "./partner_models";
 import { enqueueNotification } from "./notify_trigger";
 import { extractTextFromImage, validateDocument } from "./vision";
+import { llmChatComplete } from "./llm_engine";
 
 export async function processEvidenceValidation(adminApp: typeof admin) {
   const db = adminApp.firestore();
@@ -89,6 +90,67 @@ export async function processEvidenceValidation(adminApp: typeof admin) {
       });
 
       console.log(`[EvidenceValidation] Evidence ${evidenceId} validated successfully. AI Valid: ${isValidAI}`);
+
+      if (!isValidAI && (extractedText || missingKeywords.length > 0)) {
+        try {
+          const prompt = `
+당신은 파트너의 증거물(서류) 검토를 돕는 AI입니다.
+아래 OCR 텍스트와 누락 키워드를 바탕으로 결함/누락/보완 요청 문구를 한국어로 생성해 주세요.
+반드시 오직 JSON으로만 응답하세요. 마크다운 백틱(\`\`\`)은 쓰지 마세요.
+
+입력(JSON):
+${JSON.stringify(
+  {
+    evidenceId,
+    caseId: ev.caseId,
+    itemCode: ev.itemCode,
+    missingKeywords,
+    extractedText: String(extractedText || "").slice(0, 3500),
+  },
+  null,
+  2
+)}
+
+출력(JSON):
+{
+  "shortSummaryKo": "요약(1문장)",
+  "defectsKo": ["결함 1", "결함 2"],
+  "missingFieldsKo": ["누락 항목 1", "누락 항목 2"],
+  "suggestedRequestMessageKo": "고객에게 보낼 요청 메시지(정중하고 짧게)"
+}
+`;
+
+          const out = await llmChatComplete(
+            adminApp,
+            [
+              { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." },
+              { role: "user", content: prompt },
+            ],
+            { temperature: 0.2, maxTokens: 700, expectJson: true }
+          );
+
+          let parsed: any = {};
+          try {
+            parsed = JSON.parse(String(out.text || "").trim());
+          } catch {
+            const cleaned = String(out.text || "").trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
+            parsed = JSON.parse(cleaned);
+          }
+
+          await doc.ref.set(
+            {
+              aiReviewCandidate: {
+                ...parsed,
+                provider: out.provider,
+                model: out.model,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+              }
+            },
+            { merge: true }
+          );
+        } catch (e) {
+        }
+      }
 
       // Evidence Request 충족 처리 (AI 검증 통과한 경우에만 자동 fulfilled 처리)
       if (isValidAI && ev.requestId && ev.itemCode) {

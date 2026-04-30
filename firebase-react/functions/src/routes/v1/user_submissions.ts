@@ -4,6 +4,17 @@ import * as admin from "firebase-admin";
 import { requireAuth } from "../../lib/auth";
 import { fail, ok, logError } from "../../lib/http";
 import { UserSubmission, SubmissionEvent } from "../../lib/user_models";
+import { llmChatComplete } from "../../lib/llm_engine";
+
+function parseJsonText(text: string): any {
+  const t = String(text || "").trim();
+  try {
+    return JSON.parse(t);
+  } catch {
+    const cleaned = t.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
+    return JSON.parse(cleaned);
+  }
+}
 
 export function registerUserSubmissionRoutes(app: express.Application, adminApp: typeof admin) {
 
@@ -236,6 +247,94 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
       return ok(res, { submission: { id: snap.id, ...snap.data() } });
     } catch (err: any) {
       logError({ endpoint: "user/submissions/get", code: "INTERNAL", messageKo: "제출 상세 조회 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 5-1) GET /v1/user/submissions/:id/ai/assist
+  app.get("/v1/user/submissions/:id/ai/assist", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const userId = auth.uid;
+      const subId = String(req.params.id);
+      const db = adminApp.firestore();
+
+      const snap = await db.collection("user_submissions").doc(subId).get();
+      if (!snap.exists || snap.data()?.userId !== userId) {
+        return fail(res, 404, "NOT_FOUND", "제출 내역을 찾을 수 없습니다.");
+      }
+
+      return ok(res, { ai: snap.data()?.aiAssist || null });
+    } catch (err: any) {
+      logError({ endpoint: "user/submissions/ai/get", code: "INTERNAL", messageKo: "AI 도우미 조회 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // 5-2) POST /v1/user/submissions/:id/ai/assist
+  app.post("/v1/user/submissions/:id/ai/assist", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+
+      const userId = auth.uid;
+      const subId = String(req.params.id);
+      const db = adminApp.firestore();
+      const subRef = db.collection("user_submissions").doc(subId);
+
+      const [subSnap, evSnap] = await Promise.all([
+        subRef.get(),
+        db.collection("submission_events").where("submissionId", "==", subId).where("userId", "==", userId).orderBy("createdAt", "asc").limit(50).get()
+      ]);
+
+      if (!subSnap.exists || subSnap.data()?.userId !== userId) {
+        return fail(res, 404, "NOT_FOUND", "제출 내역을 찾을 수 없습니다.");
+      }
+
+      const submission = { id: subSnap.id, ...subSnap.data() } as any;
+      const events = evSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      const prompt = `
+당신은 사용자 제출(등기/서류 처리) 진행을 돕는 AI입니다.
+아래 JSON 입력을 바탕으로 사용자가 지금 해야 할 일과 준비 서류를 한국어로 정리해 주세요.
+반드시 오직 JSON으로만 응답하세요. 마크다운 백틱(\`\`\`)은 쓰지 마세요.
+
+입력:
+${JSON.stringify({ submission, events }, null, 2)}
+
+출력(JSON):
+{
+  "summaryKo": "현재 상황 요약(1~2문장)",
+  "nextActionsKo": ["사용자가 할 일 1", "할 일 2"],
+  "missingDocsKo": ["가능성이 높은 누락 서류 1", "서류 2"],
+  "cautionsKo": ["주의사항 1", "주의사항 2"]
+}
+`;
+
+      const out = await llmChatComplete(
+        adminApp,
+        [
+          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." },
+          { role: "user", content: prompt }
+        ],
+        { temperature: 0.2, maxTokens: 700, expectJson: true }
+      );
+
+      const parsed = parseJsonText(out.text || "{}");
+      const aiAssist = {
+        ...parsed,
+        provider: out.provider,
+        model: out.model,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await subRef.set({ aiAssist }, { merge: true });
+
+      return ok(res, { ai: aiAssist });
+    } catch (err: any) {
+      logError({ endpoint: "user/submissions/ai/post", code: "INTERNAL", messageKo: "AI 도우미 생성 실패", err });
       return fail(res, 500, "INTERNAL", err.message);
     }
   });
