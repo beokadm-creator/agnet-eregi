@@ -16,6 +16,19 @@
           "agentregi-user-web"
         ]
       }
+    },
+    "agentregi-d77a3": {
+      "hosting": {
+        "user-web": [
+          "agentregi-d77a3-user-web"
+        ],
+        "partner-console": [
+          "agentregi-d77a3-partner-console"
+        ],
+        "ops-console": [
+          "agentregi-d77a3-ops-console"
+        ]
+      }
     }
   },
   "etags": {}
