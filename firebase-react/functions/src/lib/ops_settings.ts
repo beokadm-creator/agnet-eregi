@@ -17,4 +17,16 @@ export interface TossPaymentsSettings {
   updatedBy: string;
 }
 
+export type LlmProvider = "glm";
+
+export interface LlmSettings {
+  enabled: boolean;
+  provider: LlmProvider;
+  model: string;
+  endpoint: string;
+  apiKeySecretName: string; // Secret Manager resource name
+  updatedAt: admin.firestore.Timestamp;
+  updatedBy: string;
+}
+
 export const getOpsSettingsCollection = () => admin.firestore().collection("ops_settings");

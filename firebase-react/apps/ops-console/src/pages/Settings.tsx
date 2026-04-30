@@ -5,6 +5,7 @@ import { getApiBaseUrl } from "../apiBase";
 // --- Types ---
 interface TelegramSettings { enabled: boolean; botToken: string; chatId: string; webhookToken: string; updatedAt?: string; }
 interface TossPaymentsSettings { enabled: boolean; clientKey: string; secretKey: string; updatedAt?: string; }
+interface LlmSettings { enabled: boolean; provider: "glm"; model: string; endpoint: string; apiKey: string; apiKeySet?: boolean; updatedAt?: string; }
 interface AlertPolicyRules { circuitBreakerOpen: boolean; deadJobs: boolean; failRateThreshold: number; deniedThreshold: number; }
 interface AlertPolicy { enabled: boolean; cooldownSec: number; rules: AlertPolicyRules; channels: { useGateWebhook: boolean }; }
 
@@ -17,6 +18,7 @@ function formatTimestamp(ts: unknown): string {
 
 const EMPTY_TELEGRAM: TelegramSettings = { enabled: false, botToken: "", chatId: "", webhookToken: "" };
 const EMPTY_TOSS: TossPaymentsSettings = { enabled: false, clientKey: "", secretKey: "" };
+const EMPTY_LLM: LlmSettings = { enabled: false, provider: "glm", model: "glm-5.1", endpoint: "https://api.z.ai/api/coding/paas/v4", apiKey: "", apiKeySet: false };
 const EMPTY_POLICY: AlertPolicy = { enabled: false, cooldownSec: 300, rules: { circuitBreakerOpen: true, deadJobs: true, failRateThreshold: 0.3, deniedThreshold: 0.1 }, channels: { useGateWebhook: false } };
 
 function PasswordField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
@@ -42,6 +44,13 @@ export default function Settings() {
   const [tossSaving, setTossSaving] = useState(false);
   const [tossMsg, setTossMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const [llm, setLlm] = useState<LlmSettings>(EMPTY_LLM);
+  const [llmLoading, setLlmLoading] = useState(true);
+  const [llmSaving, setLlmSaving] = useState(false);
+  const [llmTesting, setLlmTesting] = useState(false);
+  const [llmMsg, setLlmMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [llmTestMsg, setLlmTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   const [gates, setGates] = useState<string[]>([]);
   const [selectedGate, setSelectedGate] = useState("");
   const [policy, setPolicy] = useState<AlertPolicy>(EMPTY_POLICY);
@@ -55,12 +64,17 @@ export default function Settings() {
     Promise.allSettled([
       fetch(`${getApiBaseUrl()}/v1/ops/settings/telegram`, { headers }).then((r) => r.json()),
       fetch(`${getApiBaseUrl()}/v1/ops/settings/tosspayments`, { headers }).then((r) => r.json()),
+      fetch(`${getApiBaseUrl()}/v1/ops/settings/llm`, { headers }).then((r) => r.json()),
       fetch(`${getApiBaseUrl()}/v1/ops/health/summary?limit=50`, { headers }).then((r) => r.json()),
-    ]).then(([tgRes, tossRes, gatesRes]) => {
+    ]).then(([tgRes, tossRes, llmRes, gatesRes]) => {
       if (tgRes.status === "fulfilled" && tgRes.value.ok) setTelegram(tgRes.value.data?.settings || EMPTY_TELEGRAM);
       if (tossRes.status === "fulfilled" && tossRes.value.ok) setToss(tossRes.value.data?.settings || EMPTY_TOSS);
+      if (llmRes.status === "fulfilled" && llmRes.value.ok) {
+        const s = llmRes.value.data?.settings || EMPTY_LLM;
+        setLlm({ ...s, apiKey: "" });
+      }
       if (gatesRes.status === "fulfilled" && gatesRes.value.ok) setGates(gatesRes.value.data?.items?.map((i: any) => i.gateKey).filter(Boolean) || []);
-    }).finally(() => { setTelegramLoading(false); setTossLoading(false); setGatesLoading(false); });
+    }).finally(() => { setTelegramLoading(false); setTossLoading(false); setLlmLoading(false); setGatesLoading(false); });
   }, [token]);
 
   const loadPolicy = useCallback(async (gateKey: string) => {
@@ -89,6 +103,26 @@ export default function Settings() {
       const json = await res.json();
       setTossMsg({ ok: json.ok, text: json.ok ? "저장되었습니다." : "저장 실패" });
     } catch { setTossMsg({ ok: false, text: "요청 실패" }); } finally { setTossSaving(false); }
+  };
+
+  const saveLlm = async () => {
+    setLlmSaving(true); setLlmMsg(null);
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/v1/ops/settings/llm`, { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(llm) });
+      const json = await res.json();
+      if (json.ok && json.data?.settings) setLlm({ ...(json.data.settings as any), apiKey: "" });
+      setLlmMsg({ ok: json.ok, text: json.ok ? "저장되었습니다." : "저장 실패" });
+    } catch { setLlmMsg({ ok: false, text: "요청 실패" }); } finally { setLlmSaving(false); }
+  };
+
+  const testLlm = async () => {
+    setLlmTesting(true); setLlmTestMsg(null);
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/v1/ops/settings/llm/test`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ settings: llm }) });
+      const json = await res.json();
+      const preview = json?.data?.preview ? `응답: ${json.data.preview}` : "";
+      setLlmTestMsg({ ok: !!json.ok, text: json.ok ? `성공 (${json.data.latencyMs}ms)${preview ? ` · ${preview}` : ""}` : "실패" });
+    } catch { setLlmTestMsg({ ok: false, text: "요청 실패" }); } finally { setLlmTesting(false); }
   };
 
   const savePolicy = async () => {
@@ -159,6 +193,45 @@ export default function Settings() {
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
                   <button className="ops-btn ops-btn-brand" onClick={saveToss} disabled={tossSaving}>{tossSaving ? "저장 중" : "저장"}</button>
                   {tossMsg && <span style={{ fontSize: 13, color: tossMsg.ok ? "var(--ops-success)" : "var(--ops-danger)" }}>{tossMsg.text}</span>}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="ops-panel">
+          <div className="ops-panel-header"><h3 className="ops-panel-title">AI 엔진 (GLM)</h3></div>
+          <div className="ops-panel-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {llmLoading ? <div style={{ fontSize: 13, color: "var(--ops-text-muted)" }}>불러오는 중...</div> : (
+              <>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14 }}>
+                  <input type="checkbox" checked={llm.enabled} onChange={(e) => setLlm((p) => ({ ...p, enabled: e.target.checked }))} style={{ accentColor: "var(--ops-brand)", width: 16, height: 16 }} />
+                  활성화
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--ops-text-muted)" }}>Provider</label>
+                    <input className="ops-input" value={llm.provider} disabled />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--ops-text-muted)" }}>Model</label>
+                    <input className="ops-input" value={llm.model} onChange={(e) => setLlm((p) => ({ ...p, model: e.target.value }))} placeholder="glm-5.1" />
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--ops-text-muted)" }}>Endpoint</label>
+                  <input className="ops-input" value={llm.endpoint} onChange={(e) => setLlm((p) => ({ ...p, endpoint: e.target.value }))} placeholder="https://api.z.ai/api/coding/paas/v4" />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--ops-text-muted)" }}>API Key {llm.apiKeySet ? "(등록됨)" : ""}</label>
+                  <PasswordField value={llm.apiKey} onChange={(v) => setLlm((p) => ({ ...p, apiKey: v }))} placeholder="Z.AI API Key" />
+                </div>
+                <div style={{ fontSize: 12, color: "var(--ops-text-muted)" }}>업데이트: {formatTimestamp(llm.updatedAt)}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+                  <button className="ops-btn ops-btn-brand" onClick={saveLlm} disabled={llmSaving}>{llmSaving ? "저장 중" : "저장"}</button>
+                  <button className="ops-btn" onClick={testLlm} disabled={llmTesting}>{llmTesting ? "테스트 중" : "테스트"}</button>
+                  {llmMsg && <span style={{ fontSize: 13, color: llmMsg.ok ? "var(--ops-success)" : "var(--ops-danger)" }}>{llmMsg.text}</span>}
+                  {llmTestMsg && <span style={{ fontSize: 13, color: llmTestMsg.ok ? "var(--ops-success)" : "var(--ops-danger)" }}>{llmTestMsg.text}</span>}
                 </div>
               </>
             )}

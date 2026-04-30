@@ -1,13 +1,9 @@
 import { Express, Request, Response } from "express";
 import * as admin from "firebase-admin";
-import { VertexAI } from "@google-cloud/vertexai";
 import { requireAuth } from "../../lib/auth";
 import { ok, fail, logError } from "../../lib/http";
 import { fetchRealExchangeRates } from "../../lib/exchange_rate";
-
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || "agent-eregi";
-const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || "asia-northeast3";
-const MODEL_NAME = "gemini-1.5-flash-preview-0514";
+import { llmChatComplete } from "../../lib/llm_engine";
 
 export function registerTranslationRoutes(app: Express, adminApp: typeof admin) {
   const db = adminApp.firestore();
@@ -26,16 +22,6 @@ export function registerTranslationRoutes(app: Express, adminApp: typeof admin) 
         return fail(res, 400, "INVALID_ARGUMENT", "text와 targetLang은 필수입니다.");
       }
 
-      // Vertex AI (Gemini) 연동 번역
-      const vertexAi = new VertexAI({ project: PROJECT_ID, location: LOCATION });
-      const model = vertexAi.getGenerativeModel({
-        model: MODEL_NAME,
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-        },
-      });
-
       const prompt = `
 당신은 전문 번역가입니다. 제공된 텍스트를 ${targetLang} 언어로 자연스럽게 번역해주세요.
 오직 유효한 JSON 형식으로만 응답해야 합니다. 마크다운 백틱(\`\`\`)은 제외하세요.
@@ -49,17 +35,15 @@ ${text}
 }
 `;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      let translatedTextResponse = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      
-      let translatedData;
-      try {
-        translatedData = JSON.parse(translatedTextResponse);
-      } catch (e) {
-        translatedTextResponse = translatedTextResponse.replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
-        translatedData = JSON.parse(translatedTextResponse);
-      }
+      const out = await llmChatComplete(
+        adminApp,
+        [
+          { role: "system", content: "당신은 전문 번역가입니다. 오직 유효한 JSON으로만 응답하세요." },
+          { role: "user", content: prompt },
+        ],
+        { temperature: 0.1, maxTokens: 512, expectJson: true }
+      );
+      const translatedData = JSON.parse(String(out.text || "{}"));
 
       const translatedText = translatedData.translatedText || `[Translation Failed] ${text}`;
 
@@ -71,7 +55,7 @@ ${text}
         sourceLang: "ko", 
         targetLang,
         translatedText,
-        provider: "vertex_ai",
+        provider: out.provider,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 

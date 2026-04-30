@@ -8,6 +8,17 @@ import { fail, ok, logError } from "../../lib/http";
 import { PartnerCase, CaseEvidence, CasePackage, EvidenceRequest } from "../../lib/partner_models";
 import { enqueueNotification } from "../../lib/notify_trigger";
 import { dispatchCustomerNotification } from "../../lib/notifications";
+import { llmChatComplete } from "../../lib/llm_engine";
+
+function parseJsonText(text: string): any {
+  const t = String(text || "").trim();
+  try {
+    return JSON.parse(t);
+  } catch {
+    const cleaned = t.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
+    return JSON.parse(cleaned);
+  }
+}
 
 export function registerPartnerCaseRoutes(app: express.Application, adminApp: typeof admin) {
 
@@ -950,20 +961,6 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
         }
       }
 
-      const { VertexAI } = require("@google-cloud/vertexai");
-      const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || "agent-eregi";
-      const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || "asia-northeast3";
-      const MODEL_NAME = "gemini-1.5-flash-preview-0514";
-
-      const vertexAi = new VertexAI({ project: PROJECT_ID, location: LOCATION });
-      const model = vertexAi.getGenerativeModel({
-        model: MODEL_NAME,
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json",
-        },
-      });
-
       const prompt = `
 당신은 파트너를 돕는 AI 어시스턴트입니다.
 사용자가 제출한 사건 정보를 바탕으로 예상 견적(최소/최대 금액, 최소/최대 소요 시간)과 전제 조건을 제안해주세요.
@@ -981,11 +978,15 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
   "assumptionsKo": ["기본 서류 완비 기준", "추가 인원 발생 시 비용 추가"]
 }
 `;
-      const responseStream = await model.generateContent(prompt);
-      const response = await responseStream.response;
-      const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      
-      const parsed = JSON.parse(text);
+      const out = await llmChatComplete(
+        adminApp,
+        [
+          { role: "system", content: "당신은 파트너를 돕는 AI 어시스턴트입니다. 오직 유효한 JSON으로만 응답하세요." },
+          { role: "user", content: prompt },
+        ],
+        { temperature: 0.2, maxTokens: 1024, expectJson: true }
+      );
+      const parsed = parseJsonText(out.text || "{}");
 
       return ok(res, { draft: parsed });
     } catch (err: any) {
@@ -1008,20 +1009,6 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
         return fail(res, 400, "INVALID_ARGUMENT", "defectReasons 배열이 필요합니다.");
       }
 
-      const { VertexAI } = require("@google-cloud/vertexai");
-      const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || "agent-eregi";
-      const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || "asia-northeast3";
-      const MODEL_NAME = "gemini-1.5-flash-preview-0514";
-
-      const vertexAi = new VertexAI({ project: PROJECT_ID, location: LOCATION });
-      const model = vertexAi.getGenerativeModel({
-        model: MODEL_NAME,
-        generationConfig: {
-          temperature: 0.3,
-          responseMimeType: "application/json",
-        },
-      });
-
       const prompt = `
 당신은 파트너를 돕는 AI 어시스턴트입니다.
 사용자가 제출한 서류에서 결함이 발견되어 다시 요청해야 합니다. 고객에게 보낼 정중하고 명확한 요청 메시지를 작성해주세요.
@@ -1034,11 +1021,15 @@ ${defectReasons.join(", ")}
   "messageToUserKo": "고객님, 제출해주신 서류에서 [결함내용 요약] 문제가 확인되었습니다. 원활한 처리를 위해 다시 한 번 확인하여 업로드 부탁드립니다."
 }
 `;
-      const responseStream = await model.generateContent(prompt);
-      const response = await responseStream.response;
-      const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      
-      const parsed = JSON.parse(text);
+      const out = await llmChatComplete(
+        adminApp,
+        [
+          { role: "system", content: "당신은 파트너를 돕는 AI 어시스턴트입니다. 오직 유효한 JSON으로만 응답하세요." },
+          { role: "user", content: prompt },
+        ],
+        { temperature: 0.3, maxTokens: 1024, expectJson: true }
+      );
+      const parsed = parseJsonText(out.text || "{}");
 
       return ok(res, { draft: parsed });
     } catch (err: any) {
