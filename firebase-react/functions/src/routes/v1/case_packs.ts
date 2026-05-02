@@ -8,7 +8,7 @@ export function registerCasePackRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. [유저/파트너 공통] 활성화된 사건팩 목록 조회
   app.get("/v1/case-packs", async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     
     try {
       const snap = await db.collection("case_packs").where("active", "==", true).get();
@@ -23,7 +23,7 @@ export function registerCasePackRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. [유저/파트너 공통] 특정 사건팩 상세 스키마 조회
   app.get("/v1/case-packs/:casePackId", async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const casePackId = String(req.params.casePackId);
 
     if (!casePackId) {

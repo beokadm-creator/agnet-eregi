@@ -167,19 +167,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const adRes = await api.get("/v1/partner/ads/campaigns");
         setAdCampaigns(adRes.campaigns || []);
-      } catch(e) {}
+      } catch(e) { console.warn("[AppContext] Non-critical load failed:", e instanceof Error ? e.message : String(e)); }
 
       try {
         const subPlanRes = await api.get("/v1/subscriptions/plans");
         setSubscriptionPlans(subPlanRes.plans || []);
         const subRes = await api.get("/v1/partner/subscription");
         setSubscription(subRes.subscription || null);
-      } catch(e) {}
+      } catch(e) { console.warn("[AppContext] Non-critical load failed:", e instanceof Error ? e.message : String(e)); }
 
       try {
         const profileRes = await api.get("/v1/partner/profile");
         setPartnerProfile(profileRes.profile || null);
-      } catch(e) {}
+      } catch(e) { console.warn("[AppContext] Non-critical load failed:", e instanceof Error ? e.message : String(e)); }
 
       try {
         const b2gRes = await api.get("/v1/partners/credentials");
@@ -191,7 +191,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const tmRes = await api.get("/v1/partner/team/members");
         setTeamMembers(tmRes.members || []);
-      } catch(e) {}
+      } catch(e) { console.warn("[AppContext] Non-critical load failed:", e instanceof Error ? e.message : String(e)); }
 
       setLog("데이터 갱신됨.");
     } catch (e: any) {
@@ -224,12 +224,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const refRes = await api.get(`/v1/partner/cases/${caseId}/refunds`);
         setRefunds(refRes.items || []);
-      } catch(e) { setRefunds([]); }
+      } catch(e) { console.warn("[AppContext] Refunds load failed:", e instanceof Error ? e.message : String(e)); setRefunds([]); }
 
       try {
         const qRes = await api.get(`/v1/cases/${caseId}/quotes`);
         setQuotes(qRes.quotes || []);
-      } catch(e) { setQuotes([]); }
+      } catch(e) { console.warn("[AppContext] Quotes load failed:", e instanceof Error ? e.message : String(e)); setQuotes([]); }
 
       try {
         const b2gRes = await api.get(`/v1/b2g/submissions?caseId=${caseId}`);
@@ -240,7 +240,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           try {
             const feeRes = await api.get(`/v1/b2g/submissions/${sub.id}/fees`);
             feeMap[sub.id] = feeRes.items || [];
-          } catch(e) {}
+          } catch(e) { console.warn("[AppContext] Non-critical load failed:", e instanceof Error ? e.message : String(e)); }
         }
         setB2gFees(feeMap);
       } catch(e) {

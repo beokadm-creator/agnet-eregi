@@ -7,7 +7,7 @@ export function registerDevRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. [개발 환경 전용] 테스트용 데이터(Dummy) 초기화 (POST /v1/dev/seed)
   app.post("/v1/dev/seed", async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     
     const devSeedEnabled = process.env.FUNCTIONS_EMULATOR === "true" || process.env.ALLOW_DEV_SEED === "1";
     if (!devSeedEnabled) {

@@ -3,8 +3,10 @@ import * as admin from "firebase-admin";
 
 import { requireAuth } from "../../lib/auth";
 import { fail, ok, logError } from "../../lib/http";
+import { checkAndRecordUsage } from "../../lib/quota";
 import { UserSubmission, SubmissionEvent } from "../../lib/user_models";
 import { llmChatComplete } from "../../lib/llm_engine";
+import { buildDataBlock, SYSTEM_HARDENING_SUFFIX } from "../../lib/prompt_sanitize";
 
 function parseJsonText(text: string): any {
   const t = String(text || "").trim();
@@ -25,9 +27,10 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
       if (!auth) return;
 
       const userId = auth.uid;
-      const { inputType, payload, partnerId, submitNow, sessionId } = req.body;
+      const { inputType, payload, partnerId, submitNow, sessionId, funnelSessionId, casePackId, type } = req.body;
 
-      if (!inputType) {
+      const resolvedInputType = inputType || casePackId || type;
+      if (!resolvedInputType) {
         return fail(res, 400, "INVALID_ARGUMENT", "inputType이 필요합니다.");
       }
       
@@ -36,8 +39,9 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
 
       let finalPayload = payload || {};
 
-      if (sessionId) {
-        const sessionSnap = await db.collection("funnel_sessions").doc(sessionId).get();
+      const resolvedSessionId = sessionId || funnelSessionId;
+      if (resolvedSessionId) {
+        const sessionSnap = await db.collection("funnel_sessions").doc(resolvedSessionId).get();
         if (sessionSnap.exists) {
           const sessionData = sessionSnap.data();
           if (sessionData?.status === "converted") {
@@ -58,7 +62,7 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
         partnerId: pId,
         status: submitNow ? "submitted" : "draft",
         input: {
-          type: inputType,
+          type: resolvedInputType,
           payload: finalPayload
         },
         createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
@@ -296,13 +300,18 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
       const submission = { id: subSnap.id, ...subSnap.data() } as any;
       const events = evSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
+      const quotaOk = await checkAndRecordUsage(userId, "ai_user", 50);
+      if (!quotaOk) {
+        return fail(res, 429, "RESOURCE_EXHAUSTED", "AI 호출 일일 한도를 초과했습니다. 내일 다시 시도해주세요.");
+      }
+
       const prompt = `
 당신은 사용자 제출(등기/서류 처리) 진행을 돕는 AI입니다.
 아래 JSON 입력을 바탕으로 사용자가 지금 해야 할 일과 준비 서류를 한국어로 정리해 주세요.
 반드시 오직 JSON으로만 응답하세요. 마크다운 백틱(\`\`\`)은 쓰지 마세요.
 
 입력:
-${JSON.stringify({ submission, events }, null, 2)}
+${buildDataBlock("submission-input", { submission, events })}
 
 출력(JSON):
 {
@@ -316,7 +325,7 @@ ${JSON.stringify({ submission, events }, null, 2)}
       const out = await llmChatComplete(
         adminApp,
         [
-          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." },
+          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." + SYSTEM_HARDENING_SUFFIX },
           { role: "user", content: prompt }
         ],
         { temperature: 0.2, maxTokens: 700, expectJson: true }

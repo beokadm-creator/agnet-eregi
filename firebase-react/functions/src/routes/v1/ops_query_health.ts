@@ -63,7 +63,7 @@ export function registerOpsQueryHealthRoutes(app: express.Application, adminApp:
         action: "ops_query_health.resolve",
         status: "success",
         actorUid: auth.uid,
-        requestId: (req as any).requestId,
+        requestId: req.requestId!,
         summary: `Query Health 이슈 ${id} 해결 처리됨`,
         target: { id }
       });

@@ -32,7 +32,7 @@ export function registerOpsPartnerApplicationRoutes(app: Express, adminApp: type
   });
 
   app.post("/v1/ops/partner-applications/:uid/approve", async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
@@ -126,7 +126,7 @@ export function registerOpsPartnerApplicationRoutes(app: Express, adminApp: type
   });
 
   app.post("/v1/ops/partner-applications/:uid/reject", async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;

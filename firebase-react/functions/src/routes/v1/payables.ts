@@ -9,9 +9,9 @@ export function registerPayablesRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. 유저의 케이스 결제 요청 (청구서 생성) (POST /v1/cases/:caseId/payables)
   app.post("/v1/cases/:caseId/payables", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
     const caseId = String(req.params.caseId);
     // req.body에서 결제 수단(PG사 등)을 받을 수도 있음
 
@@ -74,10 +74,10 @@ export function registerPayablesRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. 케이스의 청구서 내역 조회 (GET /v1/cases/:caseId/payables)
   app.get("/v1/cases/:caseId/payables", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
-    const reqPartnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
+    const reqPartnerId = req.user!.partnerId;
     const caseId = String(req.params.caseId);
 
     try {

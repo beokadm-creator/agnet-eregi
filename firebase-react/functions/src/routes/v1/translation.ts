@@ -2,8 +2,10 @@ import { Express, Request, Response } from "express";
 import * as admin from "firebase-admin";
 import { requireAuth } from "../../lib/auth";
 import { ok, fail, logError } from "../../lib/http";
+import { checkAndRecordUsage } from "../../lib/quota";
 import { fetchRealExchangeRates } from "../../lib/exchange_rate";
 import { llmChatComplete } from "../../lib/llm_engine";
+import { sanitizeForPrompt, SYSTEM_HARDENING_SUFFIX } from "../../lib/prompt_sanitize";
 
 export function registerTranslationRoutes(app: Express, adminApp: typeof admin) {
   const db = adminApp.firestore();
@@ -22,12 +24,17 @@ export function registerTranslationRoutes(app: Express, adminApp: typeof admin) 
         return fail(res, 400, "INVALID_ARGUMENT", "text와 targetLang은 필수입니다.");
       }
 
+      const quotaOk = await checkAndRecordUsage(auth.uid, "ai_translate", 100);
+      if (!quotaOk) {
+        return fail(res, 429, "RESOURCE_EXHAUSTED", "AI 호출 일일 한도를 초과했습니다. 내일 다시 시도해주세요.");
+      }
+
       const prompt = `
 당신은 전문 번역가입니다. 제공된 텍스트를 ${targetLang} 언어로 자연스럽게 번역해주세요.
 오직 유효한 JSON 형식으로만 응답해야 합니다. 마크다운 백틱(\`\`\`)은 제외하세요.
 
 [원문]
-${text}
+${sanitizeForPrompt(text)}
 
 [출력 형식]
 {
@@ -38,7 +45,7 @@ ${text}
       const out = await llmChatComplete(
         adminApp,
         [
-          { role: "system", content: "당신은 전문 번역가입니다. 오직 유효한 JSON으로만 응답하세요." },
+          { role: "system", content: "당신은 전문 번역가입니다. 오직 유효한 JSON으로만 응답하세요." + SYSTEM_HARDENING_SUFFIX },
           { role: "user", content: prompt },
         ],
         { temperature: 0.1, maxTokens: 512, expectJson: true }

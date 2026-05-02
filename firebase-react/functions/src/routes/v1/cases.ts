@@ -9,13 +9,19 @@ export function registerCaseRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. 신규 케이스 생성 (POST /v1/cases)
   app.post("/v1/cases", requireAuth, async (req: Request, res: Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
     const { casePackId, type, intentData, selectedPartnerId } = req.body;
 
     // casePackId (신규 구조) 또는 type (기존 구조 호환)이 필요함
     if (!casePackId && !type) {
       return fail(res, 400, "INVALID_ARGUMENT", "casePackId 또는 type이 필요합니다.", { requestId });
+    }
+    if (casePackId && typeof casePackId !== "string") {
+      return fail(res, 400, "INVALID_ARGUMENT", "casePackId는 문자열이어야 합니다.", { requestId });
+    }
+    if (selectedPartnerId && typeof selectedPartnerId !== "string") {
+      return fail(res, 400, "INVALID_ARGUMENT", "selectedPartnerId는 문자열이어야 합니다.", { requestId });
     }
 
     try {
@@ -58,10 +64,10 @@ export function registerCaseRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. 내 케이스 목록 조회 (GET /v1/cases)
   app.get("/v1/cases", requireAuth, async (req: Request, res: Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null; // 파트너 여부 판별 로직
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null; // 파트너 여부 판별 로직
+    const partnerId = req.user!.partnerId;
 
     try {
       let query: admin.firestore.Query = db.collection("cases");
@@ -91,10 +97,10 @@ export function registerCaseRoutes(app: Express, adminApp: typeof admin) {
 
   // 3. 단건 케이스 상세 조회 (GET /v1/cases/:caseId)
   app.get("/v1/cases/:caseId", requireAuth, async (req: Request, res: Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
+    const partnerId = req.user!.partnerId;
     const caseId = req.params.caseId as string;
 
     try {
@@ -132,8 +138,8 @@ export function registerCaseRoutes(app: Express, adminApp: typeof admin) {
 
   // 4. 동적 폼 데이터 제출 (POST /v1/cases/:caseId/forms/dynamic) - Phase 4 확장
   app.post("/v1/cases/:caseId/forms/dynamic", requireAuth, async (req: Request, res: Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
     const caseId = req.params.caseId as string;
     const { dynamicData } = req.body;
 

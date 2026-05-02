@@ -84,7 +84,7 @@ export default function QuotesManager() {
         <h3 className="pc-card-title" style={{ margin: 0, fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
           <span>💰</span> 견적 관리
         </h3>
-        <button onClick={generateAIAssistantQuote} disabled={busy} className="pc-btn" style={{ background: "linear-gradient(135deg, var(--pc-brand), #8b5cf6)", color: "white", border: "none" }}>
+        <button onClick={generateAIAssistantQuote} disabled={busy} className="pc-btn" style={{ background: "var(--ar-accent)", color: "white", border: "none" }}>
           🤖 AI 초안 생성
         </button>
       </div>

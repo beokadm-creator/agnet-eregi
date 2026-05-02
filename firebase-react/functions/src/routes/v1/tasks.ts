@@ -9,11 +9,11 @@ export function registerTaskRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. 운영자/파트너의 할 일(Task) 목록 조회 (GET /v1/tasks)
   app.get("/v1/tasks", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isOps = (req as any).user.isOps;
-    const isPartner = (req as any).user.partnerId != null;
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isOps = req.user!.isOps;
+    const isPartner = req.user!.partnerId != null;
+    const partnerId = req.user!.partnerId;
 
     try {
       let query: admin.firestore.Query = db.collection("tasks").where("status", "==", "pending");
@@ -41,10 +41,10 @@ export function registerTaskRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. 특정 태스크 완료 처리 (PATCH /v1/tasks/:taskId/complete)
   app.patch("/v1/tasks/:taskId/complete", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isOps = (req as any).user.isOps;
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isOps = req.user!.isOps;
+    const partnerId = req.user!.partnerId;
     const taskId = String(req.params.taskId);
     const { resolution } = req.body; // 해결 내용 또는 코멘트
 

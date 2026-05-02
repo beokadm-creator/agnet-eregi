@@ -19,7 +19,7 @@ async function verifyAppCheckToken(
     await adminApp.appCheck().verifyToken(appCheckToken);
     return true;
   } catch (err: any) {
-    console.error("[requireAuth] App Check verification failed:", err);
+    console.error("[requireAuth] App Check verification failed:", err instanceof Error ? err.message : String(err));
     fail(res, 401, "UNAUTHENTICATED", "유효하지 않은 App Check 토큰입니다.");
     return false;
   }
@@ -43,7 +43,7 @@ async function verifyAuthToken(
   try {
     return await adminApp.auth().verifyIdToken(token);
   } catch (err: any) {
-    console.error("[requireAuth] Token verification failed:", err);
+    console.error("[requireAuth] Token verification failed:", err instanceof Error ? err.message : String(err));
     fail(res, 401, "UNAUTHENTICATED", "유효하지 않은 인증 토큰입니다.");
     return null;
   }
@@ -60,7 +60,7 @@ function attachUser(req: express.Request, decoded: admin.auth.DecodedIdToken): v
     }
   }
 
-  (req as any).user = {
+  req.user = {
     ...decoded,
     uid: decoded.uid,
     isOps: isOps(decoded),
@@ -100,8 +100,8 @@ export async function requireAuth(
 
 export const isOps = (auth: admin.auth.DecodedIdToken): boolean => {
   if (process.env.OPS_ALLOW_ALL === "1") return true;
-  if (auth.uid === "sOhR3HDAitbyX2izUyge61W3gQr2") return true;
-  if (auth.email && String(auth.email).toLowerCase() === "aaron@beosolution.com") return true;
+  if (process.env.OPS_ADMIN_UID && auth.uid === process.env.OPS_ADMIN_UID) return true;
+  if (process.env.OPS_ADMIN_EMAIL && auth.email && String(auth.email).toLowerCase() === process.env.OPS_ADMIN_EMAIL.toLowerCase()) return true;
   const opsRoles = ["ops_admin", "ops_operator", "ops_viewer"];
   if (auth.opsRole && opsRoles.includes(String(auth.opsRole))) return true;
   return false;

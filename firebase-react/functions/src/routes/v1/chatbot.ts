@@ -2,6 +2,7 @@ import { Express } from "express";
 import * as admin from "firebase-admin";
 import { requireAuth } from "../../lib/auth";
 import { ok, fail, logError } from "../../lib/http";
+import { checkAndRecordUsage } from "../../lib/quota";
 import { aiAgentWorker } from "../../lib/ai_agent_worker";
 import { ChatSession } from "../../lib/chatbot_models";
 
@@ -10,9 +11,9 @@ export function registerChatbotRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. 새 채팅 세션 생성
   app.post("/v1/chatbot/sessions", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
-      const userId = (req as any).user.uid;
+      const userId = req.user!.uid;
       const { title = "새로운 대화" } = req.body;
       
       const sessionRef = db.collection("chatSessions").doc();
@@ -35,9 +36,9 @@ export function registerChatbotRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. 내 채팅 세션 목록 조회
   app.get("/v1/chatbot/sessions", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
-      const userId = (req as any).user.uid;
+      const userId = req.user!.uid;
       
       const snapshot = await db.collection("chatSessions")
         .where("userId", "==", userId)
@@ -55,14 +56,17 @@ export function registerChatbotRoutes(app: Express, adminApp: typeof admin) {
 
   // 3. 메시지 전송 및 AI 응답 받기
   app.post("/v1/chatbot/sessions/:sessionId/messages", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
-      const userId = (req as any).user.uid;
+      const userId = req.user!.uid;
       const sessionId = String(req.params.sessionId);
       const { content } = req.body;
 
-      if (!content) {
+      if (!content || typeof content !== "string" || content.trim().length === 0) {
         return fail(res, 400, "INVALID_ARGUMENT", "메시지 내용(content)은 필수입니다.", { requestId });
+      }
+      if (content.length > 10000) {
+        return fail(res, 400, "INVALID_ARGUMENT", "메시지가 너무 깁니다. (최대 10,000자)", { requestId });
       }
 
       // 세션 소유권 확인
@@ -71,7 +75,11 @@ export function registerChatbotRoutes(app: Express, adminApp: typeof admin) {
         return fail(res, 404, "NOT_FOUND", "채팅 세션을 찾을 수 없거나 권한이 없습니다.", { requestId });
       }
 
-      // AI 워커를 통해 사용자 메시지 처리 및 모델 응답 생성
+      const quotaOk = await checkAndRecordUsage(userId, "ai_chatbot", 100);
+      if (!quotaOk) {
+        return fail(res, 429, "RESOURCE_EXHAUSTED", "AI 호출 일일 한도를 초과했습니다. 내일 다시 시도해주세요.", { requestId });
+      }
+
       const aiResponse = await aiAgentWorker.processUserMessage(adminApp, sessionId, userId, content);
       
       return ok(res, aiResponse, requestId);
@@ -83,9 +91,9 @@ export function registerChatbotRoutes(app: Express, adminApp: typeof admin) {
 
   // 4. 특정 세션의 채팅 기록 조회
   app.get("/v1/chatbot/sessions/:sessionId/messages", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
-      const userId = (req as any).user.uid;
+      const userId = req.user!.uid;
       const sessionId = String(req.params.sessionId);
 
       // 세션 소유권 확인

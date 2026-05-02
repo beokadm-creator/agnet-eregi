@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setToken(idToken);
           const tokenResult = await u.getIdTokenResult();
           const opsRole = tokenResult.claims?.opsRole ? String(tokenResult.claims.opsRole) : "";
-          const isSuperAdmin = u.uid === "sOhR3HDAitbyX2izUyge61W3gQr2" || String(u.email || "").toLowerCase() === "aaron@beosolution.com";
+          const isSuperAdmin = tokenResult.claims?.isSuperAdmin === true;
           setAccessDenied(!isSuperAdmin && !["ops_admin", "ops_operator", "ops_viewer"].includes(opsRole));
         } catch (e) {
           console.error(e);

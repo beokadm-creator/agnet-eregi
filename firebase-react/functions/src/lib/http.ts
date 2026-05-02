@@ -9,6 +9,7 @@ export type ApiErrorCode =
   | "FAILED_PRECONDITION"
   | "CONFLICT"
   | "ALREADY_EXISTS"
+  | "RESOURCE_EXHAUSTED"
   | "RATE_LIMITED"
   | "APPROVAL_REQUIRED"
   | "INTERNAL"
@@ -82,7 +83,7 @@ export function logError(
 export function requestIdMiddleware(req: express.Request, res: express.Response, next: express.NextFunction) {
   const requestId =
     req.header("X-Request-Id") || `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-  (req as any).requestId = requestId;
+  req.requestId = requestId;
   res.setHeader("X-Request-Id", requestId);
   next();
 }

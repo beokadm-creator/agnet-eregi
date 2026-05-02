@@ -25,13 +25,13 @@ export default function DashLayout({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="uw-root" style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
-      <header className="uw-topnav">
+      <header className="uw-topnav" role="banner">
         <div className="uw-logo" onClick={() => navigate('/')}>
           <div className="uw-logo-mark">⚖</div>
           AgentRegi
         </div>
 
-        <nav className="uw-nav-links">
+        <nav className="uw-nav-links" aria-label="주 메뉴">
           <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); navigate('/'); }}>{t('nav.dashboard')}</a>
           <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); navigate('/partner/apply'); }}>{t('nav.partner_apply')}</a>
           <a href="#" className="uw-nav-link" onClick={(e) => { e.preventDefault(); document.getElementById('chatbot-fab')?.click(); }}>{t('nav.customer_support')}</a>
@@ -77,7 +77,7 @@ export default function DashLayout({ onLogout }: { onLogout: () => void }) {
         </div>
       </header>
 
-      <main style={{ flex: 1 }}>
+      <main role="main" style={{ flex: 1 }}>
         <Outlet />
       </main>
 

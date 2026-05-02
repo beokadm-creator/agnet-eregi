@@ -11,9 +11,9 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
   // 1. 파트너 목록 조회 (운영자 전용 또는 유저 매칭 시 사용)
   // GET /v1/partners
   app.get("/v1/partners", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
 
-    if (isOpsAdmin((req as any).user)) {
+    if (isOpsAdmin(req.user as any)) {
       try {
         const snapshot = await db.collection("partners")
           .select("bizName", "bizRegNo", "status", "createdAt")
@@ -124,8 +124,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
   // 대상: 운영자(Ops)가 수동 할당하거나, 시스템 워커가 자동 할당
   // 임시로 인증된 유저/운영자가 호출할 수 있게 허용 (실제 운영 환경에선 requireOpsRole 권장)
   app.post("/v1/cases/:caseId/assign-partner", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
     const caseId = String(req.params.caseId);
     const { partnerId } = req.body;
 
@@ -176,8 +176,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 3. 파트너의 할당된 케이스 목록 조회 (GET /v1/partners/:partnerId/cases)
   app.get("/v1/partners/:partnerId/cases", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const reqPartnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const reqPartnerId = req.user!.partnerId;
     const partnerId = String(req.params.partnerId);
 
     // 본인의 파트너 계정 정보만 조회 가능 (또는 운영자)
@@ -203,8 +203,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 4. 파트너 본인 프로필 및 품질 지표 조회 (GET /v1/partner/profile)
   app.get("/v1/partner/profile", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
 
     if (!partnerId) {
       return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
@@ -239,8 +239,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 5. 파트너 API 키 생성 (POST /v1/partner/api-keys)
   app.post("/v1/partner/api-keys", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
 
     if (!partnerId) {
       return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
@@ -268,8 +268,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
   });
 
   app.get("/v1/partner/api-keys", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
 
     if (!partnerId) {
       return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
@@ -302,8 +302,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
   });
 
   app.post("/v1/partner/api-keys/:keyId/revoke", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
     const keyId = String(req.params.keyId);
 
     if (!partnerId) {
@@ -335,8 +335,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
   });
 
   app.post("/v1/partner/api-keys/rotate", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
     const revokeAll = req.body?.revokeAll === true;
 
     if (!partnerId) {
@@ -384,8 +384,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 6. 파트너 웹훅 설정 조회 (GET /v1/partner/webhooks)
   app.get("/v1/partner/webhooks", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
 
     if (!partnerId) {
       return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
@@ -419,8 +419,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 7. 파트너 웹훅 등록 (POST /v1/partner/webhooks)
   app.post("/v1/partner/webhooks", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
     const { url, events } = req.body;
 
     if (!partnerId) {
@@ -461,8 +461,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 8. 파트너 웹훅 수정 (PUT /v1/partner/webhooks/:webhookId)
   app.put("/v1/partner/webhooks/:webhookId", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
     const webhookId = String(req.params.webhookId);
     const { url, events, status } = req.body;
 
@@ -500,8 +500,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 9. 파트너 웹훅 삭제 (DELETE /v1/partner/webhooks/:webhookId)
   app.delete("/v1/partner/webhooks/:webhookId", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
     const webhookId = String(req.params.webhookId);
 
     if (!partnerId) {
@@ -530,8 +530,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 10. 조직 생성 (POST /v1/partner/organizations)
   app.post("/v1/partner/organizations", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
     const { name } = req.body;
 
     if (!name) {
@@ -556,8 +556,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
   });
 
   app.get("/v1/partner/organizations", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
 
     try {
       const snap = await db.collection("organizations").where("ownerId", "==", uid).orderBy("createdAt", "desc").limit(200).get();
@@ -571,7 +571,7 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 11. 워크스페이스 생성 (POST /v1/partner/workspaces)
   app.post("/v1/partner/workspaces", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const { name, organizationId } = req.body;
 
     if (!name || !organizationId) {
@@ -597,7 +597,7 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 12. 케이스 특정 멤버 할당 (POST /v1/partner/cases/:caseId/assign)
   app.post("/v1/partner/cases/:caseId/assign", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const caseId = String(req.params.caseId);
     const { memberId } = req.body;
 
@@ -626,8 +626,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 13. 파트너 템플릿 생성 (POST /v1/partner/templates)
   app.post("/v1/partner/templates", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
     const { name, schema, uiSchema, description } = req.body;
 
     if (!partnerId) {
@@ -660,8 +660,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 14. 파트너 템플릿 목록 조회 (GET /v1/partner/templates)
   app.get("/v1/partner/templates", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
 
     if (!partnerId) {
       return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
@@ -696,8 +696,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 15. 파트너 템플릿 단건 조회 (GET /v1/partner/templates/:templateId)
   app.get("/v1/partner/templates/:templateId", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
     const templateId = String(req.params.templateId);
 
     if (!partnerId) {
@@ -734,8 +734,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 16. 파트너 템플릿 수정 (PUT /v1/partner/templates/:templateId)
   app.put("/v1/partner/templates/:templateId", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
     const templateId = String(req.params.templateId);
     const { name, schema, uiSchema, description } = req.body;
 
@@ -774,8 +774,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 17. 파트너 템플릿 삭제 (DELETE /v1/partner/templates/:templateId)
   app.delete("/v1/partner/templates/:templateId", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
     const templateId = String(req.params.templateId);
 
     if (!partnerId) {
@@ -804,8 +804,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
 
   // 18. 파트너 통계 조회 (GET /v1/partner/analytics)
   app.get("/v1/partner/analytics", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const partnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const partnerId = req.user!.partnerId;
 
     if (!partnerId) {
       return fail(res, 403, "FORBIDDEN", "파트너 권한이 없습니다.", { requestId });
@@ -846,8 +846,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
   });
 
   app.post("/v1/partners/applications", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const auth = (req as any).user;
+    const requestId = req.requestId || "req-unknown";
+    const auth = req.user!;
     const uid = String(auth.uid);
     const email = auth.email ? String(auth.email) : "";
     const { bizName, bizRegNo, contactName, contactPhone, note } = req.body || {};
@@ -898,8 +898,8 @@ export function registerPartnerRoutes(app: Express, adminApp: typeof admin) {
   });
 
   app.get("/v1/partners/applications/me", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const auth = (req as any).user;
+    const requestId = req.requestId || "req-unknown";
+    const auth = req.user!;
     const uid = String(auth.uid);
 
     try {

@@ -10,8 +10,8 @@ export async function processSloBurnRateDaily(adminApp: typeof admin) {
   const now = new Date();
   const endStr = now.toISOString().split('T')[0];
 
-  // 전체 gateKey 조회 (ops_gate_settings)
-  const gatesSnap = await db.collection("ops_gate_settings").get();
+  // 전체 gateKey 조회 (ops_gate_settings) — limit to prevent memory spikes
+  const gatesSnap = await db.collection("ops_gate_settings").limit(500).get();
   
   for (const gateDoc of gatesSnap.docs) {
     const gateKey = gateDoc.id;

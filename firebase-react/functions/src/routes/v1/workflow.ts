@@ -11,9 +11,9 @@ export function registerWorkflowRoutes(app: Express, adminApp: typeof admin) {
    * 내부 헬퍼 함수: 케이스 접근 권한(소유권 및 할당 여부) 검증
    */
   async function checkCaseAccess(caseId: string, req: any, res: any, requestId: string) {
-    const uid = req.user.uid;
-    const isPartner = req.user.partnerId != null;
-    const partnerId = req.user.partnerId;
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
+    const partnerId = req.user!.partnerId;
 
     const doc = await db.collection("cases").doc(caseId).get();
     if (!doc.exists) {
@@ -36,9 +36,9 @@ export function registerWorkflowRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. 케이스 상태 전이 이벤트 트리거 (POST /v1/cases/:caseId/events)
   app.post("/v1/cases/:caseId/events", requireAuth, async (req: Request, res: Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
     const caseId = req.params.caseId as string;
     const { event, payload } = req.body;
 
@@ -130,9 +130,9 @@ export function registerWorkflowRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. 현재 상태에서 가능한 이벤트 목록(Transitions) 조회 (GET /v1/cases/:caseId/transitions)
   app.get("/v1/cases/:caseId/transitions", requireAuth, async (req: Request, res: Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const caseId = req.params.caseId as string;
-    const isPartner = (req as any).user.partnerId != null;
+    const isPartner = req.user!.partnerId != null;
 
     try {
       const access = await checkCaseAccess(caseId, req, res, requestId);
@@ -168,7 +168,7 @@ export function registerWorkflowRoutes(app: Express, adminApp: typeof admin) {
 
   // 3. 케이스의 워크플로우 및 서류 현황 통합 조회 (GET /v1/cases/:caseId/workflow) - Phase 4 확장
   app.get("/v1/cases/:caseId/workflow", requireAuth, async (req: Request, res: Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const caseId = req.params.caseId as string;
 
     try {

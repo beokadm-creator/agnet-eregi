@@ -9,9 +9,9 @@ export function registerFormRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. 유저가 케이스 진행에 필요한 폼(동의서, 추가 정보 입력 등) 제출 (POST /v1/cases/:caseId/forms/:formType)
   app.post("/v1/cases/:caseId/forms/:formType", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
     const caseId = String(req.params.caseId);
     const formType = String(req.params.formType);
     const { formData } = req.body;
@@ -59,10 +59,10 @@ export function registerFormRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. 제출된 폼 내역 조회 (GET /v1/cases/:caseId/forms)
   app.get("/v1/cases/:caseId/forms", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
-    const reqPartnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
+    const reqPartnerId = req.user!.partnerId;
     const caseId = String(req.params.caseId);
 
     try {

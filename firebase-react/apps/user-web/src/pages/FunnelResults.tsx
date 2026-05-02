@@ -149,7 +149,7 @@ export default function FunnelResults() {
     return json.data as T;
   }
 
-  async function apiPost<T = unknown>(path: string, body: Record<string, string>): Promise<T> {
+  async function apiPost<T = unknown>(path: string, body: Record<string, any>): Promise<T> {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -204,14 +204,16 @@ export default function FunnelResults() {
     setError(null);
     try {
       interface SubmissionResponse {
-        id: string;
+        submission: { id: string };
       }
       const data = await apiPost<SubmissionResponse>("/v1/user/submissions", {
-        casePackId: "auto",
+        inputType: "funnel",
         partnerId,
-        funnelSessionId: sessionId,
+        sessionId,
+        submitNow: true,
+        payload: {},
       });
-      navigate(`/submissions/${data.id}`);
+      navigate(`/submissions/${data.submission.id}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t('results.select_error'));
       setSelectingPartner(null);

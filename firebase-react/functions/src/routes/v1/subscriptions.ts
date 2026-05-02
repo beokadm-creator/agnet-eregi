@@ -180,7 +180,7 @@ export function registerSubscriptionRoutes(app: express.Application, adminApp: t
     const auth = await requireAuth(adminApp, req, res);
     if (!auth) return;
 
-    const isOps = (req as any).user?.isOps;
+    const isOps = req.user?.isOps;
     
     if (!isOps) {
       return fail(res, 403, "FORBIDDEN", "운영자 권한이 필요합니다.");

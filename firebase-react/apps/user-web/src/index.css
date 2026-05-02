@@ -5,26 +5,26 @@
 @tailwind utilities;
 
 :root {
-  --uw-bg: #FFFFFF;
-  --uw-surface: #F8F9FA;
-  --uw-surface-hover: #F1F3F5;
-  --uw-ink: #111827;
-  --uw-graphite: #4B5563;
-  --uw-slate: #6B7280;
-  --uw-fog: #9CA3AF;
-  --uw-border: #E5E7EB;
-  --uw-border-strong: #D1D5DB;
+  --uw-bg: #FAF8F4;
+  --uw-surface: #F4F1EA;
+  --uw-surface-hover: #F1ECE0;
+  --uw-ink: #0A0A0A;
+  --uw-graphite: #2C2C2E;
+  --uw-slate: #46474C;
+  --uw-fog: #A6A6AC;
+  --uw-border: #E9E5DC;
+  --uw-border-strong: #D9D3C5;
   
-  --uw-brand: #4F46E5;
-  --uw-brand-hover: #4338CA;
-  --uw-brand-soft: #EEF2FF;
+  --uw-brand: #D87242;
+  --uw-brand-hover: #BC5C30;
+  --uw-brand-soft: #FDEDE2;
   
-  --uw-success: #059669;
-  --uw-success-soft: #D1FAE5;
-  --uw-warning: #D97706;
-  --uw-warning-soft: #FEF3C7;
-  --uw-danger: #DC2626;
-  --uw-danger-soft: #FEE2E2;
+  --uw-success: #1F9D55;
+  --uw-success-soft: #E5F5EC;
+  --uw-warning: #E0A019;
+  --uw-warning-soft: #FBF1D9;
+  --uw-danger: #D1372B;
+  --uw-danger-soft: #FBE8E5;
   
   --uw-font-sans: 'Pretendard Variable', -apple-system, sans-serif;
   --uw-radius-sm: 8px;
@@ -54,16 +54,16 @@ body {
   font-size: 15px; font-weight: 600; font-family: var(--uw-font-sans);
   cursor: pointer; transition: all 0.15s ease; border: 1px solid transparent;
 }
-.uw-btn-brand { background: var(--uw-brand); color: white; box-shadow: 0 4px 12px rgba(79,70,229,0.25); }
+.uw-btn-brand { background: var(--uw-brand); color: white; box-shadow: 0 4px 12px rgba(216,114,66,0.25); }
 .uw-btn-brand:hover { background: var(--uw-brand-hover); transform: translateY(-1px); }
 .uw-btn-dark { background: var(--uw-ink); color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-.uw-btn-dark:hover { background: #000; transform: translateY(-1px); }
+.uw-btn-dark:hover { background: #1c1c1c; transform: translateY(-1px); }
 .uw-btn-outline { background: transparent; border-color: var(--uw-border-strong); color: var(--uw-ink); }
 .uw-btn-outline:hover { background: var(--uw-surface); }
 .uw-btn-ghost { background: transparent; color: var(--uw-graphite); }
 .uw-btn-ghost:hover { background: var(--uw-surface); color: var(--uw-ink); }
 .uw-btn-soft { background: var(--uw-brand-soft); color: var(--uw-brand); }
-.uw-btn-soft:hover { background: #e0e7ff; }
+.uw-btn-soft:hover { background: #fad9c6; }
 
 .uw-btn-sm { height: 36px; padding: 0 14px; font-size: 13px; border-radius: 10px; }
 .uw-btn-lg { height: 52px; padding: 0 24px; font-size: 16px; border-radius: 14px; }
@@ -105,10 +105,8 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 40px;
-  background: rgba(255,255,255,0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  background: var(--uw-bg);
+  border-bottom: 1px solid var(--uw-border);
   position: sticky;
   top: 0;
   z-index: 50;
@@ -200,14 +198,6 @@ body {
   padding: 24px;
   box-shadow: 0 24px 48px rgba(0,0,0,0.08);
   border: 1px solid rgba(255,255,255,0.4);
-}
-
-.uw-glass-panel {
-  background: rgba(255,255,255,0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: var(--uw-radius-xl);
-  border: 1px solid rgba(255,255,255,0.5);
 }
 
 /* Detail view */

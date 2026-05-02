@@ -74,7 +74,9 @@ export async function processUserDeletionJobs(adminApp: typeof admin) {
     await deleteDocsByIds(db, "user_push_tokens", pushTokenSnap.docs.map((d) => d.id));
     progress.pushTokensDeleted = (progress.pushTokensDeleted || 0) + pushTokenSnap.size;
 
-    await db.collection("user_notification_settings").doc(uid).delete().catch(() => {});
+    await db.collection("user_notification_settings").doc(uid).delete().catch((err) => {
+      console.error("[UserDeletion] notification_settings 삭제 실패:", err instanceof Error ? err.message : String(err));
+    });
 
     let submissionsUpdated = 0;
     while (submissionsUpdated < 400) {
@@ -149,7 +151,14 @@ export async function processUserDeletionJobs(adminApp: typeof admin) {
       if (snap.size < 200) break;
     }
 
-    await adminApp.auth().deleteUser(uid).catch(() => {});
+    await adminApp.auth().deleteUser(uid).catch((err) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("user-not-found") || msg.includes("uid")) {
+        console.warn("[UserDeletion] Auth 사용자 이미 삭제됨:", uid);
+      } else {
+        console.error("[UserDeletion] Auth 사용자 삭제 실패:", msg, "uid=", uid);
+      }
+    });
 
     await jobDoc.ref.update({
       status: "done",

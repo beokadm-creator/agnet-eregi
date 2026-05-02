@@ -4,6 +4,7 @@ import * as admin from "firebase-admin";
 import { requireAuth, isOps } from "../../lib/auth";
 import { requireOpsRole } from "../../lib/ops_rbac";
 import { fail, ok, logError } from "../../lib/http";
+import { checkAndRecordUsage } from "../../lib/quota";
 import { processOpsIncidents } from "../../lib/ops_incident_worker";
 import { logOpsEvent } from "../../lib/ops_audit";
 import { resetCircuitBreaker } from "../../lib/ops_circuit_breaker";
@@ -11,6 +12,7 @@ import { notifyOpsAlert } from "../../lib/ops_alert";
 import { createDeadLetterIssueAction } from "../../lib/ops_actions";
 import { safeQuery } from "../../lib/ops_query_health";
 import { llmChatComplete } from "../../lib/llm_engine";
+import { buildDataBlock, SYSTEM_HARDENING_SUFFIX } from "../../lib/prompt_sanitize";
 
 function parseJsonText(text: string): any {
   const t = String(text || "").trim();
@@ -102,13 +104,18 @@ export function registerOpsIncidentRoutes(app: express.Application, adminApp: ty
       const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", data?.gateKey);
       if (!hasRole) return;
 
+      const quotaOk = await checkAndRecordUsage(auth.uid, "ops_ai", 500);
+      if (!quotaOk) {
+        return fail(res, 429, "RESOURCE_EXHAUSTED", "AI 호출 일일 한도를 초과했습니다. 내일 다시 시도해주세요.");
+      }
+
       const prompt = `
 당신은 SRE/운영 담당자를 돕는 Incident triage AI입니다.
 아래 Incident JSON을 바탕으로 원인 가설/확인 체크리스트/권고 조치를 한국어로 정리해 주세요.
 반드시 오직 JSON으로만 응답하세요. 마크다운 백틱(\`\`\`)은 쓰지 마세요.
 
 입력:
-${JSON.stringify({ id: incidentId, ...data }, null, 2)}
+${buildDataBlock("incident-input", { id: incidentId, ...data })}
 
 출력(JSON):
 {
@@ -122,7 +129,7 @@ ${JSON.stringify({ id: incidentId, ...data }, null, 2)}
       const out = await llmChatComplete(
         adminApp,
         [
-          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." },
+          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." + SYSTEM_HARDENING_SUFFIX },
           { role: "user", content: prompt },
         ],
         { temperature: 0.2, maxTokens: 900, expectJson: true }
@@ -331,7 +338,7 @@ ${JSON.stringify({ id: incidentId, ...data }, null, 2)}
         action: "ops_playbook.run",
         status: resultStatus,
         actorUid: auth.uid,
-        requestId: String((req as any).requestId || "unknown"),
+        requestId: String(req.requestId || "unknown"),
         summary: `Playbook run: ${actionKey} for incident ${incidentId}`,
         target: { incidentId, actionKey, params, ref }
       });

@@ -12,9 +12,9 @@ export function registerDocumentRoutes(app: Express, adminApp: typeof admin) {
    * 내부 헬퍼 함수: 케이스 접근 권한(소유권 및 할당 여부) 검증
    */
   async function checkCaseAccess(caseId: string, req: any, res: any, requestId: string) {
-    const uid = req.user.uid;
-    const isPartner = req.user.partnerId != null;
-    const partnerId = req.user.partnerId;
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
+    const partnerId = req.user!.partnerId;
 
     const doc = await db.collection("cases").doc(caseId).get();
     if (!doc.exists) {
@@ -37,7 +37,7 @@ export function registerDocumentRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. 특정 케이스의 문서 목록(슬롯) 조회 (GET /v1/cases/:caseId/documents)
   app.get("/v1/cases/:caseId/documents", requireAuth, async (req: Request, res: Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const caseId = req.params.caseId as string;
 
     try {
@@ -62,8 +62,8 @@ export function registerDocumentRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. 문서 업로드용 Presigned URL 발급 (POST /v1/cases/:caseId/documents/upload-url)
   app.post("/v1/cases/:caseId/documents/upload-url", requireAuth, async (req: Request, res: Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
     const caseId = req.params.caseId as string;
     const { docType, fileName, contentType } = req.body;
 
@@ -125,9 +125,9 @@ export function registerDocumentRoutes(app: Express, adminApp: typeof admin) {
 
   // 3. 문서 상태 변경 (승인 / 반려) (PATCH /v1/cases/:caseId/documents/:docId/status)
   app.patch("/v1/cases/:caseId/documents/:docId/status", requireAuth, async (req: Request, res: Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
     const caseId = req.params.caseId as string;
     const docId = req.params.docId as string;
     const { status, rejectReason } = req.body;

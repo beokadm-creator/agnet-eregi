@@ -117,7 +117,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
       action: "ops_alert_policy.update",
       status: "success",
       actorUid: auth.uid,
-      requestId: String((req as any).requestId || "unknown"),
+      requestId: String(req.requestId || "unknown"),
       summary: `${gateKey} 알림 정책이 수정되었습니다.`,
       target: { updatedPolicy: body }
     });
@@ -246,7 +246,7 @@ export function registerReportRoutes(app: express.Express, adminApp: typeof admi
           action: "ops_alert.requeue",
           status: "success",
           actorUid: auth.uid,
-          requestId: String((req as any).requestId || "unknown"),
+          requestId: String(req.requestId || "unknown"),
           summary: `Alert job requeued: ${req.params.jobId}`,
           target: { jobId: req.params.jobId },
           createdAt: adminApp.firestore.FieldValue.serverTimestamp()

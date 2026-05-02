@@ -18,7 +18,6 @@ export interface GlmChatCompletionRequest {
 export interface GlmChatCompletionResult {
   text: string;
   usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
-  raw: any;
 }
 
 function buildChatCompletionsUrl(endpoint: string): string {
@@ -64,6 +63,6 @@ export async function glmChatCompletion(req: GlmChatCompletionRequest): Promise<
       }
     : undefined;
 
-  return { text, usage, raw: res.data };
+  return { text, usage };
 }
 

@@ -218,7 +218,7 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyPress}
               placeholder="메시지를 입력하세요..."
               disabled={isLoading}
               style={{

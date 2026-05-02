@@ -9,10 +9,10 @@ export function registerFilingRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. 파트너가 등기/관공서 접수 완료 후 증거 자료(영수증/접수증 등) 제출 (POST /v1/cases/:caseId/filing)
   app.post("/v1/cases/:caseId/filing", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
-    const reqPartnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
+    const reqPartnerId = req.user!.partnerId;
     const caseId = String(req.params.caseId);
     const { evidenceType, receiptNumber, fileUrl } = req.body;
 

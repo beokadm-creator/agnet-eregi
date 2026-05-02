@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getApiBaseUrl } from "../apiBase";
 
@@ -96,6 +96,7 @@ function packToForm(pack: CasePack): FormState {
 
 export default function CasePacks() {
   const { token } = useAuth();
+  const formTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // List state
   const [packs, setPacks] = useState<CasePack[]>([]);
@@ -133,6 +134,10 @@ export default function CasePacks() {
   useEffect(() => {
     fetchPacks();
   }, [fetchPacks]);
+
+  useEffect(() => {
+    return () => { if (formTimerRef.current) clearTimeout(formTimerRef.current); };
+  }, []);
 
   // --- Form Handlers ---
 
@@ -197,7 +202,7 @@ export default function CasePacks() {
       if (json.ok) {
         setFormSuccess(isEdit ? "수정 완료" : "생성 완료");
         fetchPacks();
-        setTimeout(() => cancelForm(), 1200);
+        formTimerRef.current = setTimeout(() => cancelForm(), 1200);
       } else {
         setFormError(json.error?.messageKo || json.error?.message || "저장 실패");
       }

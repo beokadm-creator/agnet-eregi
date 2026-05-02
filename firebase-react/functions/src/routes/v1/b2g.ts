@@ -12,7 +12,7 @@ export function registerB2gRoutes(app: express.Application, adminApp: typeof adm
   // EP-13-01: 공공기관 인증서 및 계정 조회 (Credential Management)
 app.get("/v1/partners/credentials", async (req: express.Request, res: express.Response) => {
   try {
-    const user = (req as any).user;
+    const user = req.user!;
     const partnerId = user.partnerId || user.uid;
     const db = adminApp.firestore();
 

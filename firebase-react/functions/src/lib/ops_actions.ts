@@ -601,7 +601,9 @@ export async function createBacklogIssuesAction(
         skipped.push({ dedupeKey, reason: e.message || "ERROR" });
         failed.push({ dedupeKey, reason: e.message || "ERROR" });
         if (!dryRun && !isAlreadyExists) {
-           await dedupeRef.delete().catch(() => {});
+           await dedupeRef.delete().catch((err) => {
+             console.error("[OpsActions] dedupeRef 삭제 실패:", err instanceof Error ? err.message : String(err));
+           });
         }
       }
     }
@@ -828,7 +830,9 @@ export async function addBacklogIssuesToProjectAction(
 
         failed.push({ projectDedupeKey, reason, missing, hint, issueUrl: issue.issueUrl });
         if (!dryRun && !isAlreadyExists) {
-           await linkRef.delete().catch(() => {});
+           await linkRef.delete().catch((err) => {
+             console.error("[OpsActions] linkRef 삭제 실패:", err instanceof Error ? err.message : String(err));
+           });
         }
       }
     }

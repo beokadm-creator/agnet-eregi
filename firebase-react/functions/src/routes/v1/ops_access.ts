@@ -67,7 +67,7 @@ export function registerOpsAccessRoutes(app: express.Application, adminApp: type
         action: "ops_access.grant",
         status: "success",
         actorUid: auth.uid,
-        requestId: (req as any).requestId,
+        requestId: req.requestId!,
         summary: `사용자 ${user.email}(${targetUid})에게 ${role} 권한 부여`,
         target: { targetUid, role, reason }
       });
@@ -107,7 +107,7 @@ export function registerOpsAccessRoutes(app: express.Application, adminApp: type
         action: "ops_access.revoke",
         status: "success",
         actorUid: auth.uid,
-        requestId: (req as any).requestId,
+        requestId: req.requestId!,
         summary: `사용자 ${user.email}(${targetUid})의 권한 회수`,
         target: { targetUid, reason }
       });
@@ -151,7 +151,7 @@ export function registerOpsAccessRoutes(app: express.Application, adminApp: type
         action: "ops_access.breakglass",
         status: "success",
         actorUid: auth.uid,
-        requestId: (req as any).requestId,
+        requestId: req.requestId!,
         summary: `Break-glass 활성화 (30분 임시 ops_admin)`,
         target: { reason, expiresAt }
       });
@@ -227,7 +227,7 @@ export function registerOpsAccessRoutes(app: express.Application, adminApp: type
         action: "ops_access.partner.grant",
         status: "success",
         actorUid: auth.uid,
-        requestId: (req as any).requestId,
+        requestId: req.requestId!,
         summary: `사용자 ${user.email}(${targetUid})에게 partnerId=${partnerId}, partnerRole=${partnerRole} 부여`,
         target: { targetUid, partnerId, partnerRole, approvePartner: approvePartner === true, reason }
       });
@@ -279,7 +279,7 @@ export function registerOpsAccessRoutes(app: express.Application, adminApp: type
         action: "ops_access.partner.revoke",
         status: "success",
         actorUid: auth.uid,
-        requestId: (req as any).requestId,
+        requestId: req.requestId!,
         summary: `사용자 ${user.email}(${targetUid})의 partnerId/partnerRole 회수`,
         target: { targetUid, reason }
       });

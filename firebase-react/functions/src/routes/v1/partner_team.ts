@@ -24,7 +24,7 @@ export function registerPartnerTeamRoutes(app: express.Application, adminApp: ty
 
   // 1. GET /v1/partner/team/members - 팀원 목록 조회
   app.get("/v1/partner/team/members", async (req: express.Request, res: express.Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
@@ -47,7 +47,7 @@ export function registerPartnerTeamRoutes(app: express.Application, adminApp: ty
 
   // 2. POST /v1/partner/team/invitations - 팀원 초대 (SaaS Seat 검증 포함)
   app.post("/v1/partner/team/invitations", async (req: express.Request, res: express.Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
@@ -128,7 +128,7 @@ export function registerPartnerTeamRoutes(app: express.Application, adminApp: ty
 
   // 3. POST /v1/user/invitations/:token/accept - [유저] 초대 수락 및 Custom Claims 갱신
   app.post("/v1/user/invitations/:token/accept", async (req: express.Request, res: express.Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;
@@ -198,7 +198,7 @@ export function registerPartnerTeamRoutes(app: express.Application, adminApp: ty
 
   // 4. DELETE /v1/partner/team/members/:userId - 멤버 추방 및 권한 박탈
   app.delete("/v1/partner/team/members/:userId", async (req: express.Request, res: express.Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
       const auth = await requireAuth(adminApp, req, res);
       if (!auth) return;

@@ -12,8 +12,8 @@ export function registerSettlementRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. 파트너의 정산 내역 조회 (GET /v1/partners/:partnerId/settlements)
   app.get("/v1/partners/:partnerId/settlements", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const reqPartnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const reqPartnerId = req.user!.partnerId;
     const partnerId = String(req.params.partnerId);
 
     // 본인의 정산 내역만 조회 가능 (운영자는 별도 어드민 라우트 또는 권한 패스로 접근 가정)
@@ -39,9 +39,9 @@ export function registerSettlementRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. [운영자 전용] 정산 배치 실행 (POST /v1/ops/settlements/batch)
   app.post("/v1/ops/settlements/batch", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isOps = (req as any).user.isOps;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isOps = req.user!.isOps;
     const { periodEnd } = req.body; // e.g. "2026-05-31T23:59:59Z"
 
     if (!isOps) {
@@ -69,9 +69,9 @@ export function registerSettlementRoutes(app: Express, adminApp: typeof admin) {
 
   // 3. [운영자 전용] 정산 상태 변경 (승인, 이체 완료 등) (POST /v1/ops/settlements/:settlementId/status)
   app.post("/v1/ops/settlements/:settlementId/status", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isOps = (req as any).user.isOps;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isOps = req.user!.isOps;
     const settlementId = String(req.params.settlementId);
     const { status, memoKo } = req.body;
 
@@ -123,9 +123,9 @@ export function registerSettlementRoutes(app: Express, adminApp: typeof admin) {
   // 실제 서비스에서는 케이스가 'completed' 상태가 된 후 워커가 자동으로 정산을 생성하고, 운영자가 승인하는 흐름을 가집니다.
   // 여기서는 MVP 형태로 결제/정산 정책(Clawback 등)을 다룰 수 있는 기반 엔드포인트를 제공합니다.
   app.post("/v1/ops/settlements/:settlementId/pay", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isOps = (req as any).user.isOps; // auth.ts에서 세팅된 운영자 플래그
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isOps = req.user!.isOps; // auth.ts에서 세팅된 운영자 플래그
     const settlementId = String(req.params.settlementId);
 
     if (!isOps) {

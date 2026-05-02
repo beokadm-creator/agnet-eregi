@@ -1,7 +1,9 @@
 import { Express } from "express";
 import * as admin from "firebase-admin";
 import { ok, fail, logError } from "../../lib/http";
+import { checkAndRecordUsage } from "../../lib/quota";
 import { llmChatComplete } from "../../lib/llm_engine";
+import { buildDataBlock, SYSTEM_HARDENING_SUFFIX } from "../../lib/prompt_sanitize";
 
 function parseJsonText(text: string): any {
   const t = String(text || "").trim();
@@ -71,11 +73,11 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. 의도 제출 및 세션 시작 (EP-01-01)
   app.post("/v1/funnel/intent", async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const { intentText } = req.body;
     
     // (Optional) auth middleware is not strictly required here, but we could check req.user if logged in
-    const userId = (req as any).user?.uid || null;
+    const userId = req.user?.uid || null;
 
     if (!intentText) {
       return fail(res, 400, "INVALID_ARGUMENT", "intentText가 필요합니다.", { requestId });
@@ -117,7 +119,7 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. 진단 답변 제출 (EP-01-02, EP-01-03)
   app.post("/v1/funnel/sessions/:sessionId/answer", async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const sessionId = String(req.params.sessionId);
     const { questionId, answer } = req.body;
 
@@ -179,7 +181,7 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
 
   // 3. 매칭 결과 조회 (EP-01-04, EP-02-01~03)
   app.get("/v1/funnel/sessions/:sessionId/results", async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const sessionId = String(req.params.sessionId);
 
     try {
@@ -261,7 +263,7 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
 
   // 4. AI 추천/요약 생성 (기존 흐름은 유지)
   app.post("/v1/funnel/sessions/:sessionId/ai/suggestions", async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const sessionId = String(req.params.sessionId);
 
     try {
@@ -272,6 +274,11 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
       }
 
       const sessionData = sessionDoc.data() as any;
+      const quotaUserId = sessionData.userId || "anonymous";
+      const quotaOk = await checkAndRecordUsage(quotaUserId, "ai_user", 50);
+      if (!quotaOk) {
+        return fail(res, 429, "RESOURCE_EXHAUSTED", "AI 호출 일일 한도를 초과했습니다. 내일 다시 시도해주세요.", { requestId });
+      }
 
       const snapshot = await db.collection("partners")
         .where("status", "==", "active")
@@ -301,16 +308,12 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
 반드시 오직 JSON으로만 응답하세요. 마크다운 백틱(\`\`\`)은 쓰지 마세요.
 
 입력:
-${JSON.stringify(
-  {
-    intent: sessionData.intent,
-    answers: sessionData.answers,
-    preview: sessionData.preview,
-    topPartners: partners.slice(0, 5),
-  },
-  null,
-  2
-)}
+${buildDataBlock("funnel-input", {
+  intent: sessionData.intent,
+  answers: sessionData.answers,
+  preview: sessionData.preview,
+  topPartners: partners.slice(0, 5),
+})}
 
 출력(JSON):
 {
@@ -324,7 +327,7 @@ ${JSON.stringify(
       const out = await llmChatComplete(
         adminApp,
         [
-          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." },
+          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." + SYSTEM_HARDENING_SUFFIX },
           { role: "user", content: prompt }
         ],
         { temperature: 0.2, maxTokens: 900, expectJson: true }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { auth } from '@rp/firebase';
 import { signOut } from 'firebase/auth';
@@ -86,6 +86,7 @@ export default function Settings() {
   const { t } = useTranslation();
   const { token } = useAuth();
   const user = auth.currentUser;
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>({
     submissionCompleted: true,
@@ -130,6 +131,10 @@ export default function Settings() {
     if (savedCurrency) setCurrency(savedCurrency);
   }, [loadNotifSettings]);
 
+  useEffect(() => {
+    return () => { timers.current.forEach(clearTimeout); };
+  }, []);
+
   const saveNotifSettings = async () => {
     if (!token) return;
     setNotifSaving(true);
@@ -141,7 +146,7 @@ export default function Settings() {
         body: JSON.stringify(notifSettings),
       });
       setNotifSaved(true);
-      setTimeout(() => setNotifSaved(false), 2000);
+      timers.current.push(setTimeout(() => setNotifSaved(false), 2000));
     } catch {
     } finally {
       setNotifSaving(false);

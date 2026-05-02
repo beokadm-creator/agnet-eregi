@@ -79,10 +79,12 @@ export default function PartnerLayout({ onLogout }: { onLogout: () => void }) {
   const userEmail = auth.currentUser?.email || '';
   const userInitial = userEmail.charAt(0).toUpperCase();
 
+  const SLA_DISPLAY = { value: '98.4%', hint: '품질 등급 A 유지 중' };
+
   return (
     <div className="pc-shell ar-root">
       {/* ── Sidebar ── */}
-      <aside className="pc-sidebar">
+      <aside className="pc-sidebar" role="navigation" aria-label="파트너 메뉴">
         <div className="pc-sidebar-top">
           {/* Logo */}
           <div className="pc-logo">
@@ -120,8 +122,8 @@ export default function PartnerLayout({ onLogout }: { onLogout: () => void }) {
         <div className="pc-sidebar-footer">
           <div className="pc-sla-card">
             <div className="pc-sla-label">이번 주 SLA</div>
-            <div className="pc-sla-value">98.4%</div>
-            <div className="pc-sla-hint">품질 등급 A 유지 중</div>
+            <div className="pc-sla-value">{SLA_DISPLAY.value}</div>
+            <div className="pc-sla-hint">{SLA_DISPLAY.hint}</div>
           </div>
           <button
             onClick={onLogout}
@@ -146,7 +148,7 @@ export default function PartnerLayout({ onLogout }: { onLogout: () => void }) {
       {/* ── Content ── */}
       <div className="pc-content">
         {/* Topbar */}
-        <header className="pc-topbar">
+        <header className="pc-topbar" role="banner">
           <span className="pc-topbar-crumb">
             AgentRegi
             <span className="pc-topbar-crumb-sep">›</span>
@@ -171,7 +173,7 @@ export default function PartnerLayout({ onLogout }: { onLogout: () => void }) {
         </header>
 
         {/* Page content */}
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <main role="main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <Outlet />
         </main>
       </div>

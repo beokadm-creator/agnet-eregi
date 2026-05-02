@@ -9,9 +9,9 @@ export function registerApostilleRoutes(app: Express, adminApp: typeof admin) {
 
   // 헬퍼: 접근 권한 확인
   async function checkCaseAccess(caseId: string, req: any, res: any) {
-    const uid = req.user.uid;
-    const isPartner = req.user.partnerId != null;
-    const partnerId = req.user.partnerId;
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
+    const partnerId = req.user!.partnerId;
 
     const doc = await db.collection("cases").doc(caseId).get();
     if (!doc.exists) {
@@ -92,7 +92,7 @@ export function registerApostilleRoutes(app: Express, adminApp: typeof admin) {
 
       // EP-15: 매뉴얼 리뷰 결과에 따른 상태 머신 전이
       const newStatus = verified ? "verified" : "rejected";
-      const userUid = (req as any).user.uid;
+      const userUid = req.user!.uid;
       
       await docRef.update({
         "manualVerification.apostille": {

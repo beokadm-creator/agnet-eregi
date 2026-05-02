@@ -10,10 +10,10 @@ export function registerQuoteRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. 견적서 목록 조회 (GET /v1/cases/:caseId/quotes)
   app.get("/v1/cases/:caseId/quotes", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
-    const reqPartnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
+    const reqPartnerId = req.user!.partnerId;
     const caseId = String(req.params.caseId);
 
     try {
@@ -43,10 +43,10 @@ export function registerQuoteRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. 견적 제안 (Draft) - 파트너 전용
   app.post("/v1/partner/cases/:caseId/quotes/draft", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
-    const reqPartnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
+    const reqPartnerId = req.user!.partnerId;
     const caseId = String(req.params.caseId);
     const { priceMin, priceMax, etaMinHours, etaMaxHours, currency = "KRW", targetCurrency = "USD" } = req.body;
 
@@ -104,10 +104,10 @@ export function registerQuoteRoutes(app: Express, adminApp: typeof admin) {
 
   // 3. 견적 확정 (Finalize) - 파트너 전용
   app.post("/v1/partner/cases/:caseId/quotes/:quoteId/finalize", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
-    const reqPartnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
+    const reqPartnerId = req.user!.partnerId;
     const caseId = String(req.params.caseId);
     const quoteId = String(req.params.quoteId);
     const { finalPrice, assumptionsKo, targetCurrency } = req.body;
@@ -207,9 +207,9 @@ export function registerQuoteRoutes(app: Express, adminApp: typeof admin) {
 
   // 4. 견적 동의 (Accept) - 유저 전용
   app.post("/v1/user/cases/:caseId/quotes/:quoteId/accept", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isPartner = (req as any).user.partnerId != null;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isPartner = req.user!.partnerId != null;
     const caseId = String(req.params.caseId);
     const quoteId = String(req.params.quoteId);
 

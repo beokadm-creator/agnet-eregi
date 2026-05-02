@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@agentregi/ui-components";
 import { auth } from "@rp/firebase";
 import { getApiBaseUrl } from "../../apiBase";
@@ -30,6 +30,8 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
   const [evidenceId, setEvidenceId] = useState<string | null>(null);
   const [requestId, setRequestId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => { return () => { if (timerRef.current) clearTimeout(timerRef.current); }; }, []);
 
   async function getToken(): Promise<string> {
     const token = await auth.currentUser?.getIdToken(true);
@@ -137,7 +139,7 @@ export function CompletionPanel({ caseId, onLog, busy }: Props) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
       onLog("증거 복사 완료");
     } catch (e) {
       onLog("증거 복사 실패");

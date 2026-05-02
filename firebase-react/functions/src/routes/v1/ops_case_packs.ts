@@ -11,9 +11,9 @@ export function registerOpsCasePackRoutes(app: Express, adminApp: typeof admin) 
 
   // 1. [운영자] 사건팩 생성 (POST /v1/ops/case-packs)
   app.post("/v1/ops/case-packs", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const auth = (req as any).user;
-    const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", "case_pack_mgmt");
+    const requestId = req.requestId || "req-unknown";
+    const auth = req.user!;
+    const hasRole = await requireOpsRole(adminApp, req, res, auth as any, "ops_admin", "case_pack_mgmt");
     if (!hasRole) return;
 
     const { id, category, nameKo, active, formSchema, workflow } = req.body;
@@ -62,9 +62,9 @@ export function registerOpsCasePackRoutes(app: Express, adminApp: typeof admin) 
 
   // 2. [운영자] 사건팩 수정 (PUT /v1/ops/case-packs/:id)
   app.put("/v1/ops/case-packs/:id", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const auth = (req as any).user;
-    const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin", "case_pack_mgmt");
+    const requestId = req.requestId || "req-unknown";
+    const auth = req.user!;
+    const hasRole = await requireOpsRole(adminApp, req, res, auth as any, "ops_admin", "case_pack_mgmt");
     if (!hasRole) return;
 
     const packId = String(req.params.id);

@@ -79,7 +79,7 @@ export function registerOpsReleaseRoutes(app: express.Application, adminApp: typ
         action: "ops_preflight.run",
         status: passed ? "success" : "fail",
         actorUid: auth.uid,
-        requestId: String((req as any).requestId || "unknown"),
+        requestId: String(req.requestId || "unknown"),
         summary: `Preflight checks run. Passed: ${passed}`,
         target: { gateKey, checks }
       });
@@ -167,7 +167,7 @@ export function registerOpsReleaseRoutes(app: express.Application, adminApp: typ
         action: "ops_smoketest.run",
         status: passed ? "success" : "fail",
         actorUid: auth.uid,
-        requestId: String((req as any).requestId || "unknown"),
+        requestId: String(req.requestId || "unknown"),
         summary: `Smoke test (${mode}) run. Passed: ${passed}`,
         target: { gateKey, mode, resultsSummary: results }
       });

@@ -11,8 +11,8 @@ export function registerApprovalRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. [운영자 전용] 2인 승인(Two-man rule) 목록 조회 (GET /v1/ops/approvals)
   app.get("/v1/ops/approvals", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const isOps = (req as any).user.isOps;
+    const requestId = req.requestId || "req-unknown";
+    const isOps = req.user!.isOps;
 
     if (!isOps) {
       return fail(res, 403, "PERMISSION_DENIED", "운영자만 접근 가능한 기능입니다.", { requestId });
@@ -37,9 +37,9 @@ export function registerApprovalRoutes(app: Express, adminApp: typeof admin) {
   // 2. [운영자 전용] 승인 요청 승인/반려 (PATCH /v1/ops/approvals/:approvalId/status)
   // 대상: 고액 환불, 예외적 파트너 교체 등 민감한 작업
   app.patch("/v1/ops/approvals/:approvalId/status", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isOps = (req as any).user.isOps;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isOps = req.user!.isOps;
     const approvalId = String(req.params.approvalId);
     const { status, comment } = req.body; // status: "approved" | "rejected"
 

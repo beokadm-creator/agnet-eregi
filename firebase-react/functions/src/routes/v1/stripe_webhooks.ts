@@ -4,7 +4,11 @@ import Stripe from "stripe";
 
 import { logError } from "../../lib/http";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_mock", { apiVersion: "2023-10-16" as any });
+const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || (process.env.FUNCTIONS_EMULATOR === "true" ? "sk_test_mock" : "");
+if (!STRIPE_KEY) {
+  console.error("[StripeWebhooks] WARNING: STRIPE_SECRET_KEY not set. Webhook processing will not work.");
+}
+const stripe = new Stripe(STRIPE_KEY || "sk_disabled", { apiVersion: "2023-10-16" as any });
 
 export function registerStripeWebhookRoutes(app: express.Application, adminApp: typeof admin) {
   app.post("/v1/webhooks/stripe", async (req: express.Request, res: express.Response) => {
@@ -19,7 +23,7 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
     let event: any;
 
     try {
-      event = stripe.webhooks.constructEvent((req as any).rawBody, sig, webhookSecret);
+      event = stripe.webhooks.constructEvent(req.rawBody!, sig, webhookSecret);
     } catch (err: any) {
       logError({ endpoint: "webhooks/stripe", code: "INVALID_ARGUMENT", messageKo: "Stripe 서명 검증 실패", err });
       res.status(400).send(`Webhook Error: ${err.message}`);

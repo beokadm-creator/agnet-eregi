@@ -12,7 +12,7 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="ops-root ops-layout">
       {/* Dark Sidebar */}
-      <aside className="ops-sidebar">
+      <aside className="ops-sidebar" role="navigation" aria-label="운영 메뉴">
         <div className="ops-sidebar-header" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
           <div>🛡️</div> AgentRegi <span>Ops</span>
         </div>
@@ -56,7 +56,7 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
 
       {/* Main Content */}
       <div className="ops-main">
-        <header className="ops-topbar">
+        <header className="ops-topbar" role="banner">
           <div style={{ fontSize: '12px', color: 'var(--ops-text-muted)', display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span className={envBadgeClass}>{envLabel}</span>
             <span>asia-northeast3</span>
@@ -69,7 +69,7 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
           </div>
         </header>
 
-        <main className="ops-content">
+        <main className="ops-content" role="main">
           <Outlet />
         </main>
       </div>

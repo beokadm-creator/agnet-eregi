@@ -96,12 +96,21 @@ const corsAllowlist = (process.env.CORS_ALLOWLIST || "")
   .map((v) => v.trim())
   .filter(Boolean);
 
+const KNOWN_HOSTING_DOMAINS = [
+  "user-web-eregi.web.app",
+  "partner-console-eregi.web.app",
+  "agent-eregi.web.app",
+  "user-web-eregi.firebaseapp.com",
+  "partner-console-eregi.firebaseapp.com",
+  "agent-eregi.firebaseapp.com",
+];
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (corsAllowAny) return callback(null, true);
     if (corsAllowlist.includes(origin)) return callback(null, true);
-    if (origin.endsWith('.web.app') || origin.endsWith('.firebaseapp.com')) return callback(null, true);
+    if (KNOWN_HOSTING_DOMAINS.includes(origin)) return callback(null, true);
     if (origin.startsWith('http://localhost:')) return callback(null, true);
     return callback(null, false);
   }
@@ -112,7 +121,7 @@ app.post(
   "/v1/webhooks/stripe",
   express.raw({ type: "application/json" }),
   (req, res, next) => {
-    (req as any).rawBody = req.body;
+    req.rawBody = req.body;
     next();
   }
 );

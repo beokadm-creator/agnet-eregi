@@ -8,7 +8,11 @@ import { Payment } from "../../lib/payment_models";
 import { tossConfirmPayment, getTossPaymentsSettings } from "../../lib/tosspayments";
 import { getExchangeRate, convertCurrency } from "../../lib/exchange_rate";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_mock", { apiVersion: "2023-10-16" as any });
+const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || (process.env.FUNCTIONS_EMULATOR === "true" ? "sk_test_mock" : "");
+if (!STRIPE_KEY) {
+  console.error("[Payments] WARNING: STRIPE_SECRET_KEY not set. Stripe integration will not work.");
+}
+const stripe = new Stripe(STRIPE_KEY || "sk_disabled", { apiVersion: "2023-10-16" as any });
 
 export function registerPaymentRoutes(app: express.Application, adminApp: typeof admin) {
 
@@ -24,8 +28,8 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
       const providerNormalized: "stripe" | "tosspayments" | "mock" =
         provider === "stripe" || provider === "tosspayments" || provider === "mock" ? provider : "stripe";
 
-      if (!amount || !currency) {
-        return fail(res, 400, "INVALID_ARGUMENT", "amount와 currency가 필요합니다.");
+      if (!amount || !currency || typeof amount !== "number" || amount <= 0) {
+        return fail(res, 400, "INVALID_ARGUMENT", "amount(양의 숫자)와 currency가 필요합니다.");
       }
 
       let finalAmount = amount;

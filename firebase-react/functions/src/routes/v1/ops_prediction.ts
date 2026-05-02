@@ -8,7 +8,7 @@ export function registerOpsPredictionRoutes(app: express.Application, adminApp: 
 
   // 1. 파트너 ETA 예측 조회 (유저 퍼널 또는 파트너 제안 시)
   app.get("/v1/predictions/eta/:partnerId", requireAuth, async (req: express.Request, res: express.Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const partnerId = String(req.params.partnerId);
 
     try {
@@ -33,7 +33,7 @@ export function registerOpsPredictionRoutes(app: express.Application, adminApp: 
 
   // 2. 승인 확률 조회 (파트너가 고액 견적을 확정하려 할 때 경고용)
   app.get("/v1/predictions/approval-probability", requireAuth, async (req: express.Request, res: express.Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const gate = String(req.query.gate || "quote_approve");
     const amount = Number(req.query.amount || 0);
 

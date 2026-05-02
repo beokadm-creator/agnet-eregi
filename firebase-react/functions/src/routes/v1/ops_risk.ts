@@ -14,14 +14,14 @@ export function registerOpsRiskRoutes(app: express.Application, adminApp: typeof
   // 1) GET /v1/ops/risk/summary
   // 최근 24시간 동안의 Incident 데이터 등을 기반으로 현재 리스크 지표를 산출합니다.
   app.get("/v1/ops/risk/summary", requireAuth, async (req: express.Request, res: express.Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
-      const auth = (req as any).user;
+      const auth = req.user! as any;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.", { requestId });
 
       const gateKey = req.query.gateKey ? String(req.query.gateKey) : undefined;
       // 리스크 조회는 최소 ops_viewer 권한 요구
-      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer", gateKey);
+      const hasRole = await requireOpsRole(adminApp, req, res, auth as any, "ops_viewer", gateKey);
       if (!hasRole) return;
 
       // 최근 24시간의 Incident 수집
@@ -84,14 +84,14 @@ export function registerOpsRiskRoutes(app: express.Application, adminApp: typeof
   // 2) POST /v1/ops/risk/:gateKey/mitigate
   // 식별된 리스크에 대한 긴급 완화 조치(Playbook 액션 등)를 수동 트리거합니다.
   app.post("/v1/ops/risk/:gateKey/mitigate", requireAuth, async (req: express.Request, res: express.Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     try {
-      const auth = (req as any).user;
+      const auth = req.user! as any;
       if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.", { requestId });
 
       const gateKey = String(req.params.gateKey);
       // 완화 조치 실행은 최소 ops_operator 권한 요구
-      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_operator", gateKey);
+      const hasRole = await requireOpsRole(adminApp, req, res, auth as any, "ops_operator", gateKey);
       if (!hasRole) return;
 
       const { actionKey } = req.body;

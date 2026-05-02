@@ -13,8 +13,8 @@ const ROLE_HIERARCHY: Record<OpsRole, number> = {
 
 export const getOpsRole = (auth: admin.auth.DecodedIdToken): OpsRole | null => {
   if (process.env.OPS_ALLOW_ALL === "1") return "ops_admin";
-  if (auth.uid === "sOhR3HDAitbyX2izUyge61W3gQr2") return "ops_admin";
-  if (auth.email && String(auth.email).toLowerCase() === "aaron@beosolution.com") return "ops_admin";
+  if (process.env.OPS_ADMIN_UID && auth.uid === process.env.OPS_ADMIN_UID) return "ops_admin";
+  if (process.env.OPS_ADMIN_EMAIL && auth.email && String(auth.email).toLowerCase() === process.env.OPS_ADMIN_EMAIL.toLowerCase()) return "ops_admin";
   const role = auth.opsRole as string;
   if (role === "ops_viewer" || role === "ops_operator" || role === "ops_admin") {
     return role as OpsRole;
@@ -44,7 +44,7 @@ export const requireOpsRole = async (
       action: "ops_auth.denied",
       status: "fail",
       actorUid: auth.uid,
-      requestId: (req as any).requestId || "unknown",
+      requestId: req.requestId || "unknown",
       summary: `Ops access denied: requires ${requiredRole}, got ${currentRole}`,
       target: {
         endpoint: req.originalUrl,

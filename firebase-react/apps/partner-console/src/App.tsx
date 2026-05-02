@@ -6,6 +6,7 @@ import { AppProvider, useAppContext } from "./context/AppContext";
 import { getApiBaseUrl } from "./apiBase";
 import PartnerLayout from "./layouts/PartnerLayout";
 import AuthScreen from "./components/AuthScreen";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 import Dashboard from "./pages/Dashboard";
 import Cases from "./pages/Cases";
@@ -293,8 +294,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

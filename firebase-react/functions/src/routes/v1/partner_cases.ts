@@ -5,10 +5,12 @@ import { Document, Packer, Paragraph, TextRun } from "docx";
 
 import { requireAuth, partnerIdOf } from "../../lib/auth";
 import { fail, ok, logError } from "../../lib/http";
+import { checkAndRecordUsage } from "../../lib/quota";
 import { PartnerCase, CaseEvidence, CasePackage, EvidenceRequest } from "../../lib/partner_models";
 import { enqueueNotification } from "../../lib/notify_trigger";
 import { dispatchCustomerNotification } from "../../lib/notifications";
 import { llmChatComplete } from "../../lib/llm_engine";
+import { buildDataBlock, sanitizeForPrompt, SYSTEM_HARDENING_SUFFIX } from "../../lib/prompt_sanitize";
 
 function parseJsonText(text: string): any {
   const t = String(text || "").trim();
@@ -312,28 +314,29 @@ export function registerPartnerCaseRoutes(app: express.Application, adminApp: ty
         return fail(res, 403, "FORBIDDEN", "접근할 수 없는 증거물입니다.");
       }
 
+      const quotaOk = await checkAndRecordUsage(partnerId, "ai_partner", 200);
+      if (!quotaOk) {
+        return fail(res, 429, "RESOURCE_EXHAUSTED", "AI 호출 일일 한도를 초과했습니다. 내일 다시 시도해주세요.");
+      }
+
       const prompt = `
 당신은 파트너의 증거물(서류) 검토를 돕는 AI입니다.
 아래 입력(JSON)을 바탕으로 결함/누락/보완 요청 문구를 한국어로 생성해 주세요.
 반드시 오직 JSON으로만 응답하세요. 마크다운 백틱(\`\`\`)은 쓰지 마세요.
 
 입력:
-${JSON.stringify(
-  {
-    evidence: {
-      id: evidenceId,
-      type: ev.type,
-      itemCode: ev.itemCode,
-      status: ev.status,
-      contentType: ev.contentType,
-      aiValidationResult: ev.aiValidationResult,
-      extractedText: ev.extractedText ? String(ev.extractedText).slice(0, 4000) : "",
-      defectReasons: ev.defectReasons || [],
-    },
+${buildDataBlock("evidence-input", {
+  evidence: {
+    id: evidenceId,
+    type: ev.type,
+    itemCode: ev.itemCode,
+    status: ev.status,
+    contentType: ev.contentType,
+    aiValidationResult: ev.aiValidationResult,
+    extractedText: ev.extractedText ? String(ev.extractedText).slice(0, 4000) : "",
+    defectReasons: ev.defectReasons || [],
   },
-  null,
-  2
-)}
+})}
 
 출력(JSON):
 {
@@ -347,7 +350,7 @@ ${JSON.stringify(
       const out = await llmChatComplete(
         adminApp,
         [
-          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." },
+          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." + SYSTEM_HARDENING_SUFFIX },
           { role: "user", content: prompt },
         ],
         { temperature: 0.2, maxTokens: 700, expectJson: true }
@@ -1040,13 +1043,18 @@ ${JSON.stringify(
         }
       }
 
+      const quotaOk = await checkAndRecordUsage(partnerId, "ai_partner", 200);
+      if (!quotaOk) {
+        return fail(res, 429, "RESOURCE_EXHAUSTED", "AI 호출 일일 한도를 초과했습니다. 내일 다시 시도해주세요.");
+      }
+
       const prompt = `
 당신은 파트너를 돕는 AI 어시스턴트입니다.
 사용자가 제출한 사건 정보를 바탕으로 예상 견적(최소/최대 금액, 최소/최대 소요 시간)과 전제 조건을 제안해주세요.
 
 [사건 정보]
-제목: ${caseData?.title || "제목 없음"}
-사용자 제출 정보: ${submissionData ? JSON.stringify(submissionData.input || {}) : "없음"}
+제목: ${sanitizeForPrompt(caseData?.title || "제목 없음")}
+사용자 제출 정보: ${buildDataBlock("submission-input", submissionData ? submissionData.input || {} : "없음")}
 
 [출력 형식 (JSON)]
 {
@@ -1060,7 +1068,7 @@ ${JSON.stringify(
       const out = await llmChatComplete(
         adminApp,
         [
-          { role: "system", content: "당신은 파트너를 돕는 AI 어시스턴트입니다. 오직 유효한 JSON으로만 응답하세요." },
+          { role: "system", content: "당신은 파트너를 돕는 AI 어시스턴트입니다. 오직 유효한 JSON으로만 응답하세요." + SYSTEM_HARDENING_SUFFIX },
           { role: "user", content: prompt },
         ],
         { temperature: 0.2, maxTokens: 1024, expectJson: true }
@@ -1088,12 +1096,17 @@ ${JSON.stringify(
         return fail(res, 400, "INVALID_ARGUMENT", "defectReasons 배열이 필요합니다.");
       }
 
+      const quotaOk = await checkAndRecordUsage(partnerId, "ai_partner", 200);
+      if (!quotaOk) {
+        return fail(res, 429, "RESOURCE_EXHAUSTED", "AI 호출 일일 한도를 초과했습니다. 내일 다시 시도해주세요.");
+      }
+
       const prompt = `
 당신은 파트너를 돕는 AI 어시스턴트입니다.
 사용자가 제출한 서류에서 결함이 발견되어 다시 요청해야 합니다. 고객에게 보낼 정중하고 명확한 요청 메시지를 작성해주세요.
 
 [결함 사유]
-${defectReasons.join(", ")}
+${buildDataBlock("defect-reasons", defectReasons)}
 
 [출력 형식 (JSON)]
 {
@@ -1103,7 +1116,7 @@ ${defectReasons.join(", ")}
       const out = await llmChatComplete(
         adminApp,
         [
-          { role: "system", content: "당신은 파트너를 돕는 AI 어시스턴트입니다. 오직 유효한 JSON으로만 응답하세요." },
+          { role: "system", content: "당신은 파트너를 돕는 AI 어시스턴트입니다. 오직 유효한 JSON으로만 응답하세요." + SYSTEM_HARDENING_SUFFIX },
           { role: "user", content: prompt },
         ],
         { temperature: 0.3, maxTokens: 1024, expectJson: true }

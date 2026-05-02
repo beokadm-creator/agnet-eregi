@@ -84,7 +84,7 @@ export function registerOpsSettingsRoutes(app: express.Application, adminApp: ty
         action: "ops_settings.update",
         status: "success",
         actorUid: auth.uid,
-        requestId: (req as any).requestId,
+        requestId: req.requestId!,
         summary: `텔레그램 알림 설정 변경 (enabled: ${newSettings.enabled})`,
         target: { type: "telegram", enabled: newSettings.enabled }
       });
@@ -114,7 +114,6 @@ export function registerOpsSettingsRoutes(app: express.Application, adminApp: ty
         provider: "glm",
         model: raw.model || DEFAULT_LLM.model,
         endpoint: raw.endpoint || DEFAULT_LLM.endpoint,
-        apiKeySecretName,
         apiKeySet: !!apiKeySecretName,
         updatedAt: raw.updatedAt,
         updatedBy: raw.updatedBy,
@@ -190,7 +189,7 @@ export function registerOpsSettingsRoutes(app: express.Application, adminApp: ty
         action: "ops_settings.update",
         status: "success",
         actorUid: auth.uid,
-        requestId: (req as any).requestId,
+        requestId: req.requestId!,
         summary: `LLM 설정 변경 (enabled: ${update.enabled}, provider: ${update.provider}, model: ${update.model})`,
         target: { type: "llm", enabled: update.enabled, provider: update.provider, model: update.model }
       });
@@ -314,7 +313,7 @@ export function registerOpsSettingsRoutes(app: express.Application, adminApp: ty
         action: "ops_settings.update",
         status: "success",
         actorUid: auth.uid,
-        requestId: (req as any).requestId,
+        requestId: req.requestId!,
         summary: `토스페이먼츠 설정 변경 (enabled: ${newSettings.enabled})`,
         target: { type: "tosspayments", enabled: newSettings.enabled }
       });

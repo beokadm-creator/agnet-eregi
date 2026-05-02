@@ -71,7 +71,7 @@ export function registerOpsSloRoutes(app: express.Application, adminApp: typeof 
         action: "ops_slo.update",
         status: "success",
         actorUid: auth.uid,
-        requestId: (req as any).requestId,
+        requestId: req.requestId!,
         summary: `SLO 설정 변경: 목표 ${targetPercentage}%, 기간 ${budgetDays}일`,
         target: { targetPercentage, budgetDays }
       });

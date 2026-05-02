@@ -9,7 +9,7 @@ export function registerAdRoutes(app: Express, adminApp: typeof admin) {
 
   // 1. [유저] 스폰서 광고 노출/클릭 트래킹 이벤트 (POST /v1/ads/events)
   app.post("/v1/ads/events", async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const { partnerId, campaignId, eventType, source } = req.body;
     const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
 
@@ -43,9 +43,9 @@ export function registerAdRoutes(app: Express, adminApp: typeof admin) {
 
   // 2. [운영자 전용] 광고 일일 과금 배치 실행 (POST /v1/ops/ads/batch)
   app.post("/v1/ops/ads/batch", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const uid = (req as any).user.uid;
-    const isOps = (req as any).user.isOps;
+    const requestId = req.requestId || "req-unknown";
+    const uid = req.user!.uid;
+    const isOps = req.user!.isOps;
     const { targetDate } = req.body; // YYYY-MM-DD
 
     if (!isOps) {
@@ -66,9 +66,9 @@ export function registerAdRoutes(app: Express, adminApp: typeof admin) {
 
   // 3. [파트너] 광고 캠페인 조회 및 생성 (GET/POST /v1/partner/ads/campaigns)
   app.get("/v1/partner/ads/campaigns", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const isPartner = (req as any).user.partnerId != null;
-    const reqPartnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const isPartner = req.user!.partnerId != null;
+    const reqPartnerId = req.user!.partnerId;
 
     if (!isPartner) {
       return fail(res, 403, "PERMISSION_DENIED", "파트너만 접근 가능합니다.", { requestId });
@@ -87,9 +87,9 @@ export function registerAdRoutes(app: Express, adminApp: typeof admin) {
   });
 
   app.post("/v1/partner/ads/campaigns", requireAuth, async (req, res) => {
-    const requestId = (req as any).requestId || "req-unknown";
-    const isPartner = (req as any).user.partnerId != null;
-    const reqPartnerId = (req as any).user.partnerId;
+    const requestId = req.requestId || "req-unknown";
+    const isPartner = req.user!.partnerId != null;
+    const reqPartnerId = req.user!.partnerId;
     const { type, bidAmount, dailyBudget } = req.body;
 
     if (!isPartner) {

@@ -52,7 +52,7 @@ export function registerOpsReviewRoutes(app: express.Application, adminApp: type
   });
 
   app.post("/v1/ops/approvals/:approvalId/approve", async (req: express.Request, res: express.Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const approvalId = String(req.params.approvalId);
 
     try {
@@ -107,7 +107,7 @@ export function registerOpsReviewRoutes(app: express.Application, adminApp: type
   });
 
   app.post("/v1/ops/approvals/:approvalId/reject", async (req: express.Request, res: express.Response) => {
-    const requestId = (req as any).requestId || "req-unknown";
+    const requestId = req.requestId || "req-unknown";
     const approvalId = String(req.params.approvalId);
     const { reason } = req.body || {};
 
