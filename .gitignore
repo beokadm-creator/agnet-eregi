@@ -9,3 +9,4 @@ build/
 firebase-react/functions/lib/
 firebase-react/**/playwright-report/
 firebase-react/**/test-results/
+.sisyphus/
