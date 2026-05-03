@@ -15,8 +15,9 @@ import {
   matchScenario,
   registryScenarioTemplates,
 } from "../../lib/funnel_scenarios";
-import { loadPartnerTaxonomy } from "../../lib/partner_taxonomy";
+import { loadPartnerTaxonomy, normalizeByAllowWithAliases, sanitizeListWithAliases } from "../../lib/partner_taxonomy";
 import { loadMatchingWeights } from "../../lib/matching_weights";
+import { getDesiredSpecialtiesForScenarioKey, getPreferredTagsForScenarioKey, normalizeScenarioKeys } from "../../lib/scenario_partner_match";
 
 function parseJsonText(text: string): any {
   const t = String(text || "").trim();
@@ -41,17 +42,6 @@ function tierScore(tier: any): number {
   return 1;
 }
 
-function desiredSpecialtiesByScenarioKey(scenarioKey: string): string[] {
-  const k = String(scenarioKey || "");
-  if (k === "corp_establishment") return ["법인 설립"];
-  if (k === "hq_relocation") return ["본점 이전"];
-  if (k === "officer_change") return ["임원 변경"];
-  if (k === "capital_increase") return ["자본금 증자"];
-  if (k === "name_change") return ["상호 변경"];
-  if (k === "dissolution") return ["청산"];
-  return [];
-}
-
 function isUrgentAnswer(answers: Record<string, any>): boolean {
   const vals = Object.values(answers || {}).map((v) => String(v || ""));
   return vals.some((v) => v.includes("긴급") || v.includes("1~2일"));
@@ -69,10 +59,10 @@ function needsHighQuality(scenarioKey: string, answers: Record<string, any>): bo
 function registryTypeToScenarioKey(v: string): string | null {
   const s = String(v || "").trim();
   if (s === "법인 설립") return "corp_establishment";
-  if (s === "본점 이전") return "hq_relocation";
+  if (s === "본점 이전") return "head_office_relocation";
   if (s === "임원 변경") return "officer_change";
   if (s === "자본금 증자") return "capital_increase";
-  if (s === "상호 변경") return "name_change";
+  if (s === "상호 변경") return "trade_name_change";
   if (s === "청산") return "dissolution";
   return null;
 }
@@ -84,6 +74,8 @@ function computeMatch(
     answers: Record<string, any>;
     desiredRegion: string;
     desiredSpecialties: string[];
+    desiredScenarioKeys: string[];
+    preferredTags: string[];
     urgent: boolean;
     highQuality: boolean;
   },
@@ -100,11 +92,20 @@ function computeMatch(
 
   const regions = Array.isArray(partner.regions) ? partner.regions : [];
   const specialties = Array.isArray(partner.specialties) ? partner.specialties : [];
+  const scenarioKeysHandled = normalizeScenarioKeys(partner.scenarioKeysHandled);
+  const tags = Array.isArray(partner.tags) ? partner.tags : [];
   const regionMatch = ctx.desiredRegion ? regions.includes(ctx.desiredRegion) : false;
   const specialtyMatch =
     (ctx.desiredSpecialties || []).length > 0
       ? (ctx.desiredSpecialties || []).some((s) => specialties.includes(s))
       : false;
+  const scenarioKeyMatch =
+    (ctx.desiredScenarioKeys || []).length > 0 && scenarioKeysHandled.length > 0
+      ? (ctx.desiredScenarioKeys || []).some((s) => scenarioKeysHandled.includes(s))
+      : false;
+  const preferredTagsMatched = Array.from(
+    new Set((ctx.preferredTags || []).filter((tag) => tags.includes(tag)))
+  );
 
   let score = base;
   const reasons: string[] = [];
@@ -126,6 +127,14 @@ function computeMatch(
     if (specialties.length === 0) score -= 1;
     else score += specialtyMatch ? w.specialtyMatchWeight : w.specialtyMismatchWeight;
     reasons.push(specialtyMatch ? "전문분야 일치" : "전문분야 불일치");
+  }
+  if ((ctx.desiredScenarioKeys || []).length > 0 && scenarioKeysHandled.length > 0) {
+    score += scenarioKeyMatch ? w.scenarioKeyMatchWeight : w.scenarioKeyMismatchWeight;
+    reasons.push(scenarioKeyMatch ? "세부 시나리오 처리 가능" : "세부 시나리오 불일치");
+  }
+  if (preferredTagsMatched.length > 0) {
+    score += preferredTagsMatched.length * w.preferredTagMatchWeight;
+    reasons.push(`전문태그 일치(${preferredTagsMatched.slice(0, 2).join(", ")})`);
   }
 
   if (ctx.urgent) {
@@ -600,10 +609,20 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
       const desiredRegion = taxonomy.regions.includes(desiredRegionRaw) ? desiredRegionRaw : "";
       const desiredSpecialtiesRaw = Array.isArray((scenario as any).partnerMatch?.desiredSpecialties)
         ? (scenario as any).partnerMatch.desiredSpecialties
-        : desiredSpecialtiesByScenarioKey(String(scenario.scenarioKey));
+        : getDesiredSpecialtiesForScenarioKey(String(scenario.scenarioKey));
       const desiredSpecialties = (desiredSpecialtiesRaw || [])
         .map((v: any) => String(v))
         .filter((v: string) => taxonomy.specialties.includes(v));
+      const desiredScenarioKeys = normalizeScenarioKeys(
+        Array.isArray((scenario as any).partnerMatch?.desiredScenarioKeys)
+          ? (scenario as any).partnerMatch.desiredScenarioKeys
+          : [String(scenario.scenarioKey)]
+      );
+      const preferredTags = ((Array.isArray((scenario as any).partnerMatch?.preferredTags)
+        ? (scenario as any).partnerMatch.preferredTags
+        : getPreferredTagsForScenarioKey(String(scenario.scenarioKey))) || [])
+        .map((v: any) => String(v))
+        .filter((v: string) => (taxonomy.tags || []).includes(v));
       const urgent = isUrgentAnswer(answers);
       const highQuality = needsHighQuality(String(scenario.scenarioKey), answers);
 
@@ -624,11 +643,10 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
           isAvailable: data.isAvailable !== false,
           rankingScore: data.rankingScore || 0,
           qualityTier: data.qualityTier || "Bronze",
-          tags: Array.isArray(data.tags) ? data.tags : [],
-          regions: Array.isArray(data.regions) ? data.regions.filter((v: any) => taxonomy.regions.includes(String(v))) : [],
-          specialties: Array.isArray(data.specialties)
-            ? data.specialties.filter((v: any) => taxonomy.specialties.includes(String(v)))
-            : [],
+          tags: sanitizeListWithAliases(data.tags, taxonomy.tags || [], taxonomy.aliases?.tags),
+          regions: normalizeByAllowWithAliases(data.regions, taxonomy.regions, taxonomy.aliases?.regions),
+          specialties: normalizeByAllowWithAliases(data.specialties, taxonomy.specialties, taxonomy.aliases?.specialties),
+          scenarioKeysHandled: normalizeScenarioKeys(data.scenarioKeysHandled),
           activeCaseCount: data.activeCaseCount || 0,
           maxCapacity: data.maxCapacity || 50
         };
@@ -647,6 +665,8 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
           answers,
           desiredRegion,
           desiredSpecialties,
+          desiredScenarioKeys,
+          preferredTags,
           urgent,
           highQuality
           },

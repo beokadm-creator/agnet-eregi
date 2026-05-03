@@ -15,6 +15,7 @@ export default function PartnerTaxonomy() {
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
   const [text, setText] = useState<string>("");
+  const [scenarioKeys, setScenarioKeys] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -27,6 +28,7 @@ export default function PartnerTaxonomy() {
       const json = await res.json();
       if (!json.ok) throw new Error(json.error?.messageKo || json.error?.code || "불러오기 실패");
       setText(prettyJson(json.data?.settings || {}));
+      setScenarioKeys(Array.isArray(json.data?.scenarioKeys) ? json.data.scenarioKeys : []);
     } catch (e: any) {
       setMsg({ ok: false, text: e?.message || "불러오기 실패" });
     } finally {
@@ -83,10 +85,31 @@ export default function PartnerTaxonomy() {
             readOnly={loading}
           />
 
+          <div className="ops-panel" style={{ background: "var(--ops-bg)" }}>
+            <div className="ops-panel-header">
+              <h2 className="ops-panel-title">허용 scenarioKeys</h2>
+              <span className="ops-badge ops-badge-brand">{scenarioKeys.length}</span>
+            </div>
+            <div className="ops-panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontSize: 13, color: "var(--ops-text-muted)" }}>
+                파트너 문서의 <code>scenarioKeysHandled</code> 는 아래 키 중에서만 넣는 것을 권장합니다.
+              </div>
+              <pre className="ops-mono" style={{ margin: 0, fontSize: 12, color: "var(--ops-text-muted)", background: "var(--ops-surface)", padding: 12, borderRadius: "var(--ops-radius-sm)", border: "1px solid var(--ops-border)", overflowX: "auto", whiteSpace: "pre-wrap" }}>
+{prettyJson({
+  specialtiesExample: ["설립", "자본·주식"],
+  scenarioKeysHandledExample: scenarioKeys.slice(0, 6),
+  tagsExample: ["외국인케이스", "긴급대응"]
+})}
+              </pre>
+              <pre className="ops-mono" style={{ margin: 0, fontSize: 12, color: "var(--ops-text-muted)", background: "var(--ops-surface)", padding: 12, borderRadius: "var(--ops-radius-sm)", border: "1px solid var(--ops-border)", overflowX: "auto", whiteSpace: "pre-wrap", maxHeight: 240, overflowY: "auto" }}>
+                {scenarioKeys.join("\n")}
+              </pre>
+            </div>
+          </div>
+
           {msg && <div style={{ fontSize: 13, color: msg.ok ? "var(--ops-success)" : "var(--ops-danger)" }}>{msg.text}</div>}
         </div>
       </div>
     </div>
   );
 }
-

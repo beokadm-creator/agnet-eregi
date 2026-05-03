@@ -24,6 +24,8 @@ export default function Partners() {
   const [items, setItems] = useState<any[]>([]);
   const [detail, setDetail] = useState<any | null>(null);
   const [normalizePreview, setNormalizePreview] = useState<any | null>(null);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [scenarioKeys, setScenarioKeys] = useState<string[]>([]);
 
   const selected = useMemo(() => items.find((i) => i.partnerId === selectedId) || null, [items, selectedId]);
 
@@ -43,6 +45,19 @@ export default function Partners() {
       setError(e?.message || "조회 실패");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function loadTemplates() {
+    try {
+      if (!token) throw new Error("인증이 필요합니다.");
+      const res = await fetch(`${apiBase}/v1/ops/partners/templates`, { headers });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error?.messageKo || json.error?.code || "템플릿 조회 실패");
+      setTemplates(Array.isArray(json.data?.templates) ? json.data.templates : []);
+      setScenarioKeys(Array.isArray(json.data?.scenarioKeys) ? json.data.scenarioKeys : []);
+    } catch (e: any) {
+      setError(e?.message || "템플릿 조회 실패");
     }
   }
 
@@ -120,6 +135,7 @@ export default function Partners() {
   useEffect(() => {
     if (!token) return;
     refresh();
+    loadTemplates();
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -129,6 +145,7 @@ export default function Partners() {
     setEditor(prettyJson({
       regions: item.regions || [],
       specialties: item.specialties || [],
+      scenarioKeysHandled: item.scenarioKeysHandled || [],
       tags: item.tags || [],
       qualityTier: item.qualityTier || "Bronze",
       isSponsored: item.isSponsored === true,
@@ -221,6 +238,45 @@ export default function Partners() {
               placeholder="{ }"
               disabled={!selectedId}
             />
+
+            <div className="ops-panel" style={{ background: "var(--ops-bg)" }}>
+              <div className="ops-panel-header">
+                <h2 className="ops-panel-title">추천 템플릿</h2>
+                <span className="ops-badge ops-badge-brand">{templates.length}</span>
+              </div>
+              <div className="ops-panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ fontSize: 13, color: "var(--ops-text-muted)" }}>
+                  아래 템플릿을 현재 파트너 JSON 편집기에 바로 적용할 수 있습니다.
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                  {templates.map((tpl) => (
+                    <div key={tpl.templateKey} style={{ border: "1px solid var(--ops-border)", borderRadius: 12, padding: 12, background: "var(--ops-surface)", display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{tpl.label}</div>
+                      <div style={{ fontSize: 12, color: "var(--ops-text-muted)" }}>{tpl.description}</div>
+                      <div style={{ fontSize: 11, color: "var(--ops-text-muted)" }}>
+                        {(tpl.profile?.scenarioKeysHandled || []).slice(0, 4).join(", ")}
+                        {(tpl.profile?.scenarioKeysHandled || []).length > 4 ? " ..." : ""}
+                      </div>
+                      <button
+                        className="ops-btn"
+                        onClick={() => setEditor(prettyJson(tpl.profile || {}))}
+                        disabled={!selectedId}
+                      >
+                        편집기에 적용
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <details>
+                  <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--ops-text-muted)" }}>
+                    허용 scenarioKeys 보기 ({scenarioKeys.length})
+                  </summary>
+                  <pre className="ops-mono" style={{ margin: "8px 0 0 0", fontSize: 12, color: "var(--ops-text-muted)", background: "var(--ops-surface)", padding: 12, borderRadius: "var(--ops-radius-sm)", border: "1px solid var(--ops-border)", overflowX: "auto", whiteSpace: "pre-wrap", maxHeight: 220, overflowY: "auto" }}>
+                    {scenarioKeys.join("\n")}
+                  </pre>
+                </details>
+              </div>
+            </div>
           </div>
         </div>
       </div>

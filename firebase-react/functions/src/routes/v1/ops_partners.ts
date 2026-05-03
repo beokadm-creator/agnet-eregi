@@ -5,9 +5,30 @@ import { requireOpsRole } from "../../lib/ops_rbac";
 import { fail, ok, logError } from "../../lib/http";
 import { logOpsEvent } from "../../lib/ops_audit";
 import { loadPartnerTaxonomy, normalizeByAllowWithAliases, sanitizeListWithAliases } from "../../lib/partner_taxonomy";
+import { getKnownScenarioKeys, getPartnerProfileTemplates, normalizeScenarioKeys } from "../../lib/scenario_partner_match";
 
 export function registerOpsPartnersRoutes(app: express.Application, adminApp: typeof admin) {
   const db = adminApp.firestore();
+
+  app.get("/v1/ops/partners/templates", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer");
+      if (!hasRole) return;
+
+      const taxonomy = await loadPartnerTaxonomy(db);
+      return ok(res, {
+        templates: getPartnerProfileTemplates(),
+        scenarioKeys: getKnownScenarioKeys(),
+        taxonomy,
+      });
+    } catch (err: any) {
+      logError({ endpoint: "ops/partners/templates/get", code: "INTERNAL", messageKo: "파트너 템플릿 조회 실패", err });
+      return fail(res, 500, "INTERNAL", "파트너 템플릿 조회 실패");
+    }
+  });
 
   app.get("/v1/ops/partners", async (req, res) => {
     try {
@@ -19,6 +40,7 @@ export function registerOpsPartnersRoutes(app: express.Application, adminApp: ty
 
       const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || "100"), 10) || 100));
       const status = String(req.query.status || "").trim();
+      const taxonomy = await loadPartnerTaxonomy(db);
 
       let q: admin.firestore.Query = db.collection("partners");
       if (status) q = q.where("status", "==", status);
@@ -29,9 +51,10 @@ export function registerOpsPartnersRoutes(app: express.Application, adminApp: ty
           partnerId: d.id,
           name: data.name || "",
           status: data.status || "",
-          regions: Array.isArray(data.regions) ? data.regions : [],
-          specialties: Array.isArray(data.specialties) ? data.specialties : [],
-          tags: Array.isArray(data.tags) ? data.tags : [],
+          regions: normalizeByAllowWithAliases(data.regions, taxonomy.regions, taxonomy.aliases?.regions),
+          specialties: normalizeByAllowWithAliases(data.specialties, taxonomy.specialties, taxonomy.aliases?.specialties),
+          scenarioKeysHandled: normalizeScenarioKeys(data.scenarioKeysHandled),
+          tags: sanitizeListWithAliases(data.tags, taxonomy.tags || [], taxonomy.aliases?.tags),
           qualityTier: data.qualityTier || "Bronze",
           isSponsored: data.isSponsored === true,
           isAvailable: data.isAvailable !== false,
@@ -61,6 +84,7 @@ export function registerOpsPartnersRoutes(app: express.Application, adminApp: ty
 
       const partnerId = String(req.params.partnerId || "").trim();
       if (!partnerId) return fail(res, 400, "INVALID_ARGUMENT", "partnerId가 필요합니다.");
+      const taxonomy = await loadPartnerTaxonomy(db);
 
       const snap = await db.collection("partners").doc(partnerId).get();
       if (!snap.exists) return fail(res, 404, "NOT_FOUND", "파트너를 찾을 수 없습니다.");
@@ -70,9 +94,10 @@ export function registerOpsPartnersRoutes(app: express.Application, adminApp: ty
           partnerId,
           name: data.name || "",
           status: data.status || "",
-          regions: Array.isArray(data.regions) ? data.regions : [],
-          specialties: Array.isArray(data.specialties) ? data.specialties : [],
-          tags: Array.isArray(data.tags) ? data.tags : [],
+          regions: normalizeByAllowWithAliases(data.regions, taxonomy.regions, taxonomy.aliases?.regions),
+          specialties: normalizeByAllowWithAliases(data.specialties, taxonomy.specialties, taxonomy.aliases?.specialties),
+          scenarioKeysHandled: normalizeScenarioKeys(data.scenarioKeysHandled),
+          tags: sanitizeListWithAliases(data.tags, taxonomy.tags || [], taxonomy.aliases?.tags),
           qualityTier: data.qualityTier || "Bronze",
           isSponsored: data.isSponsored === true,
           isAvailable: data.isAvailable !== false,
@@ -110,6 +135,7 @@ export function registerOpsPartnersRoutes(app: express.Application, adminApp: ty
       };
       if (body.regions !== undefined) update.regions = normalizeByAllowWithAliases(body.regions, taxonomy.regions, taxonomy.aliases?.regions);
       if (body.specialties !== undefined) update.specialties = normalizeByAllowWithAliases(body.specialties, taxonomy.specialties, taxonomy.aliases?.specialties);
+      if (body.scenarioKeysHandled !== undefined) update.scenarioKeysHandled = normalizeScenarioKeys(body.scenarioKeysHandled);
       if (body.tags !== undefined) update.tags = sanitizeListWithAliases(body.tags, taxonomy.tags || [], taxonomy.aliases?.tags);
       if (body.isSponsored !== undefined) update.isSponsored = body.isSponsored === true;
       if (body.isAvailable !== undefined) update.isAvailable = body.isAvailable === true;
@@ -162,23 +188,26 @@ export function registerOpsPartnersRoutes(app: express.Application, adminApp: ty
         const data = d.data() as any;
         const beforeRegions = Array.isArray(data.regions) ? data.regions : [];
         const beforeSpecialties = Array.isArray(data.specialties) ? data.specialties : [];
+        const beforeScenarioKeysHandled = normalizeScenarioKeys(data.scenarioKeysHandled);
         const beforeTags = Array.isArray(data.tags) ? data.tags : [];
 
         const afterRegions = normalizeByAllowWithAliases(beforeRegions, taxonomy.regions, taxonomy.aliases?.regions);
         const afterSpecialties = normalizeByAllowWithAliases(beforeSpecialties, taxonomy.specialties, taxonomy.aliases?.specialties);
+        const afterScenarioKeysHandled = normalizeScenarioKeys(beforeScenarioKeysHandled);
         const afterTags = sanitizeListWithAliases(beforeTags, taxonomy.tags || [], taxonomy.aliases?.tags);
 
         const changed =
           JSON.stringify(beforeRegions) !== JSON.stringify(afterRegions) ||
           JSON.stringify(beforeSpecialties) !== JSON.stringify(afterSpecialties) ||
+          JSON.stringify(beforeScenarioKeysHandled) !== JSON.stringify(afterScenarioKeysHandled) ||
           JSON.stringify(beforeTags) !== JSON.stringify(afterTags);
 
         if (!changed) continue;
 
         results.push({
           partnerId: d.id,
-          before: { regions: beforeRegions, specialties: beforeSpecialties, tags: beforeTags },
-          after: { regions: afterRegions, specialties: afterSpecialties, tags: afterTags }
+          before: { regions: beforeRegions, specialties: beforeSpecialties, scenarioKeysHandled: beforeScenarioKeysHandled, tags: beforeTags },
+          after: { regions: afterRegions, specialties: afterSpecialties, scenarioKeysHandled: afterScenarioKeysHandled, tags: afterTags }
         });
       }
 
@@ -195,6 +224,7 @@ export function registerOpsPartnersRoutes(app: express.Application, adminApp: ty
             {
               regions: r.after.regions,
               specialties: r.after.specialties,
+              scenarioKeysHandled: r.after.scenarioKeysHandled,
               tags: r.after.tags,
               updatedAt: adminApp.firestore.FieldValue.serverTimestamp(),
               updatedBy: auth.uid

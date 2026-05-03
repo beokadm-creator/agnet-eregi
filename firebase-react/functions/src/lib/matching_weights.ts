@@ -9,6 +9,9 @@ export interface MatchingWeights {
   regionMismatchWeight: number;
   specialtyMatchWeight: number;
   specialtyMismatchWeight: number;
+  scenarioKeyMatchWeight: number;
+  scenarioKeyMismatchWeight: number;
+  preferredTagMatchWeight: number;
   urgentEtaWeight: number;
   normalEtaWeight: number;
   priceWeight: number;
@@ -33,6 +36,9 @@ export function defaultMatchingWeights(): MatchingWeights {
     regionMismatchWeight: -4,
     specialtyMatchWeight: 10,
     specialtyMismatchWeight: -3,
+    scenarioKeyMatchWeight: 12,
+    scenarioKeyMismatchWeight: -4,
+    preferredTagMatchWeight: 3,
     urgentEtaWeight: 1,
     normalEtaWeight: 1,
     priceWeight: 1,
@@ -60,6 +66,9 @@ export async function loadMatchingWeights(db: admin.firestore.Firestore): Promis
     regionMismatchWeight: Number.isFinite(Number(raw?.regionMismatchWeight)) ? Number(raw.regionMismatchWeight) : d.regionMismatchWeight,
     specialtyMatchWeight: Number.isFinite(Number(raw?.specialtyMatchWeight)) ? Number(raw.specialtyMatchWeight) : d.specialtyMatchWeight,
     specialtyMismatchWeight: Number.isFinite(Number(raw?.specialtyMismatchWeight)) ? Number(raw.specialtyMismatchWeight) : d.specialtyMismatchWeight,
+    scenarioKeyMatchWeight: Number.isFinite(Number(raw?.scenarioKeyMatchWeight)) ? Number(raw.scenarioKeyMatchWeight) : d.scenarioKeyMatchWeight,
+    scenarioKeyMismatchWeight: Number.isFinite(Number(raw?.scenarioKeyMismatchWeight)) ? Number(raw.scenarioKeyMismatchWeight) : d.scenarioKeyMismatchWeight,
+    preferredTagMatchWeight: Number.isFinite(Number(raw?.preferredTagMatchWeight)) ? Number(raw.preferredTagMatchWeight) : d.preferredTagMatchWeight,
     urgentEtaWeight: Number.isFinite(Number(raw?.urgentEtaWeight)) ? Number(raw.urgentEtaWeight) : d.urgentEtaWeight,
     normalEtaWeight: Number.isFinite(Number(raw?.normalEtaWeight)) ? Number(raw.normalEtaWeight) : d.normalEtaWeight,
     priceWeight: Number.isFinite(Number(raw?.priceWeight)) ? Number(raw.priceWeight) : d.priceWeight,
@@ -89,6 +98,9 @@ export function normalizeMatchingWeights(input: any): MatchingWeights {
     regionMismatchWeight: v("regionMismatchWeight"),
     specialtyMatchWeight: v("specialtyMatchWeight"),
     specialtyMismatchWeight: v("specialtyMismatchWeight"),
+    scenarioKeyMatchWeight: v("scenarioKeyMatchWeight"),
+    scenarioKeyMismatchWeight: v("scenarioKeyMismatchWeight"),
+    preferredTagMatchWeight: v("preferredTagMatchWeight"),
     urgentEtaWeight: v("urgentEtaWeight"),
     normalEtaWeight: v("normalEtaWeight"),
     priceWeight: v("priceWeight"),
@@ -99,4 +111,3 @@ export function normalizeMatchingWeights(input: any): MatchingWeights {
     reviewBonus200: v("reviewBonus200"),
   };
 }
-

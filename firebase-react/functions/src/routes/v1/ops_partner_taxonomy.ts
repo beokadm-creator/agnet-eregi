@@ -6,6 +6,7 @@ import { fail, ok, logError } from "../../lib/http";
 import { logOpsEvent } from "../../lib/ops_audit";
 import { getOpsSettingsCollection } from "../../lib/ops_settings";
 import { defaultPartnerTaxonomy, normalizePartnerTaxonomy } from "../../lib/partner_taxonomy";
+import { getKnownScenarioKeys } from "../../lib/scenario_partner_match";
 
 export function registerOpsPartnerTaxonomyRoutes(app: express.Application, adminApp: typeof admin) {
   app.get("/v1/ops/settings/partner-taxonomy", async (req, res) => {
@@ -19,7 +20,7 @@ export function registerOpsPartnerTaxonomyRoutes(app: express.Application, admin
 
       const snap = await getOpsSettingsCollection().doc("partner_taxonomy").get();
       const settings = snap.exists ? snap.data() : defaultPartnerTaxonomy();
-      return ok(res, { settings });
+      return ok(res, { settings, scenarioKeys: getKnownScenarioKeys() });
     } catch (err: any) {
       logError({ endpoint: "ops/settings/partner-taxonomy/get", code: "INTERNAL", messageKo: "파트너 분류 설정 조회 실패", err });
       return fail(res, 500, "INTERNAL", err.message);
@@ -62,4 +63,3 @@ export function registerOpsPartnerTaxonomyRoutes(app: express.Application, admin
     }
   });
 }
-

@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { listRegistryScenarioCards } from "./registry_scenario_cards";
+import { getDesiredSpecialtiesForScenarioKey, getPreferredTagsForScenarioKey } from "./scenario_partner_match";
 
 export type FunnelQuestionType = "single_choice" | "text" | "number";
 
@@ -59,6 +60,8 @@ export interface FunnelEntryMatchers {
 export interface FunnelPartnerMatchRules {
   requireTags?: string[];
   desiredSpecialties?: string[];
+  desiredScenarioKeys?: string[];
+  preferredTags?: string[];
 }
 
 export interface FunnelScenarioDefinition {
@@ -200,7 +203,14 @@ export function normalizeScenario(input: any): FunnelScenarioDefinition {
     },
     previewRules: Array.isArray(input?.previewRules) ? input.previewRules : undefined,
     validators: input?.validators && typeof input.validators === "object" ? input.validators : undefined,
-    partnerMatch: input?.partnerMatch && typeof input.partnerMatch === "object" ? input.partnerMatch : undefined
+    partnerMatch: input?.partnerMatch && typeof input.partnerMatch === "object"
+      ? {
+        requireTags: Array.isArray(input.partnerMatch.requireTags) ? input.partnerMatch.requireTags.map((v: any) => String(v)).filter(Boolean) : undefined,
+        desiredSpecialties: Array.isArray(input.partnerMatch.desiredSpecialties) ? input.partnerMatch.desiredSpecialties.map((v: any) => String(v)).filter(Boolean) : undefined,
+        desiredScenarioKeys: Array.isArray(input.partnerMatch.desiredScenarioKeys) ? input.partnerMatch.desiredScenarioKeys.map((v: any) => String(v)).filter(Boolean) : undefined,
+        preferredTags: Array.isArray(input.partnerMatch.preferredTags) ? input.partnerMatch.preferredTags.map((v: any) => String(v)).filter(Boolean) : undefined,
+      }
+      : undefined
   };
 }
 
@@ -453,13 +463,15 @@ export function registryScenarioTemplates(): FunnelScenarioDefinition[] {
       ]
     },
     partnerMatch: {
-      desiredSpecialties: ["법인 설립"]
+      desiredSpecialties: getDesiredSpecialtiesForScenarioKey("corp_establishment"),
+      desiredScenarioKeys: ["corp_establishment"],
+      preferredTags: getPreferredTagsForScenarioKey("corp_establishment")
     }
   };
 
   const hqRelocation: FunnelScenarioDefinition = {
     schemaVersion: 1,
-    scenarioKey: "hq_relocation",
+    scenarioKey: "head_office_relocation",
     title: "본점 이전",
     enabled: true,
     version: 1,
@@ -525,7 +537,9 @@ export function registryScenarioTemplates(): FunnelScenarioDefinition[] {
       ]
     },
     partnerMatch: {
-      desiredSpecialties: ["본점 이전"]
+      desiredSpecialties: getDesiredSpecialtiesForScenarioKey("head_office_relocation"),
+      desiredScenarioKeys: ["head_office_relocation"],
+      preferredTags: getPreferredTagsForScenarioKey("head_office_relocation")
     }
   };
 
@@ -617,7 +631,9 @@ export function registryScenarioTemplates(): FunnelScenarioDefinition[] {
       ]
     },
     partnerMatch: {
-      desiredSpecialties: ["임원 변경"]
+      desiredSpecialties: getDesiredSpecialtiesForScenarioKey("officer_change"),
+      desiredScenarioKeys: ["officer_change"],
+      preferredTags: getPreferredTagsForScenarioKey("officer_change")
     }
   };
 
@@ -693,13 +709,15 @@ export function registryScenarioTemplates(): FunnelScenarioDefinition[] {
       ]
     },
     partnerMatch: {
-      desiredSpecialties: ["자본금 증자"]
+      desiredSpecialties: getDesiredSpecialtiesForScenarioKey("capital_increase"),
+      desiredScenarioKeys: ["capital_increase"],
+      preferredTags: getPreferredTagsForScenarioKey("capital_increase")
     }
   };
 
   const nameChange: FunnelScenarioDefinition = {
     schemaVersion: 1,
-    scenarioKey: "name_change",
+    scenarioKey: "trade_name_change",
     title: "상호 변경",
     enabled: true,
     version: 1,
@@ -754,7 +772,9 @@ export function registryScenarioTemplates(): FunnelScenarioDefinition[] {
       ]
     },
     partnerMatch: {
-      desiredSpecialties: ["상호 변경"]
+      desiredSpecialties: getDesiredSpecialtiesForScenarioKey("trade_name_change"),
+      desiredScenarioKeys: ["trade_name_change"],
+      preferredTags: getPreferredTagsForScenarioKey("trade_name_change")
     }
   };
 
@@ -822,7 +842,9 @@ export function registryScenarioTemplates(): FunnelScenarioDefinition[] {
       ]
     },
     partnerMatch: {
-      desiredSpecialties: ["청산"]
+      desiredSpecialties: getDesiredSpecialtiesForScenarioKey("dissolution"),
+      desiredScenarioKeys: ["dissolution"],
+      preferredTags: getPreferredTagsForScenarioKey("dissolution")
     }
   };
 
@@ -863,7 +885,11 @@ export function registryScenarioTemplates(): FunnelScenarioDefinition[] {
       ],
       previewBase: { minPrice: 150000, maxPrice: 300000, etaDays: 3, requiredDocs: ["등기사항전부증명서", "정관(있으면)"] },
       validators,
-      partnerMatch: { desiredSpecialties: [displayName] }
+      partnerMatch: {
+        desiredSpecialties: getDesiredSpecialtiesForScenarioKey(scenarioKey),
+        desiredScenarioKeys: [scenarioKey],
+        preferredTags: getPreferredTagsForScenarioKey(scenarioKey)
+      }
     };
 
     map.set(scenarioKey, generic);

@@ -4,8 +4,9 @@ import { requireAuth, isOps } from "../../lib/auth";
 import { requireOpsRole } from "../../lib/ops_rbac";
 import { fail, ok, logError } from "../../lib/http";
 import { defaultFunnelScenario, FunnelScenarioDefinition, registryScenarioTemplates } from "../../lib/funnel_scenarios";
-import { loadPartnerTaxonomy } from "../../lib/partner_taxonomy";
+import { loadPartnerTaxonomy, normalizeByAllowWithAliases, sanitizeListWithAliases } from "../../lib/partner_taxonomy";
 import { loadMatchingWeights } from "../../lib/matching_weights";
+import { getDesiredSpecialtiesForScenarioKey, getPreferredTagsForScenarioKey, normalizeScenarioKeys } from "../../lib/scenario_partner_match";
 
 function num(v: any, fallback: number = 0): number {
   const n = Number(v);
@@ -18,17 +19,6 @@ function tierScore(tier: any): number {
   if (t === "gold") return 3;
   if (t === "silver") return 2;
   return 1;
-}
-
-function desiredSpecialtiesByScenarioKey(scenarioKey: string): string[] {
-  const k = String(scenarioKey || "");
-  if (k === "corp_establishment") return ["법인 설립"];
-  if (k === "hq_relocation") return ["본점 이전"];
-  if (k === "officer_change") return ["임원 변경"];
-  if (k === "capital_increase") return ["자본금 증자"];
-  if (k === "name_change") return ["상호 변경"];
-  if (k === "dissolution") return ["청산"];
-  return [];
 }
 
 function isUrgentAnswer(answers: Record<string, any>): boolean {
@@ -52,6 +42,8 @@ function computeMatch(
     answers: Record<string, any>;
     desiredRegion: string;
     desiredSpecialties: string[];
+    desiredScenarioKeys: string[];
+    preferredTags: string[];
     urgent: boolean;
     highQuality: boolean;
   },
@@ -68,11 +60,20 @@ function computeMatch(
 
   const regions = Array.isArray(partner.regions) ? partner.regions : [];
   const specialties = Array.isArray(partner.specialties) ? partner.specialties : [];
+  const scenarioKeysHandled = normalizeScenarioKeys(partner.scenarioKeysHandled);
+  const tags = Array.isArray(partner.tags) ? partner.tags : [];
   const regionMatch = ctx.desiredRegion ? regions.includes(ctx.desiredRegion) : false;
   const specialtyMatch =
     (ctx.desiredSpecialties || []).length > 0
       ? (ctx.desiredSpecialties || []).some((s) => specialties.includes(s))
       : false;
+  const scenarioKeyMatch =
+    (ctx.desiredScenarioKeys || []).length > 0 && scenarioKeysHandled.length > 0
+      ? (ctx.desiredScenarioKeys || []).some((s) => scenarioKeysHandled.includes(s))
+      : false;
+  const preferredTagsMatched = Array.from(
+    new Set((ctx.preferredTags || []).filter((tag) => tags.includes(tag)))
+  );
 
   let score = base;
   const reasons: string[] = [];
@@ -94,6 +95,14 @@ function computeMatch(
     if (specialties.length === 0) score -= 1;
     else score += specialtyMatch ? w.specialtyMatchWeight : w.specialtyMismatchWeight;
     reasons.push(specialtyMatch ? "전문분야 일치" : "전문분야 불일치");
+  }
+  if ((ctx.desiredScenarioKeys || []).length > 0 && scenarioKeysHandled.length > 0) {
+    score += scenarioKeyMatch ? w.scenarioKeyMatchWeight : w.scenarioKeyMismatchWeight;
+    reasons.push(scenarioKeyMatch ? "세부 시나리오 처리 가능" : "세부 시나리오 불일치");
+  }
+  if (preferredTagsMatched.length > 0) {
+    score += preferredTagsMatched.length * w.preferredTagMatchWeight;
+    reasons.push(`전문태그 일치(${preferredTagsMatched.slice(0, 2).join(", ")})`);
   }
 
   if (ctx.urgent) {
@@ -168,10 +177,20 @@ export function registerOpsFunnelMatchingDebugRoutes(app: Express, adminApp: typ
       const desiredRegion = taxonomy.regions.includes(desiredRegionRaw) ? desiredRegionRaw : "";
       const desiredSpecialtiesRaw = Array.isArray((scenario as any).partnerMatch?.desiredSpecialties)
         ? (scenario as any).partnerMatch.desiredSpecialties
-        : desiredSpecialtiesByScenarioKey(String(scenario.scenarioKey));
+        : getDesiredSpecialtiesForScenarioKey(String(scenario.scenarioKey));
       const desiredSpecialties = (desiredSpecialtiesRaw || [])
         .map((v: any) => String(v))
         .filter((v: string) => taxonomy.specialties.includes(v));
+      const desiredScenarioKeys = normalizeScenarioKeys(
+        Array.isArray((scenario as any).partnerMatch?.desiredScenarioKeys)
+          ? (scenario as any).partnerMatch.desiredScenarioKeys
+          : [String(scenario.scenarioKey)]
+      );
+      const preferredTags = ((Array.isArray((scenario as any).partnerMatch?.preferredTags)
+        ? (scenario as any).partnerMatch.preferredTags
+        : getPreferredTagsForScenarioKey(String(scenario.scenarioKey))) || [])
+        .map((v: any) => String(v))
+        .filter((v: string) => (taxonomy.tags || []).includes(v));
       const urgent = isUrgentAnswer(answers);
       const highQuality = needsHighQuality(String(scenario.scenarioKey), answers);
 
@@ -203,20 +222,19 @@ export function registerOpsFunnelMatchingDebugRoutes(app: Express, adminApp: typ
           isAvailable: p.isAvailable !== false,
           rankingScore: p.rankingScore || 0,
           qualityTier: p.qualityTier || "Bronze",
-          tags: Array.isArray(p.tags) ? p.tags : [],
-          regions: Array.isArray(p.regions) ? p.regions.filter((v: any) => taxonomy.regions.includes(String(v))) : [],
-          specialties: Array.isArray(p.specialties)
-            ? p.specialties.filter((v: any) => taxonomy.specialties.includes(String(v)))
-            : [],
+          tags: sanitizeListWithAliases(p.tags, taxonomy.tags || [], taxonomy.aliases?.tags),
+          regions: normalizeByAllowWithAliases(p.regions, taxonomy.regions, taxonomy.aliases?.regions),
+          specialties: normalizeByAllowWithAliases(p.specialties, taxonomy.specialties, taxonomy.aliases?.specialties),
+          scenarioKeysHandled: normalizeScenarioKeys(p.scenarioKeysHandled),
         };
-        const m = computeMatch(normalized, { scenarioKey: scenario.scenarioKey, answers, desiredRegion, desiredSpecialties, urgent, highQuality }, weights);
+        const m = computeMatch(normalized, { scenarioKey: scenario.scenarioKey, answers, desiredRegion, desiredSpecialties, desiredScenarioKeys, preferredTags, urgent, highQuality }, weights);
         return { ...normalized, matchScore: m.score, matchReasons: m.reasons };
       }).sort((a: any, b: any) => (b.matchScore - a.matchScore) || (b.rankingScore - a.rankingScore));
 
       return ok(res, {
         sessionId,
         scenario: { scenarioKey: scenario.scenarioKey, version: scenario.version, title: scenario.title },
-        context: { desiredRegion, desiredSpecialties, urgent, highQuality, requireTags },
+        context: { desiredRegion, desiredSpecialties, desiredScenarioKeys, preferredTags, urgent, highQuality, requireTags },
         settings: { taxonomy, weights },
         top: list.slice(0, 20),
       });
