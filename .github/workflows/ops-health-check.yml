@@ -77,8 +77,43 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Run ops health check
-        working-directory: firebase-react
         env:
           OPS_HEALTH_FRESHNESS: ${{ inputs.freshness }}
           OPS_HEALTH_LOG_LIMIT: ${{ inputs.log_limit }}
-        run: npm run ops:health:${{ matrix.environment }}
+          LOG_PATH: ${{ github.workspace }}/ops-health-${{ matrix.environment }}.log
+        run: |
+          set -o pipefail
+          cd firebase-react
+          npm run ops:health:${{ matrix.environment }} | tee "$LOG_PATH"
+
+      - name: Append workflow summary
+        if: always()
+        env:
+          LOG_PATH: ${{ github.workspace }}/ops-health-${{ matrix.environment }}.log
+        run: |
+          ENV_NAME_UPPER="$(echo "${{ matrix.environment }}" | tr '[:lower:]' '[:upper:]')"
+          {
+            echo "## ${ENV_NAME_UPPER} Health Check"
+            echo ""
+            echo "- Environment: \`${{ matrix.environment }}\`"
+            echo "- Freshness: \`${{ inputs.freshness }}\`"
+            echo "- Log limit: \`${{ inputs.log_limit }}\`"
+            echo ""
+            echo '```text'
+            if [ -f "$LOG_PATH" ]; then
+              cat "$LOG_PATH"
+            else
+              echo "No log output captured."
+            fi
+            echo '```'
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+        shell: bash
+
+      - name: Upload health check log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ops-health-${{ matrix.environment }}-log
+          path: ${{ github.workspace }}/ops-health-${{ matrix.environment }}.log
+          if-no-files-found: warn
