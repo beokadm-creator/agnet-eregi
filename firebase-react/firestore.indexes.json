@@ -250,6 +250,14 @@
       ]
     },
     {
+      "collectionGroup": "b2b_webhook_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "nextRetryAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "case_translations",
       "queryScope": "COLLECTION",
       "fields": [

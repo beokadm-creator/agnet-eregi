@@ -18,6 +18,7 @@ export async function processB2bWebhooks(adminApp: typeof admin) {
   const snap = await db.collection("b2b_webhook_events")
     .where("status", "in", ["pending", "retry"])
     .where("nextRetryAt", "<=", now)
+    .orderBy("nextRetryAt", "asc")
     .limit(20)
     .get();
 
