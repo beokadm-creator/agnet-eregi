@@ -20,7 +20,7 @@ const SubmissionDetail = lazy(() => import("./pages/SubmissionDetail"));
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, isReady } = useAuth();
-  if (!isReady) return <div className="wc-root">Loading...</div>;
+  if (!isReady) return <div className="uw-container" style={{ maxWidth: 720, margin: "0 auto", paddingTop: 120, textAlign: "center", color: "var(--uw-fog)" }}>Loading...</div>;
   if (!token) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
@@ -30,7 +30,7 @@ function LoginRoute() {
   const [busy, setBusy] = React.useState(false);
   const [log, setLog] = React.useState("");
 
-  if (!isReady) return <div className="wc-root">Loading...</div>;
+  if (!isReady) return <div className="uw-container" style={{ maxWidth: 720, margin: "0 auto", paddingTop: 120, textAlign: "center", color: "var(--uw-fog)" }}>Loading...</div>;
   if (token) return <Navigate to="/" replace />;
 
   async function handleGoogleLogin() {

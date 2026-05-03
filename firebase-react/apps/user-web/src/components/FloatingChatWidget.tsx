@@ -130,6 +130,7 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
 
   return (
     <div style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, fontFamily: 'var(--ar-font-ui)' }}>
+      <button id="chatbot-fab" onClick={() => setIsOpen(true)} style={{ display: 'none' }} />
       {isOpen ? (
         <div style={{
           width: 350,

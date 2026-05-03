@@ -41,7 +41,8 @@ async function verifyAuthToken(
 
   const token = authHeader.split("Bearer ")[1];
   try {
-    return await adminApp.auth().verifyIdToken(token);
+    const checkRevoked = process.env.AUTH_CHECK_REVOKED === "1";
+    return await adminApp.auth().verifyIdToken(token, checkRevoked);
   } catch (err: any) {
     console.error("[requireAuth] Token verification failed:", err instanceof Error ? err.message : String(err));
     fail(res, 401, "UNAUTHENTICATED", "유효하지 않은 인증 토큰입니다.");

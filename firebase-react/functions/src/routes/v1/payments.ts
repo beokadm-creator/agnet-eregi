@@ -14,6 +14,19 @@ if (!STRIPE_KEY) {
 }
 const stripe = new Stripe(STRIPE_KEY || "sk_disabled", { apiVersion: "2023-10-16" as any });
 
+function normalizeReturnUrl(input: unknown, base: string): string {
+  const baseUrl = new URL(base);
+  if (typeof input !== "string" || !input) return baseUrl.toString();
+  if (input.startsWith("/") && !input.startsWith("//")) return new URL(input, baseUrl).toString();
+  try {
+    const url = new URL(input);
+    if (url.origin !== baseUrl.origin) return baseUrl.toString();
+    return url.toString();
+  } catch {
+    return baseUrl.toString();
+  }
+}
+
 export function registerPaymentRoutes(app: express.Application, adminApp: typeof admin) {
 
   // POST /v1/user/payments
@@ -66,6 +79,11 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
       let tossClientKeyForResponse: string | undefined;
 
       if (providerNormalized === "stripe") {
+        const baseUrl =
+          process.env.CLIENT_BASE_URL || (process.env.FUNCTIONS_EMULATOR === "true" ? "http://localhost:5173" : "");
+        if (!baseUrl) return fail(res, 500, "FAILED_PRECONDITION", "CLIENT_BASE_URL 환경변수가 필요합니다.");
+        const safeSuccessUrl = normalizeReturnUrl(successUrl, baseUrl);
+        const safeCancelUrl = normalizeReturnUrl(cancelUrl, baseUrl);
         const session = await stripe.checkout.sessions.create({
           payment_method_types: ['card'],
           line_items: [{
@@ -79,8 +97,8 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
             quantity: 1,
           }],
           mode: 'payment',
-          success_url: successUrl || 'http://localhost:5173',
-          cancel_url: cancelUrl || 'http://localhost:5173',
+          success_url: safeSuccessUrl,
+          cancel_url: safeCancelUrl,
           client_reference_id: docRef.id,
           metadata: {
             paymentId: docRef.id,
