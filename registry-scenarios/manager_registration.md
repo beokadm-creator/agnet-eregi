@@ -71,3 +71,101 @@
 
 ## 9. 추가 확인 질문
 - 
+
+## 10. Funnel Scenario JSON (ops_funnel_scenarios용)
+```json
+{
+  "schemaVersion": 1,
+  "scenarioKey": "manager_registration",
+  "title": "지배인 선임",
+  "enabled": true,
+  "version": 1,
+  "entry": { "keywords": ["지배인 선임", "지배인 등록", "매니저 선임"] },
+  "questions": [
+    {
+      "id": "q_manager_branch_relation",
+      "type": "single_choice",
+      "text": "지배인 선임은 지점과 연계된 건인가요?",
+      "options": ["예", "아니오", "모르겠음"],
+      "required": true,
+      "depth": 1,
+      "why": "지점 연계 여부에 따라 첨부서류와 관할 검토가 달라집니다.",
+      "next": "q_manager_authority_scope"
+    },
+    {
+      "id": "q_manager_authority_scope",
+      "type": "single_choice",
+      "text": "지배인 권한 범위는 명확히 정해져 있나요?",
+      "options": ["예", "아니오", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "권한 범위가 모호하면 내부 결의/위임 범위 정리가 필요할 수 있습니다.",
+      "next": "q_manager_docs_ready"
+    },
+    {
+      "id": "q_manager_docs_ready",
+      "type": "single_choice",
+      "text": "지배인 인적사항/취임승낙 등 서류는 준비되어 있나요?",
+      "options": ["준비됨", "준비 필요", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "지배인 선임은 인적사항/권한 관련 보정이 자주 발생합니다.",
+      "next": "q_manager_urgency"
+    },
+    {
+      "id": "q_manager_urgency",
+      "type": "single_choice",
+      "text": "언제까지 처리가 필요하신가요?",
+      "options": ["긴급(1~2일)", "일반(3~5일)", "여유(1주 이상)"],
+      "required": true,
+      "depth": 3,
+      "why": "긴급 여부에 따라 파트너 배정과 일정 관리가 달라집니다.",
+      "next": "q_region"
+    },
+    {
+      "id": "q_region",
+      "type": "single_choice",
+      "text": "어느 지역(관할) 관련 업무인가요?",
+      "options": ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종", "기타"],
+      "required": true,
+      "next": "q_notes"
+    },
+    {
+      "id": "q_notes",
+      "type": "text",
+      "text": "특이사항이나 요청사항을 간단히 적어주세요.",
+      "required": false,
+      "next": null
+    }
+  ],
+  "previewBase": {
+    "minPrice": 160000,
+    "maxPrice": 300000,
+    "etaDays": 4,
+    "requiredDocs": ["지배인 선임 결의서류", "취임승낙서", "인적사항 자료"]
+  },
+  "previewRules": [
+    { "when": [{ "questionId": "q_manager_branch_relation", "op": "eq", "value": "예" }], "addDocs": ["지점 관련 확인서류"] },
+    { "when": [{ "questionId": "q_manager_authority_scope", "op": "in", "value": ["아니오", "모르겠음"] }], "addEtaDays": 1 },
+    { "when": [{ "questionId": "q_manager_docs_ready", "op": "in", "value": ["준비 필요", "모르겠음"] }], "addEtaDays": 1 },
+    { "when": [{ "questionId": "q_manager_urgency", "op": "eq", "value": "긴급(1~2일)" }], "addMinPrice": 40000, "addMaxPrice": 70000 }
+  ],
+  "validators": {
+    "forbid": [
+      {
+        "when": [{ "questionId": "q_notes", "op": "regex", "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git" }],
+        "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+      },
+      {
+        "when": [{ "questionId": "q_manager_authority_scope", "op": "eq", "value": "아니오" }, { "questionId": "q_notes", "op": "not_exists" }],
+        "messageKo": "권한 범위가 아직 정리되지 않았다면 현재 예정 범위를 특이사항에 적어주세요."
+      }
+    ]
+  },
+  "partnerMatch": {
+    "desiredSpecialties": ["지점·지배인"],
+    "desiredScenarioKeys": ["manager_registration"],
+    "preferredTags": ["지배인등기"]
+  }
+}
+```
