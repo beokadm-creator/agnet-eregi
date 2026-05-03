@@ -75,6 +75,30 @@ export default function FunnelScenarios() {
     }
   }
 
+  async function syncGenerated(publish: boolean) {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const confirm = prompt("적용 실행 확인: APPLY 를 입력하세요", "") || "";
+      const maxChanged = parseInt(prompt("최대 변경 허용 건수(maxChanged)", "50") || "50", 10) || 50;
+      const force = (prompt("기존 문서가 있어도 덮어쓸까요? force=yes 입력", "") || "").trim().toLowerCase() === "yes";
+      const res = await fetch(`${getApiBaseUrl()}/v1/ops/funnel-scenarios/sync-generated`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm, maxChanged, force, publish })
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error?.messageKo || json.error?.code || "동기화 실패");
+      const changedCount = json.data?.changedCount ?? 0;
+      setMsg({ ok: true, text: `generated 동기화 완료 (변경 ${changedCount})` });
+      await loadList();
+    } catch (e: any) {
+      setMsg({ ok: false, text: e?.message || "동기화 실패" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function bootstrap() {
     if (!selectedKey) return;
     setBusy(true);
@@ -151,6 +175,8 @@ export default function FunnelScenarios() {
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ops-text-muted)" }}>시나리오 목록</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="ops-btn" onClick={() => bootstrapDefaults(false)} disabled={loading || busy}>기본 생성</button>
+                <button className="ops-btn" onClick={() => syncGenerated(false)} disabled={loading || busy}>generated 동기화</button>
+                <button className="ops-btn ops-btn-brand" onClick={() => syncGenerated(true)} disabled={loading || busy}>동기화+publish</button>
                 <button className="ops-btn" onClick={loadList} disabled={loading || busy}>새로고침</button>
               </div>
             </div>
