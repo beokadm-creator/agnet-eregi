@@ -159,4 +159,121 @@ describe("Funnel API", () => {
       type: "RESULTS_VIEWED"
     }));
   });
+
+  it("GET /v1/funnel/sessions/:sessionId/results - should prioritize direct scenario handling and preferred tags", async () => {
+    const mockPartners = [
+      {
+        id: "p-specialty-only",
+        data: () => ({
+          name: "Specialty Only",
+          rating: 4.8,
+          reviewCount: 120,
+          price: 120000,
+          etaHours: 24,
+          slaComplianceRate: 95,
+          isSponsored: false,
+          isAvailable: true,
+          rankingScore: 18,
+          qualityTier: "Silver",
+          specialties: ["자본·주식"],
+          scenarioKeysHandled: [],
+          tags: [],
+        }),
+      },
+      {
+        id: "p-direct-match",
+        data: () => ({
+          name: "Direct Match",
+          rating: 4.4,
+          reviewCount: 80,
+          price: 130000,
+          etaHours: 24,
+          slaComplianceRate: 91,
+          isSponsored: false,
+          isAvailable: true,
+          rankingScore: 12,
+          qualityTier: "Gold",
+          specialties: ["자본·주식"],
+          scenarioKeysHandled: ["capital_reduction"],
+          tags: ["감자"],
+        }),
+      },
+      {
+        id: "p-mismatch",
+        data: () => ({
+          name: "Mismatch",
+          rating: 4.1,
+          reviewCount: 40,
+          price: 140000,
+          etaHours: 30,
+          slaComplianceRate: 88,
+          isSponsored: false,
+          isAvailable: true,
+          rankingScore: 10,
+          qualityTier: "Silver",
+          specialties: ["설립"],
+          scenarioKeysHandled: ["corp_establishment"],
+          tags: ["프리미엄"],
+        }),
+      },
+    ];
+
+    firestoreMock.collection = jest.fn().mockImplementation((path: string) => {
+      if (path === "funnel_sessions") {
+        return {
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({
+                status: "completed",
+                scenarioKey: "capital_reduction",
+                scenarioVersion: "2026-05-01",
+                answers: {},
+              }),
+            }),
+          }),
+        };
+      }
+      if (path === "partners") {
+        return {
+          where: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({ docs: mockPartners }),
+        };
+      }
+      if (path === "funnel_events") {
+        return {
+          add: firestoreMock.add,
+        };
+      }
+      if (path === "ops_funnel_scenarios") {
+        return {
+          limit: jest.fn().mockReturnThis(),
+          get: jest.fn().mockResolvedValue({ docs: [] }),
+        };
+      }
+      if (path === "ops_settings") {
+        return {
+          doc: jest.fn().mockImplementation(() => ({
+            get: jest.fn().mockResolvedValue({ exists: false, data: () => null }),
+          })),
+        };
+      }
+      return firestoreMock;
+    });
+
+    const res = await request(app).get("/v1/funnel/sessions/sess_456/results");
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data.recommended.partnerId).toBe("p-direct-match");
+    expect(res.body.data.recommended.matchReasons).toEqual(
+      expect.arrayContaining([
+        "세부 시나리오 처리 가능",
+        "전문태그 일치(감자)",
+      ])
+    );
+    expect(res.body.data.compareTop3.map((item: any) => item.partnerId)).toContain("p-specialty-only");
+  });
 });
