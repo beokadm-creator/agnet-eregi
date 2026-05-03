@@ -5,13 +5,17 @@ import { ok, fail } from "../../lib/http";
 import { logOpsEvent } from "../../lib/ops_audit";
 import { enqueueB2bWebhook } from "../../lib/b2b_webhook_worker";
 
-const JWT_SECRET = process.env.B2B_JWT_SECRET || (process.env.FUNCTIONS_EMULATOR === "true" ? "dev-b2b-secret" : "");
-if (!JWT_SECRET) {
-  console.error("[B2B] FATAL: B2B_JWT_SECRET not set. B2B authentication will not work.");
+function getJwtSecret(): string {
+  const jwtSecret = process.env.B2B_JWT_SECRET
+    || (process.env.FUNCTIONS_EMULATOR === "true" ? "dev-b2b-secret" : "");
+  if (!jwtSecret) {
+    throw new Error("B2B_JWT_SECRET is not configured");
+  }
+  return jwtSecret;
 }
 
 // JWT 발급 (HMAC SHA-256)
-function signJwt(payload: any, expiresInSec: number): string {
+function signJwt(payload: any, expiresInSec: number, jwtSecret: string): string {
   const header = { alg: "HS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
   const data = { ...payload, iat: now, exp: now + expiresInSec };
@@ -19,7 +23,7 @@ function signJwt(payload: any, expiresInSec: number): string {
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
   const encodedData = Buffer.from(JSON.stringify(data)).toString("base64url");
   
-  const signature = crypto.createHmac("sha256", JWT_SECRET)
+  const signature = crypto.createHmac("sha256", jwtSecret)
     .update(`${encodedHeader}.${encodedData}`)
     .digest("base64url");
     
@@ -27,12 +31,12 @@ function signJwt(payload: any, expiresInSec: number): string {
 }
 
 // JWT 검증
-function verifyJwt(token: string): any {
+function verifyJwt(token: string, jwtSecret: string): any {
   const parts = token.split(".");
   if (parts.length !== 3) throw new Error("Invalid token format");
   
   const [encodedHeader, encodedData, signature] = parts;
-  const expectedSignature = crypto.createHmac("sha256", JWT_SECRET)
+  const expectedSignature = crypto.createHmac("sha256", jwtSecret)
     .update(`${encodedHeader}.${encodedData}`)
     .digest("base64url");
     
@@ -55,9 +59,13 @@ async function requireB2bAuth(adminApp: typeof admin, req: express.Request, res:
   
   const token = authHeader.split("Bearer ")[1];
   try {
-    const payload = verifyJwt(token);
+    const payload = verifyJwt(token, getJwtSecret());
     return payload; // { clientId, companyName, ... }
   } catch (err: any) {
+    if (err?.message === "B2B_JWT_SECRET is not configured") {
+      fail(res, 500, "FAILED_PRECONDITION", "B2B 인증 설정이 완료되지 않았습니다. B2B_JWT_SECRET 환경변수가 필요합니다.");
+      return null;
+    }
     fail(res, 401, "UNAUTHENTICATED", "유효하지 않거나 만료된 토큰입니다.");
     return null;
   }
@@ -67,6 +75,7 @@ export function registerB2bRoutes(app: express.Application, adminApp: typeof adm
   // 5.1 인증 (Authentication)
   app.post("/v1/b2b/auth/token", async (req: express.Request, res: express.Response) => {
     try {
+      const jwtSecret = getJwtSecret();
       const { clientId, clientSecret } = req.body;
       if (!clientId || !clientSecret) {
         return fail(res, 400, "INVALID_ARGUMENT", "clientId 및 clientSecret이 필요합니다.");
@@ -91,10 +100,13 @@ export function registerB2bRoutes(app: express.Application, adminApp: typeof adm
       }
 
       const expiresIn = 3600; // 1시간
-      const accessToken = signJwt({ clientId, companyName: clientData.companyName }, expiresIn);
+      const accessToken = signJwt({ clientId, companyName: clientData.companyName }, expiresIn, jwtSecret);
 
       return ok(res, { accessToken, expiresIn });
     } catch (err: any) {
+      if (err?.message === "B2B_JWT_SECRET is not configured") {
+        return fail(res, 500, "FAILED_PRECONDITION", "B2B 인증 설정이 완료되지 않았습니다. B2B_JWT_SECRET 환경변수가 필요합니다.");
+      }
       return fail(res, 500, "INTERNAL", "토큰 발급에 실패했습니다.");
     }
   });

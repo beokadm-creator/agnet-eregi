@@ -4,21 +4,23 @@ import Stripe from "stripe";
 
 import { logError } from "../../lib/http";
 
-const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || (process.env.FUNCTIONS_EMULATOR === "true" ? "sk_test_mock" : "");
-if (!STRIPE_KEY) {
-  console.error("[StripeWebhooks] WARNING: STRIPE_SECRET_KEY not set. Webhook processing will not work.");
+function getStripeSecret(): string {
+  return process.env.STRIPE_SECRET_KEY
+    || (process.env.FUNCTIONS_EMULATOR === "true" ? "sk_test_mock" : "");
 }
-const stripe = new Stripe(STRIPE_KEY || "sk_disabled", { apiVersion: "2023-10-16" as any });
 
 export function registerStripeWebhookRoutes(app: express.Application, adminApp: typeof admin) {
   app.post("/v1/webhooks/stripe", async (req: express.Request, res: express.Response) => {
     const sig = req.headers["stripe-signature"];
+    const stripeSecret = getStripeSecret();
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    if (!sig || !webhookSecret) {
+    if (!sig || !webhookSecret || !stripeSecret) {
       res.status(400).send("Webhook Error: Missing signature or secret");
       return;
     }
+
+    const stripe = new Stripe(stripeSecret, { apiVersion: "2023-10-16" as any });
 
     let event: any;
 
@@ -51,7 +53,6 @@ export function registerStripeWebhookRoutes(app: express.Application, adminApp: 
 
     // Live/Test 환경 혼선 방지 (가드)
     const isLiveMode = event.livemode;
-    const stripeSecret = process.env.STRIPE_SECRET_KEY || "";
     const envIsProd = process.env.NODE_ENV === "production" || stripeSecret.startsWith("sk_live_");
     
     if (isLiveMode !== envIsProd) {

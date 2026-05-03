@@ -8,11 +8,14 @@ import { Payment } from "../../lib/payment_models";
 import { tossConfirmPayment, getTossPaymentsSettings } from "../../lib/tosspayments";
 import { getExchangeRate, convertCurrency } from "../../lib/exchange_rate";
 
-const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || (process.env.FUNCTIONS_EMULATOR === "true" ? "sk_test_mock" : "");
-if (!STRIPE_KEY) {
-  console.error("[Payments] WARNING: STRIPE_SECRET_KEY not set. Stripe integration will not work.");
+function getStripeClient() {
+  const stripeKey = process.env.STRIPE_SECRET_KEY
+    || (process.env.FUNCTIONS_EMULATOR === "true" ? "sk_test_mock" : "");
+  if (!stripeKey) {
+    return null;
+  }
+  return new Stripe(stripeKey, { apiVersion: "2023-10-16" as any });
 }
-const stripe = new Stripe(STRIPE_KEY || "sk_disabled", { apiVersion: "2023-10-16" as any });
 
 function normalizeReturnUrl(input: unknown, base: string): string {
   const baseUrl = new URL(base);
@@ -79,6 +82,10 @@ export function registerPaymentRoutes(app: express.Application, adminApp: typeof
       let tossClientKeyForResponse: string | undefined;
 
       if (providerNormalized === "stripe") {
+        const stripe = getStripeClient();
+        if (!stripe) {
+          return fail(res, 500, "FAILED_PRECONDITION", "Stripe 결제 설정이 완료되지 않았습니다. STRIPE_SECRET_KEY 환경변수가 필요합니다.");
+        }
         const baseUrl =
           process.env.CLIENT_BASE_URL || (process.env.FUNCTIONS_EMULATOR === "true" ? "http://localhost:5173" : "");
         if (!baseUrl) return fail(res, 500, "FAILED_PRECONDITION", "CLIENT_BASE_URL 환경변수가 필요합니다.");
