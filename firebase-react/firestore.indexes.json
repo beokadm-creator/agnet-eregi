@@ -175,6 +175,23 @@
       ]
     },
     {
+      "collectionGroup": "ops_query_health",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "gateKey", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ops_query_health",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "gateKey", "order": "ASCENDING" },
+        { "fieldPath": "queryName", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "ops_tickets",
       "queryScope": "COLLECTION",
       "fields": [
