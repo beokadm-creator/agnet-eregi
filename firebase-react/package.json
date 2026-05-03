@@ -26,8 +26,8 @@
     "@firebase/rules-unit-testing": "^4.0.1",
     "@playwright/test": "^1.59.1",
     "@types/node": "^25.6.0",
-    "firebase-admin": "^12.6.0",
-    "firebase-tools": "^13.11.2",
+    "firebase-admin": "^13.8.0",
+    "firebase-tools": "^15.16.0",
     "typescript": "^6.0.3"
   }
 }
