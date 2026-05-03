@@ -15,6 +15,8 @@
     "format": "npm -ws run format || true",
     "test:rules": "node scripts/rules_test.mjs",
     "test:rules:exec": "firebase emulators:exec --project demo-rp --only auth,firestore \"node scripts/rules_test.mjs\"",
+    "gen:scenario-cards": "node scripts/generate_registry_scenario_cards.mjs",
+    "gen:funnel-scenarios": "node scripts/generate_registry_funnel_scenarios.mjs",
     "emulators": "firebase emulators:start",
     "deploy:staging": "npm run build && firebase deploy --project project-staging --force",
     "deploy:prod": "npm run build && firebase deploy --project project-prod --force",
