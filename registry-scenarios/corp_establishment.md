@@ -90,11 +90,118 @@
   "title": "법인 설립",
   "enabled": true,
   "version": 1,
-  "entry": { "keywords": [] },
-  "questions": [],
-  "previewBase": { "minPrice": 0, "maxPrice": 0, "etaDays": 0, "requiredDocs": [] },
-  "previewRules": [],
-  "validators": { "forbid": [] },
-  "partnerMatch": { "desiredSpecialties": [], "requireTags": [] }
+  "entry": { "keywords": ["법인 설립", "회사 설립", "신설 법인", "법인 만들기", "설립"] },
+  "questions": [
+    {
+      "id": "q_corp_type",
+      "type": "single_choice",
+      "text": "어떤 형태의 법인인가요?",
+      "options": ["주식회사", "유한회사", "기타"],
+      "required": true,
+      "depth": 1,
+      "why": "회사 형태에 따라 필요한 절차/서류와 난이도가 달라집니다.",
+      "next": "q_founders_count_band"
+    },
+    {
+      "id": "q_founders_count_band",
+      "type": "single_choice",
+      "text": "발기인/주주 수는 어느 정도인가요?",
+      "options": ["1명", "2~3명", "4명 이상"],
+      "required": true,
+      "depth": 1,
+      "why": "참여자 수가 많을수록 의사결정/서명 회수와 서류가 복잡해집니다.",
+      "next": "q_capital_band"
+    },
+    {
+      "id": "q_capital_band",
+      "type": "single_choice",
+      "text": "자본금 규모는 어느 정도인가요?",
+      "options": ["1천만원 이하", "1천만원~1억원", "1억원 이상"],
+      "required": true,
+      "depth": 1,
+      "why": "자본금 규모에 따라 비용/기간과 추가 확인이 달라질 수 있습니다.",
+      "next": "q_officer_has_auditor"
+    },
+    {
+      "id": "q_officer_has_auditor",
+      "type": "single_choice",
+      "text": "감사(또는 감사위원회) 선임이 필요한가요?",
+      "options": ["예", "아니오", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "감사 선임 여부에 따라 임원 관련 서류와 절차가 추가됩니다.",
+      "next": "q_foreign_participant"
+    },
+    {
+      "id": "q_foreign_participant",
+      "type": "single_choice",
+      "text": "외국인(또는 외국법인) 주주/임원이 포함되나요?",
+      "options": ["아니오", "예", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "외국인/외국법인은 번역·공증·아포스티유 등 추가 요건이 발생할 수 있습니다.",
+      "next": "q_seal_ready"
+    },
+    {
+      "id": "q_seal_ready",
+      "type": "single_choice",
+      "text": "법인 인감/사용인감 준비 상태는 어떤가요?",
+      "options": ["준비됨", "미준비(제작 필요)", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "인감 준비 여부가 서명/날인 회수와 일정에 직접 영향을 줍니다.",
+      "next": "q_region"
+    },
+    {
+      "id": "q_region",
+      "type": "single_choice",
+      "text": "어느 지역(관할) 관련 업무인가요?",
+      "options": ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종", "기타"],
+      "required": true,
+      "next": "q_notes"
+    },
+    {
+      "id": "q_notes",
+      "type": "text",
+      "text": "특이사항이나 요청사항을 간단히 적어주세요.",
+      "required": false,
+      "next": null
+    }
+  ],
+  "previewBase": {
+    "minPrice": 250000,
+    "maxPrice": 450000,
+    "etaDays": 5,
+    "requiredDocs": ["정관(초안)", "주주명부", "임원 취임승낙서"]
+  },
+  "previewRules": [
+    { "when": [{ "questionId": "q_corp_type", "op": "eq", "value": "기타" }], "addMinPrice": 50000, "addMaxPrice": 100000, "addEtaDays": 1 },
+    { "when": [{ "questionId": "q_founders_count_band", "op": "eq", "value": "4명 이상" }], "addMinPrice": 30000, "addMaxPrice": 80000, "addEtaDays": 1 },
+    { "when": [{ "questionId": "q_capital_band", "op": "eq", "value": "1억원 이상" }], "addMinPrice": 50000, "addMaxPrice": 150000, "addEtaDays": 1 },
+    { "when": [{ "questionId": "q_officer_has_auditor", "op": "eq", "value": "예" }], "addDocs": ["감사 취임승낙서"] },
+    { "when": [{ "questionId": "q_foreign_participant", "op": "in", "value": ["예", "모르겠음"] }], "addMinPrice": 80000, "addMaxPrice": 150000, "addEtaDays": 2, "addDocs": ["외국인/외국법인 관련 추가서류(확인 필요)"] },
+    { "when": [{ "questionId": "q_seal_ready", "op": "in", "value": ["미준비(제작 필요)", "모르겠음"] }], "addEtaDays": 1 }
+  ],
+  "validators": {
+    "forbid": [
+      {
+        "when": [{ "questionId": "q_notes", "op": "regex", "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git" }],
+        "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+      },
+      {
+        "when": [{ "questionId": "q_corp_type", "op": "eq", "value": "기타" }, { "questionId": "q_notes", "op": "not_exists" }],
+        "messageKo": "법인 형태가 '기타'인 경우 요청사항(특이사항)을 입력해주세요."
+      },
+      {
+        "when": [{ "questionId": "q_foreign_participant", "op": "eq", "value": "예" }, { "questionId": "q_notes", "op": "not_exists" }],
+        "messageKo": "외국인/외국법인 참여가 있는 경우 특이사항에 대상(주주/임원), 국적/구성 등을 간단히 적어주세요."
+      }
+    ]
+  },
+  "partnerMatch": {
+    "desiredSpecialties": ["설립"],
+    "desiredScenarioKeys": ["corp_establishment"],
+    "preferredTags": []
+  }
 }
 ```

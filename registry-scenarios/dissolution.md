@@ -82,3 +82,97 @@
 
 ## 9. 추가 확인 질문(불확실/추정 포인트)
 - 
+
+## 10. Funnel Scenario JSON (ops_funnel_scenarios용)
+```json
+{
+  "schemaVersion": 1,
+  "scenarioKey": "dissolution",
+  "title": "청산(해산/청산)",
+  "enabled": true,
+  "version": 1,
+  "entry": { "keywords": ["청산", "해산", "폐업", "정리", "법인 종료"] },
+  "questions": [
+    {
+      "id": "q_dissolution_type",
+      "type": "single_choice",
+      "text": "어떤 유형의 청산인가요?",
+      "options": ["자진 해산", "기타(상담 필요)"],
+      "required": true,
+      "next": "q_dissolution_scope"
+    },
+    {
+      "id": "q_dissolution_scope",
+      "type": "single_choice",
+      "text": "어디까지 진행이 필요하신가요?",
+      "options": ["해산 등기만", "해산 + 청산종결까지", "모르겠음"],
+      "required": true,
+      "next": "q_asset_state"
+    },
+    {
+      "id": "q_asset_state",
+      "type": "single_choice",
+      "text": "미정산 자산/채무/미수금 등이 있나요?",
+      "options": ["없음", "있음", "모르겠음"],
+      "required": true,
+      "next": "q_tax_issue"
+    },
+    {
+      "id": "q_tax_issue",
+      "type": "single_choice",
+      "text": "세무/정산(신고·체납 등) 이슈 가능성이 있나요?",
+      "options": ["없음", "있음", "모르겠음"],
+      "required": true,
+      "next": "q_region"
+    },
+    {
+      "id": "q_region",
+      "type": "single_choice",
+      "text": "어느 지역(관할) 관련 업무인가요?",
+      "options": ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종", "기타"],
+      "required": true,
+      "next": "q_notes"
+    },
+    {
+      "id": "q_notes",
+      "type": "text",
+      "text": "특이사항이나 요청사항을 간단히 적어주세요.",
+      "required": false,
+      "next": null
+    }
+  ],
+  "previewBase": {
+    "minPrice": 300000,
+    "maxPrice": 600000,
+    "etaDays": 7,
+    "requiredDocs": ["주주총회 의사록", "청산인 관련 서류"]
+  },
+  "previewRules": [
+    { "when": [{ "questionId": "q_dissolution_type", "op": "eq", "value": "기타(상담 필요)" }], "addEtaDays": 2 },
+    { "when": [{ "questionId": "q_dissolution_scope", "op": "in", "value": ["해산 + 청산종결까지", "모르겠음"] }], "addMinPrice": 150000, "addMaxPrice": 250000, "addEtaDays": 3 },
+    { "when": [{ "questionId": "q_asset_state", "op": "in", "value": ["있음", "모르겠음"] }], "addMinPrice": 100000, "addMaxPrice": 200000, "addEtaDays": 2 },
+    { "when": [{ "questionId": "q_tax_issue", "op": "in", "value": ["있음", "모르겠음"] }], "addMinPrice": 80000, "addMaxPrice": 150000, "addEtaDays": 2, "addDocs": ["세무/정산 관련 추가 확인(필요)"] }
+  ],
+  "validators": {
+    "forbid": [
+      {
+        "when": [{ "questionId": "q_notes", "op": "regex", "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git" }],
+        "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+      },
+      {
+        "when": [{ "questionId": "q_dissolution_type", "op": "eq", "value": "기타(상담 필요)" }, { "questionId": "q_notes", "op": "not_exists" }],
+        "messageKo": "청산 유형이 '기타'인 경우 현재 상황을 특이사항에 적어주세요."
+      },
+      {
+        "when": [{ "questionId": "q_tax_issue", "op": "eq", "value": "있음" }, { "questionId": "q_notes", "op": "not_exists" }],
+        "messageKo": "세무/정산 이슈가 있는 경우, 특이사항에 간단한 현황을 적어주세요."
+      }
+    ]
+  },
+  "partnerMatch": {
+    "desiredSpecialties": ["종료·청산"],
+    "desiredScenarioKeys": ["dissolution"],
+    "preferredTags": []
+  }
+}
+```

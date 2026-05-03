@@ -81,3 +81,90 @@
 
 ## 9. 추가 확인 질문(불확실/추정 포인트)
 - 
+
+## 10. Funnel Scenario JSON (ops_funnel_scenarios용)
+```json
+{
+  "schemaVersion": 1,
+  "scenarioKey": "trade_name_change",
+  "title": "상호 변경",
+  "enabled": true,
+  "version": 1,
+  "entry": { "keywords": ["상호 변경", "회사명 변경", "법인명 변경", "이름 변경"] },
+  "questions": [
+    {
+      "id": "q_name_ready",
+      "type": "single_choice",
+      "text": "변경할 상호(회사명)를 이미 정하셨나요?",
+      "options": ["예(정해짐)", "아니오(검토 필요)"],
+      "required": true,
+      "depth": 1,
+      "why": "상호 확정 여부에 따라 진행 단계(검토→결의→신청)가 달라집니다.",
+      "next": "q_name_check_needed"
+    },
+    {
+      "id": "q_name_check_needed",
+      "type": "single_choice",
+      "text": "동일/유사 상호 검토(선점 가능성 체크)가 필요하신가요?",
+      "options": ["예", "아니오", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "유사 상호 리스크는 변경 실패/추가 일정 발생으로 이어질 수 있습니다.",
+      "next": "q_name_assets_ready"
+    },
+    {
+      "id": "q_name_assets_ready",
+      "type": "single_choice",
+      "text": "정관/인감/명함/도장 등 후속 변경(내부 자산 정리)이 필요한가요?",
+      "options": ["예", "아니오", "모르겠음"],
+      "required": true,
+      "depth": 3,
+      "why": "등기 외 후속 작업까지 함께 잡을지 판단하기 위한 질문입니다.",
+      "next": "q_region"
+    },
+    {
+      "id": "q_region",
+      "type": "single_choice",
+      "text": "어느 지역(관할) 관련 업무인가요?",
+      "options": ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종", "기타"],
+      "required": true,
+      "next": "q_notes"
+    },
+    {
+      "id": "q_notes",
+      "type": "text",
+      "text": "특이사항이나 요청사항을 간단히 적어주세요.",
+      "required": false,
+      "next": null
+    }
+  ],
+  "previewBase": {
+    "minPrice": 120000,
+    "maxPrice": 240000,
+    "etaDays": 3,
+    "requiredDocs": ["주주총회 의사록(또는 이사회 의사록)"]
+  },
+  "previewRules": [
+    { "when": [{ "questionId": "q_name_ready", "op": "eq", "value": "아니오(검토 필요)" }], "addEtaDays": 1 },
+    { "when": [{ "questionId": "q_name_check_needed", "op": "in", "value": ["예", "모르겠음"] }], "addEtaDays": 1 },
+    { "when": [{ "questionId": "q_name_assets_ready", "op": "eq", "value": "예" }], "addDocs": ["내부 변경 대상 리스트(확인 필요)"] }
+  ],
+  "validators": {
+    "forbid": [
+      {
+        "when": [{ "questionId": "q_notes", "op": "regex", "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git" }],
+        "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+      },
+      {
+        "when": [{ "questionId": "q_name_ready", "op": "eq", "value": "예(정해짐)" }, { "questionId": "q_notes", "op": "not_exists" }],
+        "messageKo": "상호가 이미 정해진 경우, 특이사항에 희망 상호(회사명) 후보를 적어주세요."
+      }
+    ]
+  },
+  "partnerMatch": {
+    "desiredSpecialties": ["기본 변경"],
+    "desiredScenarioKeys": ["trade_name_change"],
+    "preferredTags": []
+  }
+}
+```

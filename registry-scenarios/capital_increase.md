@@ -81,3 +81,105 @@
 
 ## 9. 추가 확인 질문(불확실/추정 포인트)
 - 
+
+## 10. Funnel Scenario JSON (ops_funnel_scenarios용)
+```json
+{
+  "schemaVersion": 1,
+  "scenarioKey": "capital_increase",
+  "title": "자본금 증자",
+  "enabled": true,
+  "version": 1,
+  "entry": { "keywords": ["증자", "유상증자", "무상증자", "자본금 증자", "신주 발행"] },
+  "questions": [
+    {
+      "id": "q_increase_type",
+      "type": "single_choice",
+      "text": "어떤 방식의 증자인가요?",
+      "options": ["유상증자", "무상증자", "모르겠음"],
+      "required": true,
+      "depth": 1,
+      "why": "유상/무상에 따라 결의·납입·첨부서류가 크게 달라집니다.",
+      "next": "q_investor_kind"
+    },
+    {
+      "id": "q_investor_kind",
+      "type": "single_choice",
+      "text": "신주 인수자는 누구인가요?",
+      "options": ["기존 주주", "제3자 포함", "모르겠음"],
+      "required": true,
+      "depth": 1,
+      "why": "제3자 배정 여부에 따라 절차/리스크/추가서류가 달라집니다.",
+      "next": "q_payment_proof"
+    },
+    {
+      "id": "q_payment_proof",
+      "type": "single_choice",
+      "text": "납입(또는 출자) 증빙 준비는 어떤가요?",
+      "options": ["예(준비됨)", "아니오(준비 필요)", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "납입증빙은 접수 가능 여부와 보정 리스크를 좌우합니다.",
+      "next": "q_increase_band"
+    },
+    {
+      "id": "q_increase_band",
+      "type": "single_choice",
+      "text": "증자 규모는 어느 정도인가요?",
+      "options": ["1천만원 이하", "1천만원~1억원", "1억원 이상"],
+      "required": true,
+      "depth": 2,
+      "why": "규모가 클수록 추가 확인(납입/주금 관련)과 기간이 늘 수 있습니다.",
+      "next": "q_region"
+    },
+    {
+      "id": "q_region",
+      "type": "single_choice",
+      "text": "어느 지역(관할) 관련 업무인가요?",
+      "options": ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종", "기타"],
+      "required": true,
+      "next": "q_notes"
+    },
+    {
+      "id": "q_notes",
+      "type": "text",
+      "text": "특이사항이나 요청사항을 간단히 적어주세요.",
+      "required": false,
+      "next": null
+    }
+  ],
+  "previewBase": {
+    "minPrice": 220000,
+    "maxPrice": 420000,
+    "etaDays": 4,
+    "requiredDocs": ["주주총회 의사록", "납입증명서류"]
+  },
+  "previewRules": [
+    { "when": [{ "questionId": "q_increase_type", "op": "eq", "value": "모르겠음" }], "addEtaDays": 1 },
+    { "when": [{ "questionId": "q_investor_kind", "op": "eq", "value": "제3자 포함" }], "addMinPrice": 60000, "addMaxPrice": 120000, "addEtaDays": 1 },
+    { "when": [{ "questionId": "q_payment_proof", "op": "in", "value": ["아니오(준비 필요)", "모르겠음"] }], "addEtaDays": 2 },
+    { "when": [{ "questionId": "q_increase_band", "op": "eq", "value": "1억원 이상" }], "addMinPrice": 70000, "addMaxPrice": 140000, "addEtaDays": 1 }
+  ],
+  "validators": {
+    "forbid": [
+      {
+        "when": [{ "questionId": "q_notes", "op": "regex", "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git" }],
+        "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+      },
+      {
+        "when": [{ "questionId": "q_increase_type", "op": "eq", "value": "모르겠음" }, { "questionId": "q_notes", "op": "not_exists" }],
+        "messageKo": "증자 방식이 '모르겠음'인 경우 현재 상황(유상/무상 여부, 납입 예정 등)을 특이사항에 적어주세요."
+      },
+      {
+        "when": [{ "questionId": "q_investor_kind", "op": "eq", "value": "제3자 포함" }, { "questionId": "q_notes", "op": "not_exists" }],
+        "messageKo": "제3자 배정이 포함되면, 특이사항에 인수자 정보/관계/조건 등을 간단히 적어주세요."
+      }
+    ]
+  },
+  "partnerMatch": {
+    "desiredSpecialties": ["자본·주식"],
+    "desiredScenarioKeys": ["capital_increase"],
+    "preferredTags": []
+  }
+}
+```
