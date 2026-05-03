@@ -21,6 +21,11 @@ import System from "./pages/System";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import PartnerApplications from "./pages/PartnerApplications";
+import FunnelScenarios from "./pages/FunnelScenarios";
+import PartnerTaxonomy from "./pages/PartnerTaxonomy";
+import Partners from "./pages/Partners";
+import MatchingWeights from "./pages/MatchingWeights";
+import MatchingDebug from "./pages/MatchingDebug";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, isReady, accessDenied } = useAuth();
@@ -68,11 +73,16 @@ export default function App() {
             <Route path="observability" element={<Observability />} />
             <Route path="review-queue" element={<ReviewQueue />} />
             <Route path="partner-applications" element={<PartnerApplications />} />
+            <Route path="partners" element={<Partners />} />
             <Route path="sla-dashboard" element={<SlaDashboard />} />
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="incidents" element={<Incidents />} />
             <Route path="release" element={<Release />} />
             <Route path="system" element={<System />} />
+            <Route path="funnel-scenarios" element={<FunnelScenarios />} />
+            <Route path="partner-taxonomy" element={<PartnerTaxonomy />} />
+            <Route path="matching-weights" element={<MatchingWeights />} />
+            <Route path="matching-debug" element={<MatchingDebug />} />
             <Route path="settings" element={<Settings />} />
             <Route path="reports" element={<Reports />} />
           </Route>

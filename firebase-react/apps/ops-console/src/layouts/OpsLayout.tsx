@@ -32,8 +32,13 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
           <NavLink to="/case-packs" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>Case Packs</NavLink>
           <NavLink to="/access" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>접근 제어</NavLink>
           <NavLink to="/partner-applications" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>파트너 신청</NavLink>
+          <NavLink to="/partners" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>파트너 관리</NavLink>
           <NavLink to="/release" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>릴리즈 관리</NavLink>
           <NavLink to="/system" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>시스템 관리</NavLink>
+          <NavLink to="/funnel-scenarios" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>퍼널 시나리오</NavLink>
+          <NavLink to="/partner-taxonomy" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>파트너 분류</NavLink>
+          <NavLink to="/matching-weights" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>매칭 가중치</NavLink>
+          <NavLink to="/matching-debug" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>매칭 디버그</NavLink>
 
           <div className="ops-nav-section">기록</div>
           <NavLink to="/audit-logs" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>감사 로그</NavLink>
