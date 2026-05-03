@@ -91,17 +91,19 @@ import { processUserDeletionJobs } from "./lib/user_deletion_worker";
 admin.initializeApp();
 
 const app = express();
+app.disable("x-powered-by");
 if (process.env.OPS_ALLOW_ALL === "1" && process.env.FUNCTIONS_EMULATOR !== "true") {
   throw new Error("OPS_ALLOW_ALL cannot be enabled outside Functions emulator");
 }
 
 const corsAllowAny = process.env.FUNCTIONS_EMULATOR === "true" || process.env.CORS_ALLOW_ANY === "1";
+const localhostAllowed = process.env.FUNCTIONS_EMULATOR === "true" || process.env.ALLOW_LOCALHOST_ORIGIN === "1";
 const corsAllowlist = (process.env.CORS_ALLOWLIST || "")
   .split(",")
   .map((v) => v.trim())
   .filter(Boolean);
 
-const KNOWN_HOSTING_DOMAINS = [
+const KNOWN_HOSTING_HOSTNAMES = [
   "user-web-eregi.web.app",
   "partner-console-eregi.web.app",
   "agent-eregi.web.app",
@@ -110,17 +112,34 @@ const KNOWN_HOSTING_DOMAINS = [
   "agent-eregi.firebaseapp.com",
 ];
 
+function safeHostname(origin: string): string | null {
+  try {
+    return new URL(origin).hostname;
+  } catch {
+    return null;
+  }
+}
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (corsAllowAny) return callback(null, true);
     if (corsAllowlist.includes(origin)) return callback(null, true);
-    if (KNOWN_HOSTING_DOMAINS.includes(origin)) return callback(null, true);
-    if (origin.startsWith('http://localhost:')) return callback(null, true);
+    const hostname = safeHostname(origin);
+    if (hostname && KNOWN_HOSTING_HOSTNAMES.includes(hostname)) return callback(null, true);
+    if (localhostAllowed && (hostname === "localhost" || hostname === "127.0.0.1")) return callback(null, true);
     return callback(null, false);
   }
 }));
 app.use(requestIdMiddleware);
+app.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+  next();
+});
 // stripe webhook uses raw body, so we register it before express.json()
 app.post(
   "/v1/webhooks/stripe",
