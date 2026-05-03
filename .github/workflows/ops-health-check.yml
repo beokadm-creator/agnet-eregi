@@ -1,5 +1,5 @@
 name: Ops Health Check
-run-name: "ops-health ${{ inputs.environment }} ${{ inputs.freshness }}"
+run-name: "ops-health"
 
 on:
   workflow_dispatch:
@@ -23,17 +23,35 @@ on:
         required: false
         type: string
         default: "20"
+  schedule:
+    # KST 09:00 = UTC 00:00
+    - cron: "0 0 * * *"
 
 jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      freshness: ${{ steps.set-config.outputs.freshness }}
+      log_limit: ${{ steps.set-config.outputs.log_limit }}
     steps:
+      - name: Set config
+        id: set-config
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "freshness=24h" >> "$GITHUB_OUTPUT"
+            echo "log_limit=20" >> "$GITHUB_OUTPUT"
+          else
+            echo "freshness=${{ inputs.freshness }}" >> "$GITHUB_OUTPUT"
+            echo "log_limit=${{ inputs.log_limit }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build matrix
         id: set-matrix
         run: |
-          if [ "${{ inputs.environment }}" = "all" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo 'matrix={"environment":["staging","prod"]}' >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.environment }}" = "all" ]; then
             echo 'matrix={"environment":["staging","prod"]}' >> "$GITHUB_OUTPUT"
           else
             echo "matrix={\"environment\":[\"${{ inputs.environment }}\"]}" >> "$GITHUB_OUTPUT"
@@ -78,8 +96,8 @@ jobs:
 
       - name: Run ops health check
         env:
-          OPS_HEALTH_FRESHNESS: ${{ inputs.freshness }}
-          OPS_HEALTH_LOG_LIMIT: ${{ inputs.log_limit }}
+          OPS_HEALTH_FRESHNESS: ${{ needs.prepare.outputs.freshness }}
+          OPS_HEALTH_LOG_LIMIT: ${{ needs.prepare.outputs.log_limit }}
           LOG_PATH: ${{ github.workspace }}/ops-health-${{ matrix.environment }}.log
         run: |
           set -o pipefail
@@ -96,8 +114,9 @@ jobs:
             echo "## ${ENV_NAME_UPPER} Health Check"
             echo ""
             echo "- Environment: \`${{ matrix.environment }}\`"
-            echo "- Freshness: \`${{ inputs.freshness }}\`"
-            echo "- Log limit: \`${{ inputs.log_limit }}\`"
+            echo "- Trigger: \`${{ github.event_name }}\`"
+            echo "- Freshness: \`${{ needs.prepare.outputs.freshness }}\`"
+            echo "- Log limit: \`${{ needs.prepare.outputs.log_limit }}\`"
             echo ""
             echo '```text'
             if [ -f "$LOG_PATH" ]; then
