@@ -80,6 +80,25 @@ cd firebase-react/apps/partner-console
 npx playwright test
 ```
 
+## 🩺 운영 점검
+
+운영 상태를 빠르게 확인하려면 아래 명령을 사용합니다.
+
+```bash
+cd firebase-react
+
+# staging + prod 연속 점검
+npm run ops:health
+
+# 환경별 개별 점검
+npm run ops:health:staging
+npm run ops:health:prod
+```
+
+위 명령은 최근 Functions `WARNING/ERROR` 로그, Functions 상태/런타임 일치 여부, `gcf-artifacts` 잔존 패키지를 한 번에 확인합니다.
+
+상세 절차와 수동 점검 명령은 [운영 최적화 체크리스트](./docs/운영_최적화_체크리스트.md) 문서를 참고합니다.
+
 ## 📄 문서화 (Specifications)
 
 기획 및 아키텍처 상세 설계, Phase별 마일스톤 등은 `spec/` 폴더 내에 마크다운 문서로 체계적으로 관리되고 있습니다.
