@@ -9,10 +9,12 @@ interface PartnerInfo {
   name: string;
   price: number;
   rankingScore?: number;
+  matchScore?: number;
   rating?: number;
   reviewCount?: number;
   area?: string;
   etaDays?: number;
+  matchReasons?: string[];
 }
 
 interface FunnelResults {
@@ -102,15 +104,29 @@ function PartnerCard({
             </div>
           </div>
         )}
-        {partner.rankingScore && (
+        {(partner.matchScore ?? partner.rankingScore) && (
           <div>
             <div style={{ fontSize: 11, color: "var(--uw-fog)", fontWeight: 600, marginBottom: 4 }}>{t('results.score_label')}</div>
             <div className="uw-tabular" style={{ fontSize: isRecommended ? 20 : 17, fontWeight: 800, color: "var(--uw-brand)" }}>
-              {Math.round(partner.rankingScore * 100)}{t('results.score_unit')}
+              {Math.round((partner.matchScore ?? partner.rankingScore ?? 0) * 100)}{t('results.score_unit')}
             </div>
           </div>
         )}
       </div>
+
+      {Array.isArray(partner.matchReasons) && partner.matchReasons.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {partner.matchReasons.slice(0, 6).map((r, idx) => (
+            <span
+              key={`${partner.partnerId}-reason-${idx}`}
+              className="uw-badge"
+              style={{ fontSize: 11, color: "var(--uw-graphite)", background: "var(--uw-border)", border: "none" }}
+            >
+              {r}
+            </span>
+          ))}
+        </div>
+      )}
 
       <button
         onClick={() => onSelect(partner.partnerId)}
@@ -133,6 +149,7 @@ export default function FunnelResults() {
   const [results, setResults] = useState<FunnelResults | null>(null);
   const [ai, setAi] = useState<any | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
+  const [followupBusy, setFollowupBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [selectingPartner, setSelectingPartner] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -195,6 +212,20 @@ export default function FunnelResults() {
       setError(e instanceof Error ? e.message : "AI 추천 생성 실패");
     } finally {
       setAiBusy(false);
+    }
+  }
+
+  async function startFollowup() {
+    if (!sessionId) return;
+    setFollowupBusy(true);
+    setError(null);
+    try {
+      await apiPost(`/v1/funnel/sessions/${sessionId}/followup/start`, {});
+      navigate(`/funnel/${sessionId}?mode=followup`, { replace: true });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "추가 질문 시작 실패");
+    } finally {
+      setFollowupBusy(false);
     }
   }
 
@@ -284,6 +315,50 @@ export default function FunnelResults() {
                 <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
                   {ai.recommendedPartnerCriteriaKo.map((x: string, i: number) => <li key={i}>{x}</li>)}
                 </ul>
+              </div>
+            )}
+            {Array.isArray(ai.suggestedQuestionsKo) && ai.suggestedQuestionsKo.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 6 }}>추가 질문</div>
+                <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                  {ai.suggestedQuestionsKo.slice(0, 8).map((x: string, i: number) => <li key={i}>{x}</li>)}
+                </ul>
+                <button
+                  onClick={startFollowup}
+                  disabled={followupBusy || aiBusy || busy}
+                  className="uw-btn uw-btn-outline"
+                  style={{ marginTop: 10 }}
+                >
+                  {followupBusy ? "시작 중..." : "추가 질문 답변하기"}
+                </button>
+              </div>
+            )}
+            {Array.isArray(ai.followUpQuestions) && ai.followUpQuestions.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 6 }}>추가 질문(구조화)</div>
+                <div style={{ display: "grid", gap: 10 }}>
+                  {ai.followUpQuestions.slice(0, 6).map((q: any, i: number) => (
+                    <div key={i} style={{ padding: 12, borderRadius: 12, background: "var(--uw-surface)" }}>
+                      <div style={{ fontWeight: 800, marginBottom: 6 }}>{q.text}</div>
+                      {q.why && <div style={{ fontSize: 13, color: "var(--uw-slate)", lineHeight: 1.55 }}>{q.why}</div>}
+                      {Array.isArray(q.options) && q.options.length > 0 && (
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                          {q.options.slice(0, 6).map((o: string) => (
+                            <span key={o} className="uw-badge" style={{ fontSize: 12 }}>{o}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={startFollowup}
+                  disabled={followupBusy || aiBusy || busy}
+                  className="uw-btn uw-btn-outline"
+                  style={{ marginTop: 10 }}
+                >
+                  {followupBusy ? "시작 중..." : "추가 질문 답변하기"}
+                </button>
               </div>
             )}
           </div>

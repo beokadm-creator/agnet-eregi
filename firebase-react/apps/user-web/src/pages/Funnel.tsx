@@ -6,9 +6,11 @@ import { getApiBaseUrl } from "../apiBase";
 
 interface FunnelQuestion {
   id: string;
-  type: "single_choice" | "text";
+  type: "single_choice" | "text" | "number";
   text: string;
   options?: string[];
+  depth?: 1 | 2 | 3;
+  why?: string;
 }
 
 interface ValuePreview {
@@ -28,12 +30,14 @@ export default function Funnel() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { token } = useAuth();
+  const mode = searchParams.get("mode") || "";
 
   const [sessionId, setSessionId] = useState<string | null>(paramSessionId || null);
   const [intentText, setIntentText] = useState(searchParams.get("intent") || "");
   const [currentQuestion, setCurrentQuestion] = useState<FunnelQuestion | null>(null);
   const [selectedOption, setSelectedOption] = useState<string>("");
   const [textInput, setTextInput] = useState<string>("");
+  const [numberInput, setNumberInput] = useState<string>("");
   const [preview, setPreview] = useState<ValuePreview | null>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
@@ -55,14 +59,36 @@ export default function Funnel() {
   }
 
   useEffect(() => {
-    if (sessionId && !currentQuestion) {
-      setBusy(true);
-      apiPost(`/v1/funnel/sessions/${sessionId}/answer`, { questionId: "", answer: "" })
-        .then(() => navigate(`/funnel/${sessionId}/results`, { replace: true }))
-        .catch(() => setError(t('funnel.session_error')))
-        .finally(() => setBusy(false));
-    }
-  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!sessionId || !token) return;
+    if (currentQuestion) return;
+    setBusy(true);
+    setError(null);
+    const path =
+      mode === "followup"
+        ? `/v1/funnel/sessions/${sessionId}/followup/state`
+        : `/v1/funnel/sessions/${sessionId}/state`;
+    fetch(`${getApiBaseUrl()}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) {
+          const msg = json.error?.messageKo || json.error?.code || "API Error";
+          throw new Error(msg);
+        }
+        return json.data as any;
+      })
+      .then((data) => {
+        if (data.isCompleted || !data.nextQuestion) {
+          navigate(`/funnel/${sessionId}/results`, { replace: true });
+          return;
+        }
+        setCurrentQuestion(data.nextQuestion);
+        setQuestionIndex(1);
+      })
+      .catch(() => setError(t('funnel.session_error')))
+      .finally(() => setBusy(false));
+  }, [sessionId, token, mode, currentQuestion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submitIntent() {
     if (!intentText.trim()) return;
@@ -91,7 +117,12 @@ export default function Funnel() {
 
   async function answerQuestion() {
     if (!sessionId || !currentQuestion) return;
-    const answer = currentQuestion.type === "single_choice" ? selectedOption : textInput.trim();
+    const answer =
+      currentQuestion.type === "single_choice"
+        ? selectedOption
+        : currentQuestion.type === "number"
+          ? numberInput.trim()
+          : textInput.trim();
     if (!answer) return;
 
     setBusy(true);
@@ -103,10 +134,11 @@ export default function Funnel() {
         preview?: ValuePreview;
         totalQuestions?: number;
       }
-      const data = await apiPost<AnswerResponse>(
-        `/v1/funnel/sessions/${sessionId}/answer`,
-        { questionId: currentQuestion.id, answer }
-      );
+      const path =
+        mode === "followup"
+          ? `/v1/funnel/sessions/${sessionId}/followup/answer`
+          : `/v1/funnel/sessions/${sessionId}/answer`;
+      const data = await apiPost<AnswerResponse>(path, { questionId: currentQuestion.id, answer });
 
       if (data.preview) setPreview(data.preview);
       if (data.totalQuestions) setTotalQuestions(data.totalQuestions);
@@ -120,6 +152,7 @@ export default function Funnel() {
       setQuestionIndex((prev) => prev + 1);
       setSelectedOption("");
       setTextInput("");
+      setNumberInput("");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t('common.error_generic'));
     } finally {
@@ -234,9 +267,23 @@ export default function Funnel() {
 
       {currentQuestion && (
         <div className="uw-card animate-slide-up" style={{ padding: "40px 32px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+            <span className="uw-badge" style={{ fontSize: 12 }}>
+              Depth {currentQuestion.depth || 1}
+            </span>
+            <span style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 600 }}>
+              {t('funnel.diagnosing')}
+            </span>
+          </div>
           <h2 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 32px", letterSpacing: "-0.01em", lineHeight: 1.4 }}>
             {currentQuestion.text}
           </h2>
+
+          {currentQuestion.why && (
+            <div style={{ marginTop: -22, marginBottom: 24, fontSize: 13, color: "var(--uw-slate)", lineHeight: 1.55 }}>
+              {currentQuestion.why}
+            </div>
+          )}
 
           {currentQuestion.type === "single_choice" && currentQuestion.options && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
@@ -279,6 +326,23 @@ export default function Funnel() {
             />
           )}
 
+          {currentQuestion.type === "number" && (
+            <input
+              value={numberInput}
+              onChange={(e) => setNumberInput(e.target.value)}
+              placeholder={t('funnel.answer_placeholder')}
+              className="uw-input"
+              inputMode="numeric"
+              type="number"
+              style={{
+                fontSize: 16,
+                lineHeight: 1.5,
+                minHeight: 52,
+                marginBottom: 32,
+              }}
+            />
+          )}
+
           {error && (
             <div style={{
               padding: "14px 20px",
@@ -296,7 +360,11 @@ export default function Funnel() {
             onClick={answerQuestion}
             disabled={
               busy ||
-              (currentQuestion.type === "single_choice" ? !selectedOption : !textInput.trim())
+              (currentQuestion.type === "single_choice"
+                ? !selectedOption
+                : currentQuestion.type === "number"
+                  ? !numberInput.trim()
+                  : !textInput.trim())
             }
             className="uw-btn uw-btn-brand uw-btn-lg"
             style={{ width: "100%" }}

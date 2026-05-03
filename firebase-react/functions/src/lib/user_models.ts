@@ -12,6 +12,11 @@ export interface UserSubmission {
   input: {
     type: string;
     payload: any;
+    funnel?: {
+      sessionId?: string;
+      scenarioKey?: string;
+      scenarioVersion?: number;
+    };
   };
   result?: {
     summary?: string;

@@ -7,6 +7,7 @@ import { checkAndRecordUsage } from "../../lib/quota";
 import { UserSubmission, SubmissionEvent } from "../../lib/user_models";
 import { llmChatComplete } from "../../lib/llm_engine";
 import { buildDataBlock, SYSTEM_HARDENING_SUFFIX } from "../../lib/prompt_sanitize";
+import { getRegistryScenarioCard } from "../../lib/registry_scenario_cards";
 
 function parseJsonText(text: string): any {
   const t = String(text || "").trim();
@@ -38,6 +39,7 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
       const db = adminApp.firestore();
 
       let finalPayload = payload || {};
+      let funnelMeta: any = undefined;
 
       const resolvedSessionId = sessionId || funnelSessionId;
       if (resolvedSessionId) {
@@ -47,6 +49,12 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
           if (sessionData?.status === "converted") {
             return fail(res, 400, "FAILED_PRECONDITION", "이미 전환된 세션입니다.");
           }
+          const scenarioVersionRaw = sessionData?.scenarioVersion;
+          funnelMeta = {
+            sessionId: resolvedSessionId,
+            scenarioKey: sessionData?.scenarioKey ? String(sessionData.scenarioKey) : undefined,
+            scenarioVersion: Number.isFinite(Number(scenarioVersionRaw)) ? Number(scenarioVersionRaw) : undefined
+          };
           // Merge funnel answers into payload if payload is empty or combine them
           if (!payload || Object.keys(payload).length === 0) {
             finalPayload = sessionData?.answers || {};
@@ -63,7 +71,8 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
         status: submitNow ? "submitted" : "draft",
         input: {
           type: resolvedInputType,
-          payload: finalPayload
+          payload: finalPayload,
+          ...(funnelMeta ? { funnel: funnelMeta } : {})
         },
         createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
         updatedAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
@@ -299,6 +308,7 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
 
       const submission = { id: subSnap.id, ...subSnap.data() } as any;
       const events = evSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const scenarioCard = getRegistryScenarioCard(String(submission?.input?.funnel?.scenarioKey || ""));
 
       const quotaOk = await checkAndRecordUsage(userId, "ai_user", 50);
       if (!quotaOk) {
@@ -311,7 +321,7 @@ export function registerUserSubmissionRoutes(app: express.Application, adminApp:
 반드시 오직 JSON으로만 응답하세요. 마크다운 백틱(\`\`\`)은 쓰지 마세요.
 
 입력:
-${buildDataBlock("submission-input", { submission, events })}
+${buildDataBlock("submission-input", { submission, events, scenarioCard })}
 
 출력(JSON):
 {

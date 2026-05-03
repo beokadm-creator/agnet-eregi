@@ -32,6 +32,8 @@ describe("Funnel API", () => {
           exists: true, 
           data: () => ({ 
             answers: {}, 
+            scenarioKey: "corp_default",
+            scenarioVersion: 1,
             status: "started", 
             preview: { minPrice: 150000, maxPrice: 300000, etaDays: 3, requiredDocs: [] } 
           }) 
@@ -72,7 +74,7 @@ describe("Funnel API", () => {
     expect(res.body.ok).toBe(true);
     expect(res.body.data.sessionId).toBeDefined();
     expect(res.body.data.nextQuestion).toBeDefined();
-    expect(res.body.data.nextQuestion.id).toBe("q_corp_type");
+    expect(res.body.data.nextQuestion.id).toBe("q_officer_kind");
 
     expect(firestoreMock.add).toHaveBeenCalledWith(expect.objectContaining({
       type: "INTENT_SUBMITTED",
@@ -101,11 +103,11 @@ describe("Funnel API", () => {
 
     const res = await request(app)
       .post("/v1/funnel/sessions/sess_123/answer")
-      .send({ questionId: "q_corp_type", answer: "주식회사" });
+      .send({ questionId: "q_registry_type", answer: "법인 설립" });
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.data.nextQuestion.id).toBe("q_officer_type");
+    expect(res.body.data.nextQuestion.id).toBe("q_corp_type");
     expect(res.body.data.isCompleted).toBe(false);
     expect(res.body.data.preview).toBeDefined();
   });
