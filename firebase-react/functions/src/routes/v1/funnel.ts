@@ -15,6 +15,7 @@ import {
   matchScenario,
   registryScenarioTemplates,
 } from "../../lib/funnel_scenarios";
+import { listGeneratedFunnelScenarios } from "../../lib/registry_funnel_scenarios";
 import { loadPartnerTaxonomy, normalizeByAllowWithAliases, sanitizeListWithAliases } from "../../lib/partner_taxonomy";
 import { loadMatchingWeights } from "../../lib/matching_weights";
 import { getDesiredSpecialtiesForScenarioKey, getPreferredTagsForScenarioKey, normalizeScenarioKeys } from "../../lib/scenario_partner_match";
@@ -172,6 +173,7 @@ async function loadPublishedScenarios(db: admin.firestore.Firestore): Promise<Fu
   const map = new Map<string, FunnelScenarioDefinition>();
   for (const s of registryScenarioTemplates()) map.set(s.scenarioKey, s);
   map.set(defaultFunnelScenario().scenarioKey, defaultFunnelScenario());
+  for (const s of listGeneratedFunnelScenarios()) map.set(s.scenarioKey, s);
   for (const s of scenarios) map.set(s.scenarioKey, s);
   const resolved = Array.from(map.values());
   cachedPublished = { loadedAtMs: now, scenarios: resolved };
