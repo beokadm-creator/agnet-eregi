@@ -71,3 +71,97 @@
 
 ## 9. 추가 확인 질문
 - 
+
+## 10. Funnel Scenario JSON (ops_funnel_scenarios용)
+```json
+{
+  "schemaVersion": 1,
+  "scenarioKey": "liquidation_closure",
+  "title": "청산종결",
+  "enabled": true,
+  "version": 1,
+  "entry": { "keywords": ["청산종결", "청산 종결", "청산 마무리", "법인 종료"] },
+  "questions": [
+    {
+      "id": "q_liquidation_started",
+      "type": "single_choice",
+      "text": "이미 해산 및 청산인 선임 등 청산 절차를 시작했나요?",
+      "options": ["예(진행 중)", "아니오(아직)", "모르겠음"],
+      "required": true,
+      "depth": 1,
+      "why": "청산종결은 선행 단계(해산/청산인 등) 완료 여부에 따라 진행 가능성이 달라집니다.",
+      "next": "q_asset_settlement"
+    },
+    {
+      "id": "q_asset_settlement",
+      "type": "single_choice",
+      "text": "자산/채무 정산이 완료되었나요?",
+      "options": ["완료", "미완료", "모르겠음"],
+      "required": true,
+      "depth": 1,
+      "why": "정산 미완료 시 청산종결 전 추가 조치가 필요할 수 있습니다.",
+      "next": "q_tax_filing"
+    },
+    {
+      "id": "q_tax_filing",
+      "type": "single_choice",
+      "text": "세무 신고/정산(부가세/법인세 등) 정리가 되어 있나요?",
+      "options": ["예", "아니오", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "세무 이슈는 청산종결 일정과 리스크에 직접 영향을 줍니다.",
+      "next": "q_docs_ready"
+    },
+    {
+      "id": "q_docs_ready",
+      "type": "single_choice",
+      "text": "청산종결 결의/보고서 등 관련 서류 준비 상태는 어떤가요?",
+      "options": ["준비됨", "준비 필요", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "서류 누락은 보정과 일정 지연의 주요 원인입니다.",
+      "next": "q_region"
+    },
+    {
+      "id": "q_region",
+      "type": "single_choice",
+      "text": "어느 지역(관할) 관련 업무인가요?",
+      "options": ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종", "기타"],
+      "required": true,
+      "next": "q_notes"
+    },
+    {
+      "id": "q_notes",
+      "type": "text",
+      "text": "정산 현황/세무 이슈 등 특이사항을 적어주세요.",
+      "required": false,
+      "next": null
+    }
+  ],
+  "previewBase": {
+    "minPrice": 380000,
+    "maxPrice": 850000,
+    "etaDays": 10,
+    "requiredDocs": ["청산종결 결의/보고 자료", "정산 관련 자료", "세무 신고 관련 자료(있으면)"]
+  },
+  "previewRules": [
+    { "when": [{ "questionId": "q_liquidation_started", "op": "in", "value": ["아니오(아직)", "모르겠음"] }], "addEtaDays": 3, "addMinPrice": 120000, "addMaxPrice": 220000 },
+    { "when": [{ "questionId": "q_asset_settlement", "op": "in", "value": ["미완료", "모르겠음"] }], "addEtaDays": 3, "addMinPrice": 100000, "addMaxPrice": 200000 },
+    { "when": [{ "questionId": "q_tax_filing", "op": "in", "value": ["아니오", "모르겠음"] }], "addEtaDays": 2, "addMinPrice": 80000, "addMaxPrice": 150000, "addDocs": ["세무/정산 추가 확인(필요)"] },
+    { "when": [{ "questionId": "q_docs_ready", "op": "in", "value": ["준비 필요", "모르겠음"] }], "addEtaDays": 2 }
+  ],
+  "validators": {
+    "forbid": [
+      {
+        "when": [{ "questionId": "q_notes", "op": "regex", "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git" }],
+        "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+      }
+    ]
+  },
+  "partnerMatch": {
+    "desiredSpecialties": ["종료·청산"],
+    "desiredScenarioKeys": ["liquidation_closure"],
+    "preferredTags": ["청산종결"]
+  }
+}
+```

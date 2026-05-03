@@ -71,3 +71,100 @@
 
 ## 9. 추가 확인 질문
 - 
+
+## 10. Funnel Scenario JSON (ops_funnel_scenarios용)
+```json
+{
+  "schemaVersion": 1,
+  "scenarioKey": "reapplication_after_rejection",
+  "title": "보정/반려 이력 재신청",
+  "enabled": true,
+  "version": 1,
+  "entry": { "keywords": ["보정", "반려", "재신청", "보정 재신청"] },
+  "questions": [
+    {
+      "id": "q_reject_stage",
+      "type": "single_choice",
+      "text": "어떤 단계에서 문제가 발생했나요?",
+      "options": ["접수 전(서류 준비)", "접수 후 보정요구", "반려/각하", "모르겠음"],
+      "required": true,
+      "depth": 1,
+      "why": "문제 단계에 따라 재신청 전략(서류 보완/절차 수정)이 달라집니다.",
+      "next": "q_reason_known"
+    },
+    {
+      "id": "q_reason_known",
+      "type": "single_choice",
+      "text": "보정/반려 사유가 명확히 적힌 자료가 있나요?",
+      "options": ["예(있음)", "아니오(없음)", "모르겠음"],
+      "required": true,
+      "depth": 1,
+      "why": "사유가 있어야 정확한 보완 포인트를 잡을 수 있습니다.",
+      "next": "q_has_deadline"
+    },
+    {
+      "id": "q_has_deadline",
+      "type": "single_choice",
+      "text": "보정 기한 또는 재접수 기한이 있나요?",
+      "options": ["예(기한 있음)", "아니오", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "기한이 촉박하면 우선 처리/자료 수급 전략이 중요합니다.",
+      "next": "q_docs_ready"
+    },
+    {
+      "id": "q_docs_ready",
+      "type": "single_choice",
+      "text": "보정요구/반려통지/접수증 등 관련 자료는 준비되어 있나요?",
+      "options": ["준비됨", "준비 필요", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "자료가 없으면 원인 파악부터 시간이 소요됩니다.",
+      "next": "q_region"
+    },
+    {
+      "id": "q_region",
+      "type": "single_choice",
+      "text": "어느 지역(관할) 관련 업무인가요?",
+      "options": ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종", "기타"],
+      "required": true,
+      "next": "q_notes"
+    },
+    {
+      "id": "q_notes",
+      "type": "text",
+      "text": "보정/반려 사유 요지와 현재 진행 상황을 적어주세요.",
+      "required": false,
+      "next": null
+    }
+  ],
+  "previewBase": {
+    "minPrice": 180000,
+    "maxPrice": 450000,
+    "etaDays": 5,
+    "requiredDocs": ["보정요구/반려통지", "접수증(있으면)", "현재 서류 일체(초안 포함)"]
+  },
+  "previewRules": [
+    { "when": [{ "questionId": "q_has_deadline", "op": "eq", "value": "예(기한 있음)" }], "addMinPrice": 40000, "addMaxPrice": 80000 },
+    { "when": [{ "questionId": "q_docs_ready", "op": "in", "value": ["준비 필요", "모르겠음"] }], "addEtaDays": 2 },
+    { "when": [{ "questionId": "q_reject_stage", "op": "in", "value": ["반려/각하", "모르겠음"] }], "addMinPrice": 60000, "addMaxPrice": 120000, "addEtaDays": 1 }
+  ],
+  "validators": {
+    "forbid": [
+      {
+        "when": [{ "questionId": "q_notes", "op": "regex", "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git" }],
+        "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+      },
+      {
+        "when": [{ "questionId": "q_reason_known", "op": "eq", "value": "예(있음)" }, { "questionId": "q_notes", "op": "not_exists" }],
+        "messageKo": "보정/반려 사유 핵심 문구를 특이사항에 간단히 붙여주세요."
+      }
+    ]
+  },
+  "partnerMatch": {
+    "desiredSpecialties": ["종료·청산"],
+    "desiredScenarioKeys": ["reapplication_after_rejection"],
+    "preferredTags": ["보정재신청"]
+  }
+}
+```

@@ -71,3 +71,100 @@
 
 ## 9. 추가 확인 질문
 - 
+
+## 10. Funnel Scenario JSON (ops_funnel_scenarios용)
+```json
+{
+  "schemaVersion": 1,
+  "scenarioKey": "manager_change",
+  "title": "지배인 변경",
+  "enabled": true,
+  "version": 1,
+  "entry": { "keywords": ["지배인 변경", "지배인 해임", "지배인 선임", "지배인 변경등기"] },
+  "questions": [
+    {
+      "id": "q_change_type",
+      "type": "single_choice",
+      "text": "어떤 지배인 변경인가요?",
+      "options": ["신규 선임", "해임/사임", "선임+해임", "모르겠음"],
+      "required": true,
+      "depth": 1,
+      "why": "선임/해임 조합에 따라 서류 구성과 효력일 정리가 달라집니다.",
+      "next": "q_branch_related"
+    },
+    {
+      "id": "q_branch_related",
+      "type": "single_choice",
+      "text": "지점과 연계된 지배인 변경인가요?",
+      "options": ["예", "아니오", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "지점 연계 여부에 따라 관할/서류 확인이 추가될 수 있습니다.",
+      "next": "q_docs_ready"
+    },
+    {
+      "id": "q_docs_ready",
+      "type": "single_choice",
+      "text": "지배인 인적사항/취임승낙/사임서 등 서류 준비는 어떤가요?",
+      "options": ["준비됨", "준비 필요", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "지배인 사건은 인적사항/권한 관련 보정이 자주 발생합니다.",
+      "next": "q_timing"
+    },
+    {
+      "id": "q_timing",
+      "type": "single_choice",
+      "text": "언제까지 처리가 필요하신가요?",
+      "options": ["긴급(1~2일)", "일반(3~5일)", "여유(1주 이상)"],
+      "required": true,
+      "depth": 3,
+      "why": "긴급 여부는 파트너 배정과 우선순위 판단에 영향을 줍니다.",
+      "next": "q_region"
+    },
+    {
+      "id": "q_region",
+      "type": "single_choice",
+      "text": "어느 지역(관할) 관련 업무인가요?",
+      "options": ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종", "기타"],
+      "required": true,
+      "next": "q_notes"
+    },
+    {
+      "id": "q_notes",
+      "type": "text",
+      "text": "특이사항이나 요청사항을 간단히 적어주세요.",
+      "required": false,
+      "next": null
+    }
+  ],
+  "previewBase": {
+    "minPrice": 170000,
+    "maxPrice": 340000,
+    "etaDays": 4,
+    "requiredDocs": ["지배인 변경 결의서류", "취임승낙서/사임서", "인적사항 자료"]
+  },
+  "previewRules": [
+    { "when": [{ "questionId": "q_change_type", "op": "in", "value": ["선임+해임", "모르겠음"] }], "addMinPrice": 50000, "addMaxPrice": 90000, "addEtaDays": 1 },
+    { "when": [{ "questionId": "q_docs_ready", "op": "in", "value": ["준비 필요", "모르겠음"] }], "addEtaDays": 1 },
+    { "when": [{ "questionId": "q_timing", "op": "eq", "value": "긴급(1~2일)" }], "addMinPrice": 40000, "addMaxPrice": 70000 }
+  ],
+  "validators": {
+    "forbid": [
+      {
+        "when": [{ "questionId": "q_notes", "op": "regex", "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git" }],
+        "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+      },
+      {
+        "when": [{ "questionId": "q_change_type", "op": "eq", "value": "모르겠음" }, { "questionId": "q_notes", "op": "not_exists" }],
+        "messageKo": "지배인 변경 유형이 불명확하면 선임/해임 여부를 특이사항에 적어주세요."
+      }
+    ]
+  },
+  "partnerMatch": {
+    "desiredSpecialties": ["지점·지배인"],
+    "desiredScenarioKeys": ["manager_change"],
+    "preferredTags": ["지배인등기"]
+  }
+}
+```

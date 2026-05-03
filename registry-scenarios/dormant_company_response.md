@@ -71,3 +71,100 @@
 
 ## 9. 추가 확인 질문
 - 
+
+## 10. Funnel Scenario JSON (ops_funnel_scenarios용)
+```json
+{
+  "schemaVersion": 1,
+  "scenarioKey": "dormant_company_response",
+  "title": "휴면/간주해산 대응",
+  "enabled": true,
+  "version": 1,
+  "entry": { "keywords": ["휴면", "간주해산", "휴면회사", "간주해산 대응", "보정 재신청"] },
+  "questions": [
+    {
+      "id": "q_status",
+      "type": "single_choice",
+      "text": "현재 상태는 어떤가요?",
+      "options": ["간주해산 통지/등기됨", "휴면 해제/정리 필요", "모르겠음"],
+      "required": true,
+      "depth": 1,
+      "why": "간주해산/휴면 상태에 따라 가능한 대응(회사계속/정리 등)이 달라집니다.",
+      "next": "q_goal"
+    },
+    {
+      "id": "q_goal",
+      "type": "single_choice",
+      "text": "원하는 방향은 무엇인가요?",
+      "options": ["회사 유지/정상화", "정리(청산/종결) 방향", "모르겠음"],
+      "required": true,
+      "depth": 1,
+      "why": "유지/정리 목표에 따라 다음 액션과 필요한 서류가 완전히 달라집니다.",
+      "next": "q_deadline"
+    },
+    {
+      "id": "q_deadline",
+      "type": "single_choice",
+      "text": "처리 마감/기한이 있나요?",
+      "options": ["긴급(기한 임박)", "일반", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "기한이 촉박하면 우선 처리와 자료 수급 계획이 중요합니다.",
+      "next": "q_docs_ready"
+    },
+    {
+      "id": "q_docs_ready",
+      "type": "single_choice",
+      "text": "통지서/반려사유/보정요구 등 관련 자료가 준비되어 있나요?",
+      "options": ["준비됨", "준비 필요", "모르겠음"],
+      "required": true,
+      "depth": 2,
+      "why": "반려/보정 이력 자료가 있어야 정확한 재신청 전략을 잡을 수 있습니다.",
+      "next": "q_region"
+    },
+    {
+      "id": "q_region",
+      "type": "single_choice",
+      "text": "어느 지역(관할) 관련 업무인가요?",
+      "options": ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종", "기타"],
+      "required": true,
+      "next": "q_notes"
+    },
+    {
+      "id": "q_notes",
+      "type": "text",
+      "text": "통지/반려 내용, 희망 방향 등 특이사항을 적어주세요.",
+      "required": false,
+      "next": null
+    }
+  ],
+  "previewBase": {
+    "minPrice": 250000,
+    "maxPrice": 650000,
+    "etaDays": 7,
+    "requiredDocs": ["간주해산/휴면 관련 통지서", "등기부등본", "최근 진행 경과 자료"]
+  },
+  "previewRules": [
+    { "when": [{ "questionId": "q_deadline", "op": "eq", "value": "긴급(기한 임박)" }], "addMinPrice": 60000, "addMaxPrice": 120000 },
+    { "when": [{ "questionId": "q_docs_ready", "op": "in", "value": ["준비 필요", "모르겠음"] }], "addEtaDays": 2 },
+    { "when": [{ "questionId": "q_goal", "op": "in", "value": ["모르겠음"] }], "addEtaDays": 1 }
+  ],
+  "validators": {
+    "forbid": [
+      {
+        "when": [{ "questionId": "q_notes", "op": "regex", "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git" }],
+        "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+      },
+      {
+        "when": [{ "questionId": "q_docs_ready", "op": "eq", "value": "준비됨" }, { "questionId": "q_notes", "op": "not_exists" }],
+        "messageKo": "통지/반려/보정 관련 핵심 문구를 특이사항에 간단히 붙여주세요."
+      }
+    ]
+  },
+  "partnerMatch": {
+    "desiredSpecialties": ["종료·청산"],
+    "desiredScenarioKeys": ["dormant_company_response"],
+    "preferredTags": ["보정재신청"]
+  }
+}
+```

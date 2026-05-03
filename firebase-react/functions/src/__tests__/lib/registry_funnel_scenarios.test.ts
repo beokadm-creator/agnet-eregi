@@ -15,6 +15,6 @@ describe("registry_funnel_scenarios", () => {
         "dissolution",
       ])
     );
-    expect(scenarios.length).toBeGreaterThanOrEqual(6);
+    expect(scenarios.length).toBeGreaterThanOrEqual(28);
   });
 });

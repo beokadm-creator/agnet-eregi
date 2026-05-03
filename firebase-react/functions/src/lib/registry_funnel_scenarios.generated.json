@@ -1,6 +1,414 @@
 {
-  "generatedAt": "2026-05-03T08:32:22.256Z",
+  "generatedAt": "2026-05-03T08:50:06.665Z",
   "scenarios": [
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "announcement_method_change",
+      "title": "공고방법 변경",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "공고방법 변경",
+          "공고방법",
+          "전자공고",
+          "일간신문 공고"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_current_method",
+          "type": "single_choice",
+          "text": "현재 공고방법은 무엇인가요?",
+          "options": [
+            "일간신문 공고",
+            "전자공고",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "현행 공고방법에 따라 변경 절차/정관 반영 여부가 달라집니다.",
+          "next": "q_target_method"
+        },
+        {
+          "id": "q_target_method",
+          "type": "single_choice",
+          "text": "변경하려는 공고방법은 무엇인가요?",
+          "options": [
+            "일간신문 공고",
+            "전자공고",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "전자공고 도입 시 공고매체(홈페이지) 등 추가 확인이 필요합니다.",
+          "next": "q_homepage_ready"
+        },
+        {
+          "id": "q_homepage_ready",
+          "type": "single_choice",
+          "text": "전자공고를 한다면 공고 게시용 홈페이지가 준비되어 있나요?",
+          "options": [
+            "예(준비됨)",
+            "아니오(준비 필요)",
+            "해당 없음(전자공고 아님)",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "전자공고는 공고 게시 수단이 명확해야 진행이 가능합니다.",
+          "next": "q_resolution_kind"
+        },
+        {
+          "id": "q_resolution_kind",
+          "type": "single_choice",
+          "text": "의사결정 방식은 어떤가요?",
+          "options": [
+            "주주총회 결의",
+            "이사회 결의",
+            "서면결의/동의",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "결의기관/방식에 따라 의사록/주주명부 등 첨부서류가 달라집니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "특이사항이나 요청사항을 간단히 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 120000,
+        "maxPrice": 240000,
+        "etaDays": 3,
+        "requiredDocs": [
+          "정관(현행/변경안)",
+          "주주총회 의사록(또는 이사회 의사록)"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_homepage_ready",
+              "op": "in",
+              "value": [
+                "아니오(준비 필요)",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 1
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_resolution_kind",
+              "op": "eq",
+              "value": "주주총회 결의"
+            }
+          ],
+          "addDocs": [
+            "주주명부"
+          ]
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_resolution_kind",
+              "op": "eq",
+              "value": "서면결의/동의"
+            }
+          ],
+          "addDocs": [
+            "서면결의서/동의서"
+          ]
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_target_method",
+                "op": "eq",
+                "value": "전자공고"
+              },
+              {
+                "questionId": "q_homepage_ready",
+                "op": "in",
+                "value": [
+                  "아니오(준비 필요)",
+                  "모르겠음"
+                ]
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "전자공고로 변경하려면 공고 게시 수단(홈페이지 주소/준비 계획)을 특이사항에 적어주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "기본 변경"
+        ],
+        "desiredScenarioKeys": [
+          "announcement_method_change"
+        ],
+        "preferredTags": []
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "branch_change",
+      "title": "지점 설치/이전/폐지",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "지점",
+          "지점 설치",
+          "지점 이전",
+          "지점 폐지",
+          "지점 변경"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_branch_action",
+          "type": "single_choice",
+          "text": "어떤 지점 변경인가요?",
+          "options": [
+            "지점 설치",
+            "지점 이전",
+            "지점 폐지",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "설치/이전/폐지에 따라 절차·서류·일정이 크게 달라집니다.",
+          "next": "q_branch_address_ready"
+        },
+        {
+          "id": "q_branch_address_ready",
+          "type": "single_choice",
+          "text": "지점 주소(이전 포함)는 확정되어 있나요?",
+          "options": [
+            "예(확정)",
+            "아니오(미정)",
+            "모르겠음",
+            "해당 없음(폐지)"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "주소 확정 여부는 신청서 작성과 증빙 확보 가능 여부를 좌우합니다.",
+          "next": "q_branch_manager_plan"
+        },
+        {
+          "id": "q_branch_manager_plan",
+          "type": "single_choice",
+          "text": "지배인 선임/변경도 함께 진행하나요?",
+          "options": [
+            "예",
+            "아니오",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "지배인 사건이 결합되면 서류와 파트너 전문성이 달라집니다.",
+          "next": "q_branch_docs_ready"
+        },
+        {
+          "id": "q_branch_docs_ready",
+          "type": "single_choice",
+          "text": "지점 관련 서류(임대차/사용승낙/폐지 사유 자료 등) 준비는 어떤가요?",
+          "options": [
+            "준비됨",
+            "준비 필요",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 3,
+          "why": "지점 서류 누락은 보정/반려의 주요 원인입니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "특이사항이나 요청사항을 간단히 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 200000,
+        "maxPrice": 420000,
+        "etaDays": 5,
+        "requiredDocs": [
+          "지점 관련 결의서류",
+          "지점 주소/폐지 관련 서류"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_branch_action",
+              "op": "eq",
+              "value": "지점 이전"
+            }
+          ],
+          "addMinPrice": 30000,
+          "addMaxPrice": 70000
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_branch_action",
+              "op": "eq",
+              "value": "지점 폐지"
+            }
+          ],
+          "addMinPrice": 20000,
+          "addMaxPrice": 50000
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_branch_manager_plan",
+              "op": "eq",
+              "value": "예"
+            }
+          ],
+          "addMinPrice": 70000,
+          "addMaxPrice": 140000,
+          "addDocs": [
+            "지배인 관련 추가서류"
+          ]
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_branch_address_ready",
+              "op": "in",
+              "value": [
+                "아니오(미정)",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 2
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_branch_docs_ready",
+              "op": "in",
+              "value": [
+                "준비 필요",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 1
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_branch_action",
+                "op": "eq",
+                "value": "모르겠음"
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "지점 변경 유형이 불명확하면 설치/이전/폐지 중 어느 쪽인지 특이사항에 적어주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "지점·지배인"
+        ],
+        "desiredScenarioKeys": [
+          "branch_change"
+        ],
+        "preferredTags": [
+          "지점등기"
+        ]
+      }
+    },
     {
       "schemaVersion": 1,
       "scenarioKey": "branch_registration",
@@ -198,6 +606,211 @@
         "preferredTags": [
           "지점등기"
         ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "business_purpose_change",
+      "title": "목적 변경",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "목적 변경",
+          "사업목적 변경",
+          "사업 목적 추가",
+          "사업 목적 삭제"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_change_type",
+          "type": "single_choice",
+          "text": "어떤 목적 변경인가요?",
+          "options": [
+            "목적 추가",
+            "목적 삭제",
+            "추가+삭제",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "추가/삭제 조합에 따라 목적 문구 검토와 결의 문서 구성이 달라집니다.",
+          "next": "q_new_purpose_ready"
+        },
+        {
+          "id": "q_new_purpose_ready",
+          "type": "single_choice",
+          "text": "추가/변경할 사업목적 문구가 준비되어 있나요?",
+          "options": [
+            "예(준비됨)",
+            "아니오(검토 필요)",
+            "해당 없음(삭제만)",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "목적 문구는 업종/허가요건/등기 리스크에 영향을 줍니다.",
+          "next": "q_license_risk"
+        },
+        {
+          "id": "q_license_risk",
+          "type": "single_choice",
+          "text": "인허가/등록이 필요한 업종(금융/의료/교육 등)이 포함되나요?",
+          "options": [
+            "아니오",
+            "예",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "인허가 업종은 목적 문구와 별도의 준비 요건이 추가될 수 있습니다.",
+          "next": "q_resolution_kind"
+        },
+        {
+          "id": "q_resolution_kind",
+          "type": "single_choice",
+          "text": "의사결정 방식은 어떤가요?",
+          "options": [
+            "주주총회 결의",
+            "이사회 결의",
+            "서면결의/동의",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 3,
+          "why": "결의기관/방식에 따라 의사록/주주명부 등 첨부서류가 달라집니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "추가/삭제할 목적(문구) 또는 특이사항을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 140000,
+        "maxPrice": 280000,
+        "etaDays": 3,
+        "requiredDocs": [
+          "정관(현행/변경안)",
+          "주주총회 의사록(또는 이사회 의사록)"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_new_purpose_ready",
+              "op": "in",
+              "value": [
+                "아니오(검토 필요)",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 1
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_license_risk",
+              "op": "in",
+              "value": [
+                "예",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 40000,
+          "addMaxPrice": 80000,
+          "addEtaDays": 1
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_resolution_kind",
+              "op": "eq",
+              "value": "주주총회 결의"
+            }
+          ],
+          "addDocs": [
+            "주주명부"
+          ]
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_resolution_kind",
+              "op": "eq",
+              "value": "서면결의/동의"
+            }
+          ],
+          "addDocs": [
+            "서면결의서/동의서"
+          ]
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_new_purpose_ready",
+                "op": "in",
+                "value": [
+                  "예(준비됨)",
+                  "모르겠음"
+                ]
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "추가/변경할 목적 문구(또는 업종 키워드)를 특이사항에 적어주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "기본 변경"
+        ],
+        "desiredScenarioKeys": [
+          "business_purpose_change"
+        ],
+        "preferredTags": []
       }
     },
     {
@@ -802,6 +1415,420 @@
     },
     {
       "schemaVersion": 1,
+      "scenarioKey": "company_split",
+      "title": "분할",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "분할",
+          "인적분할",
+          "물적분할",
+          "사업부 분할"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_split_type",
+          "type": "single_choice",
+          "text": "어떤 유형의 분할인가요?",
+          "options": [
+            "인적분할",
+            "물적분할",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "인적/물적 분할은 주주 구성과 절차, 서류가 크게 달라집니다.",
+          "next": "q_new_company_needed"
+        },
+        {
+          "id": "q_new_company_needed",
+          "type": "single_choice",
+          "text": "분할로 신설회사가 생기나요?",
+          "options": [
+            "예",
+            "아니오(흡수/기타)",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "신설 여부에 따라 설립/자본/정관 등 추가 작업이 필요합니다.",
+          "next": "q_asset_transfer_complexity"
+        },
+        {
+          "id": "q_asset_transfer_complexity",
+          "type": "single_choice",
+          "text": "이관되는 사업/자산/계약이 복잡한 편인가요?",
+          "options": [
+            "단순",
+            "복잡",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "자산/계약 이관이 복잡하면 분할계획서·부속서류와 검토 시간이 늘어납니다.",
+          "next": "q_creditor_procedure_ready"
+        },
+        {
+          "id": "q_creditor_procedure_ready",
+          "type": "single_choice",
+          "text": "채권자보호절차(공고/최고) 준비가 되어 있나요?",
+          "options": [
+            "준비됨",
+            "준비 필요",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "분할 사건은 채권자보호절차가 핵심이며 일정에 큰 영향을 줍니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "분할 배경/이관 범위 등 특이사항을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 1200000,
+        "maxPrice": 2500000,
+        "etaDays": 20,
+        "requiredDocs": [
+          "분할계획서/분할계약서(초안)",
+          "주주총회 의사록",
+          "채권자보호절차 관련 자료"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_split_type",
+              "op": "in",
+              "value": [
+                "물적분할",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 200000,
+          "addMaxPrice": 500000,
+          "addEtaDays": 3
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_new_company_needed",
+              "op": "in",
+              "value": [
+                "예",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 250000,
+          "addMaxPrice": 600000,
+          "addEtaDays": 4
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_asset_transfer_complexity",
+              "op": "in",
+              "value": [
+                "복잡",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 200000,
+          "addMaxPrice": 500000,
+          "addEtaDays": 3
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_creditor_procedure_ready",
+              "op": "in",
+              "value": [
+                "준비 필요",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 4
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_split_type",
+                "op": "eq",
+                "value": "모르겠음"
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "분할 유형이 불명확하면 현재 계획(물적/인적 여부, 신설 여부)을 특이사항에 적어주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "조직행위"
+        ],
+        "desiredScenarioKeys": [
+          "company_split"
+        ],
+        "preferredTags": [
+          "분할"
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "convertible_bond_and_bw",
+      "title": "전환사채/신주인수권부사채 관련 변경",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "전환사채",
+          "CB",
+          "신주인수권부사채",
+          "BW",
+          "사채 발행"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_instrument",
+          "type": "single_choice",
+          "text": "어떤 사채 관련 업무인가요?",
+          "options": [
+            "전환사채(CB)",
+            "신주인수권부사채(BW)",
+            "둘 다",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "CB/BW에 따라 조건(전환/행사)과 서류 구성 포인트가 다릅니다.",
+          "next": "q_action_type"
+        },
+        {
+          "id": "q_action_type",
+          "type": "single_choice",
+          "text": "어떤 변경인가요?",
+          "options": [
+            "발행",
+            "조건 변경",
+            "행사/전환(신주발행) 관련",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "발행/조건변경/행사 단계에 따라 결의기관, 공시, 등기 방식이 달라집니다.",
+          "next": "q_investor_kind"
+        },
+        {
+          "id": "q_investor_kind",
+          "type": "single_choice",
+          "text": "인수자(투자자)는 누구인가요?",
+          "options": [
+            "기존 투자자/주주",
+            "제3자",
+            "복수",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "제3자 포함 여부는 조건 설계와 리스크 검토에 영향을 줍니다.",
+          "next": "q_terms_ready"
+        },
+        {
+          "id": "q_terms_ready",
+          "type": "single_choice",
+          "text": "주요 조건(금액/이율/전환가/행사가 등)이 정리되어 있나요?",
+          "options": [
+            "예(정리됨)",
+            "아니오(검토 필요)",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "조건이 확정되어야 결의/계약서/등기 문구를 확정할 수 있습니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "특이사항이나 요청사항을 간단히 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 450000,
+        "maxPrice": 950000,
+        "etaDays": 7,
+        "requiredDocs": [
+          "이사회/주주총회 의사록",
+          "사채/인수 관련 계약서(초안)",
+          "정관(관련 조항)"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_action_type",
+              "op": "eq",
+              "value": "조건 변경"
+            }
+          ],
+          "addMinPrice": 80000,
+          "addMaxPrice": 150000,
+          "addEtaDays": 1
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_action_type",
+              "op": "eq",
+              "value": "행사/전환(신주발행) 관련"
+            }
+          ],
+          "addMinPrice": 120000,
+          "addMaxPrice": 220000,
+          "addEtaDays": 2
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_terms_ready",
+              "op": "in",
+              "value": [
+                "아니오(검토 필요)",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 2
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_investor_kind",
+              "op": "in",
+              "value": [
+                "제3자",
+                "복수",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 80000,
+          "addMaxPrice": 160000
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_terms_ready",
+                "op": "eq",
+                "value": "모르겠음"
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "조건이 불명확하면 예상 금액/투자자/일정 등을 특이사항에 적어주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "자본·주식"
+        ],
+        "desiredScenarioKeys": [
+          "convertible_bond_and_bw"
+        ],
+        "preferredTags": [
+          "CB/BW"
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
       "scenarioKey": "corp_establishment",
       "title": "법인 설립",
       "enabled": true,
@@ -1283,6 +2310,193 @@
     },
     {
       "schemaVersion": 1,
+      "scenarioKey": "dormant_company_response",
+      "title": "휴면/간주해산 대응",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "휴면",
+          "간주해산",
+          "휴면회사",
+          "간주해산 대응",
+          "보정 재신청"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_status",
+          "type": "single_choice",
+          "text": "현재 상태는 어떤가요?",
+          "options": [
+            "간주해산 통지/등기됨",
+            "휴면 해제/정리 필요",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "간주해산/휴면 상태에 따라 가능한 대응(회사계속/정리 등)이 달라집니다.",
+          "next": "q_goal"
+        },
+        {
+          "id": "q_goal",
+          "type": "single_choice",
+          "text": "원하는 방향은 무엇인가요?",
+          "options": [
+            "회사 유지/정상화",
+            "정리(청산/종결) 방향",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "유지/정리 목표에 따라 다음 액션과 필요한 서류가 완전히 달라집니다.",
+          "next": "q_deadline"
+        },
+        {
+          "id": "q_deadline",
+          "type": "single_choice",
+          "text": "처리 마감/기한이 있나요?",
+          "options": [
+            "긴급(기한 임박)",
+            "일반",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "기한이 촉박하면 우선 처리와 자료 수급 계획이 중요합니다.",
+          "next": "q_docs_ready"
+        },
+        {
+          "id": "q_docs_ready",
+          "type": "single_choice",
+          "text": "통지서/반려사유/보정요구 등 관련 자료가 준비되어 있나요?",
+          "options": [
+            "준비됨",
+            "준비 필요",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "반려/보정 이력 자료가 있어야 정확한 재신청 전략을 잡을 수 있습니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "통지/반려 내용, 희망 방향 등 특이사항을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 250000,
+        "maxPrice": 650000,
+        "etaDays": 7,
+        "requiredDocs": [
+          "간주해산/휴면 관련 통지서",
+          "등기부등본",
+          "최근 진행 경과 자료"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_deadline",
+              "op": "eq",
+              "value": "긴급(기한 임박)"
+            }
+          ],
+          "addMinPrice": 60000,
+          "addMaxPrice": 120000
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_docs_ready",
+              "op": "in",
+              "value": [
+                "준비 필요",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 2
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_goal",
+              "op": "in",
+              "value": [
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 1
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_docs_ready",
+                "op": "eq",
+                "value": "준비됨"
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "통지/반려/보정 관련 핵심 문구를 특이사항에 간단히 붙여주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "종료·청산"
+        ],
+        "desiredScenarioKeys": [
+          "dormant_company_response"
+        ],
+        "preferredTags": [
+          "보정재신청"
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
       "scenarioKey": "foreign_company_registration",
       "title": "외국회사 등기",
       "enabled": true,
@@ -1685,6 +2899,404 @@
     },
     {
       "schemaVersion": 1,
+      "scenarioKey": "in_kind_contribution",
+      "title": "현물출자",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "현물출자",
+          "부동산 현물출자",
+          "특허 현물출자",
+          "자산 출자"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_asset_type",
+          "type": "single_choice",
+          "text": "현물출자 자산 유형은 무엇인가요?",
+          "options": [
+            "부동산",
+            "동산/재고",
+            "지식재산권(특허/상표 등)",
+            "기타",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "자산 유형에 따라 감정/평가/등기 연계(부동산 등) 절차가 달라집니다.",
+          "next": "q_valuation_ready"
+        },
+        {
+          "id": "q_valuation_ready",
+          "type": "single_choice",
+          "text": "가액 산정/감정평가 준비 상태는 어떤가요?",
+          "options": [
+            "준비됨",
+            "준비 필요",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "현물출자는 가액 산정이 핵심이며, 누락 시 보정/반려 위험이 큽니다.",
+          "next": "q_contribution_stage"
+        },
+        {
+          "id": "q_contribution_stage",
+          "type": "single_choice",
+          "text": "현물출자가 어떤 상황에서 발생하나요?",
+          "options": [
+            "설립 시",
+            "증자(신주발행) 시",
+            "기타",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "설립/증자에 따라 결의 문서와 첨부서류가 달라집니다.",
+          "next": "q_stakeholders_complexity"
+        },
+        {
+          "id": "q_stakeholders_complexity",
+          "type": "single_choice",
+          "text": "출자자/이해관계자가 복수인가요?",
+          "options": [
+            "단일",
+            "복수",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 3,
+          "why": "이해관계자가 많을수록 서명/증빙/권리관계 검토가 늘어납니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "자산 종류/가액/권리관계 등 특이사항을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 600000,
+        "maxPrice": 1400000,
+        "etaDays": 10,
+        "requiredDocs": [
+          "현물출자 대상 자산 자료",
+          "가액 산정/감정 관련 자료",
+          "결의서류(설립/증자)"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_asset_type",
+              "op": "in",
+              "value": [
+                "부동산",
+                "지식재산권(특허/상표 등)",
+                "기타",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 150000,
+          "addMaxPrice": 350000,
+          "addEtaDays": 2
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_valuation_ready",
+              "op": "in",
+              "value": [
+                "준비 필요",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 3
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_stakeholders_complexity",
+              "op": "in",
+              "value": [
+                "복수",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 80000,
+          "addMaxPrice": 160000,
+          "addEtaDays": 1
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_asset_type",
+                "op": "in",
+                "value": [
+                  "기타",
+                  "모르겠음"
+                ]
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "자산 유형이 불명확하면 자산 종류와 대략 가액을 특이사항에 적어주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "설립"
+        ],
+        "desiredScenarioKeys": [
+          "in_kind_contribution"
+        ],
+        "preferredTags": [
+          "현물출자"
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "liquidation_closure",
+      "title": "청산종결",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "청산종결",
+          "청산 종결",
+          "청산 마무리",
+          "법인 종료"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_liquidation_started",
+          "type": "single_choice",
+          "text": "이미 해산 및 청산인 선임 등 청산 절차를 시작했나요?",
+          "options": [
+            "예(진행 중)",
+            "아니오(아직)",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "청산종결은 선행 단계(해산/청산인 등) 완료 여부에 따라 진행 가능성이 달라집니다.",
+          "next": "q_asset_settlement"
+        },
+        {
+          "id": "q_asset_settlement",
+          "type": "single_choice",
+          "text": "자산/채무 정산이 완료되었나요?",
+          "options": [
+            "완료",
+            "미완료",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "정산 미완료 시 청산종결 전 추가 조치가 필요할 수 있습니다.",
+          "next": "q_tax_filing"
+        },
+        {
+          "id": "q_tax_filing",
+          "type": "single_choice",
+          "text": "세무 신고/정산(부가세/법인세 등) 정리가 되어 있나요?",
+          "options": [
+            "예",
+            "아니오",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "세무 이슈는 청산종결 일정과 리스크에 직접 영향을 줍니다.",
+          "next": "q_docs_ready"
+        },
+        {
+          "id": "q_docs_ready",
+          "type": "single_choice",
+          "text": "청산종결 결의/보고서 등 관련 서류 준비 상태는 어떤가요?",
+          "options": [
+            "준비됨",
+            "준비 필요",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "서류 누락은 보정과 일정 지연의 주요 원인입니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "정산 현황/세무 이슈 등 특이사항을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 380000,
+        "maxPrice": 850000,
+        "etaDays": 10,
+        "requiredDocs": [
+          "청산종결 결의/보고 자료",
+          "정산 관련 자료",
+          "세무 신고 관련 자료(있으면)"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_liquidation_started",
+              "op": "in",
+              "value": [
+                "아니오(아직)",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 3,
+          "addMinPrice": 120000,
+          "addMaxPrice": 220000
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_asset_settlement",
+              "op": "in",
+              "value": [
+                "미완료",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 3,
+          "addMinPrice": 100000,
+          "addMaxPrice": 200000
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_tax_filing",
+              "op": "in",
+              "value": [
+                "아니오",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 2,
+          "addMinPrice": 80000,
+          "addMaxPrice": 150000,
+          "addDocs": [
+            "세무/정산 추가 확인(필요)"
+          ]
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_docs_ready",
+              "op": "in",
+              "value": [
+                "준비 필요",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 2
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "종료·청산"
+        ],
+        "desiredScenarioKeys": [
+          "liquidation_closure"
+        ],
+        "preferredTags": [
+          "청산종결"
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
       "scenarioKey": "liquidator_appointment",
       "title": "청산인 선임",
       "enabled": true,
@@ -1876,6 +3488,196 @@
         ],
         "preferredTags": [
           "청산인"
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "manager_change",
+      "title": "지배인 변경",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "지배인 변경",
+          "지배인 해임",
+          "지배인 선임",
+          "지배인 변경등기"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_change_type",
+          "type": "single_choice",
+          "text": "어떤 지배인 변경인가요?",
+          "options": [
+            "신규 선임",
+            "해임/사임",
+            "선임+해임",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "선임/해임 조합에 따라 서류 구성과 효력일 정리가 달라집니다.",
+          "next": "q_branch_related"
+        },
+        {
+          "id": "q_branch_related",
+          "type": "single_choice",
+          "text": "지점과 연계된 지배인 변경인가요?",
+          "options": [
+            "예",
+            "아니오",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "지점 연계 여부에 따라 관할/서류 확인이 추가될 수 있습니다.",
+          "next": "q_docs_ready"
+        },
+        {
+          "id": "q_docs_ready",
+          "type": "single_choice",
+          "text": "지배인 인적사항/취임승낙/사임서 등 서류 준비는 어떤가요?",
+          "options": [
+            "준비됨",
+            "준비 필요",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "지배인 사건은 인적사항/권한 관련 보정이 자주 발생합니다.",
+          "next": "q_timing"
+        },
+        {
+          "id": "q_timing",
+          "type": "single_choice",
+          "text": "언제까지 처리가 필요하신가요?",
+          "options": [
+            "긴급(1~2일)",
+            "일반(3~5일)",
+            "여유(1주 이상)"
+          ],
+          "required": true,
+          "depth": 3,
+          "why": "긴급 여부는 파트너 배정과 우선순위 판단에 영향을 줍니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "특이사항이나 요청사항을 간단히 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 170000,
+        "maxPrice": 340000,
+        "etaDays": 4,
+        "requiredDocs": [
+          "지배인 변경 결의서류",
+          "취임승낙서/사임서",
+          "인적사항 자료"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_change_type",
+              "op": "in",
+              "value": [
+                "선임+해임",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 50000,
+          "addMaxPrice": 90000,
+          "addEtaDays": 1
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_docs_ready",
+              "op": "in",
+              "value": [
+                "준비 필요",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 1
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_timing",
+              "op": "eq",
+              "value": "긴급(1~2일)"
+            }
+          ],
+          "addMinPrice": 40000,
+          "addMaxPrice": 70000
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_change_type",
+                "op": "eq",
+                "value": "모르겠음"
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "지배인 변경 유형이 불명확하면 선임/해임 여부를 특이사항에 적어주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "지점·지배인"
+        ],
+        "desiredScenarioKeys": [
+          "manager_change"
+        ],
+        "preferredTags": [
+          "지배인등기"
         ]
       }
     },
@@ -2074,6 +3876,214 @@
         ],
         "preferredTags": [
           "지배인등기"
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "merger",
+      "title": "합병",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "합병",
+          "흡수합병",
+          "신설합병",
+          "회사 합병"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_merger_type",
+          "type": "single_choice",
+          "text": "어떤 유형의 합병인가요?",
+          "options": [
+            "흡수합병",
+            "신설합병",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "흡수/신설 합병에 따라 절차, 자본/주주 구조, 등기 범위가 달라집니다.",
+          "next": "q_company_count"
+        },
+        {
+          "id": "q_company_count",
+          "type": "single_choice",
+          "text": "합병에 참여하는 회사 수는 몇 개인가요?",
+          "options": [
+            "2개",
+            "3개 이상",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "참여 회사가 많을수록 합병계약/부속서류와 일정이 증가합니다.",
+          "next": "q_creditor_procedure_ready"
+        },
+        {
+          "id": "q_creditor_procedure_ready",
+          "type": "single_choice",
+          "text": "채권자보호절차(공고/최고) 준비가 되어 있나요?",
+          "options": [
+            "준비됨",
+            "준비 필요",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "합병 사건은 채권자보호절차가 핵심이며 기간에 큰 영향을 줍니다.",
+          "next": "q_complexity"
+        },
+        {
+          "id": "q_complexity",
+          "type": "single_choice",
+          "text": "자산/계약/인력 이관이 복잡한 편인가요?",
+          "options": [
+            "단순",
+            "복잡",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "이관이 복잡하면 합병 조건 검토와 문서 정리가 늘어납니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "합병 배경/대상 회사/일정 등 특이사항을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 1500000,
+        "maxPrice": 3200000,
+        "etaDays": 25,
+        "requiredDocs": [
+          "합병계약서(초안)",
+          "주주총회 의사록",
+          "채권자보호절차 관련 자료"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_merger_type",
+              "op": "in",
+              "value": [
+                "신설합병",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 300000,
+          "addMaxPrice": 800000,
+          "addEtaDays": 4
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_company_count",
+              "op": "in",
+              "value": [
+                "3개 이상",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 250000,
+          "addMaxPrice": 700000,
+          "addEtaDays": 3
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_creditor_procedure_ready",
+              "op": "in",
+              "value": [
+                "준비 필요",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 5
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_complexity",
+              "op": "in",
+              "value": [
+                "복잡",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 200000,
+          "addMaxPrice": 500000,
+          "addEtaDays": 3
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_merger_type",
+                "op": "eq",
+                "value": "모르겠음"
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "합병 유형이 불명확하면 흡수/신설 여부와 대상 회사를 특이사항에 적어주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "조직행위"
+        ],
+        "desiredScenarioKeys": [
+          "merger"
+        ],
+        "preferredTags": [
+          "합병"
         ]
       }
     },
@@ -2342,6 +4352,1142 @@
         ],
         "desiredScenarioKeys": [
           "officer_change"
+        ],
+        "preferredTags": []
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "organization_change",
+      "title": "조직변경",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "조직변경",
+          "조직 변경",
+          "유한회사 전환",
+          "주식회사 전환",
+          "형태 변경"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_from_to",
+          "type": "single_choice",
+          "text": "어떤 형태로 조직을 변경하나요?",
+          "options": [
+            "주식회사 → 유한회사",
+            "유한회사 → 주식회사",
+            "기타",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "변경 전/후 조직형태에 따라 절차와 정관/자본/임원 구조가 달라집니다.",
+          "next": "q_governance_complexity"
+        },
+        {
+          "id": "q_governance_complexity",
+          "type": "single_choice",
+          "text": "주주/사원 구성과 의사결정 구조가 복잡한 편인가요?",
+          "options": [
+            "단순",
+            "복잡",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "구성이 복잡하면 정관/지분/의사록 정리와 검토가 늘어납니다.",
+          "next": "q_docs_ready"
+        },
+        {
+          "id": "q_docs_ready",
+          "type": "single_choice",
+          "text": "정관(현행)과 변경안(초안) 준비 상태는 어떤가요?",
+          "options": [
+            "준비됨",
+            "준비 필요",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "조직변경은 정관이 핵심 문서이며 변경안 정리가 필요합니다.",
+          "next": "q_timing"
+        },
+        {
+          "id": "q_timing",
+          "type": "single_choice",
+          "text": "언제까지 처리가 필요하신가요?",
+          "options": [
+            "긴급(1~2일)",
+            "일반(3~5일)",
+            "여유(1주 이상)"
+          ],
+          "required": true,
+          "depth": 3,
+          "why": "조직변경은 준비 기간이 길어질 수 있어 목표 일정 확인이 필요합니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "조직변경 배경/현재 구조 등 특이사항을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 800000,
+        "maxPrice": 1800000,
+        "etaDays": 14,
+        "requiredDocs": [
+          "정관(현행/변경안)",
+          "주주총회/사원총회 의사록",
+          "주주/사원 명부"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_from_to",
+              "op": "in",
+              "value": [
+                "기타",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 200000,
+          "addMaxPrice": 500000,
+          "addEtaDays": 3
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_governance_complexity",
+              "op": "in",
+              "value": [
+                "복잡",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 150000,
+          "addMaxPrice": 350000,
+          "addEtaDays": 2
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_docs_ready",
+              "op": "in",
+              "value": [
+                "준비 필요",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 3
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_timing",
+              "op": "eq",
+              "value": "긴급(1~2일)"
+            }
+          ],
+          "addMinPrice": 60000,
+          "addMaxPrice": 120000
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_from_to",
+                "op": "in",
+                "value": [
+                  "기타",
+                  "모르겠음"
+                ]
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "조직변경 유형이 불명확하면 변경 전/후 형태를 특이사항에 적어주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "조직행위"
+        ],
+        "desiredScenarioKeys": [
+          "organization_change"
+        ],
+        "preferredTags": [
+          "조직변경"
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "reapplication_after_rejection",
+      "title": "보정/반려 이력 재신청",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "보정",
+          "반려",
+          "재신청",
+          "보정 재신청"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_reject_stage",
+          "type": "single_choice",
+          "text": "어떤 단계에서 문제가 발생했나요?",
+          "options": [
+            "접수 전(서류 준비)",
+            "접수 후 보정요구",
+            "반려/각하",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "문제 단계에 따라 재신청 전략(서류 보완/절차 수정)이 달라집니다.",
+          "next": "q_reason_known"
+        },
+        {
+          "id": "q_reason_known",
+          "type": "single_choice",
+          "text": "보정/반려 사유가 명확히 적힌 자료가 있나요?",
+          "options": [
+            "예(있음)",
+            "아니오(없음)",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "사유가 있어야 정확한 보완 포인트를 잡을 수 있습니다.",
+          "next": "q_has_deadline"
+        },
+        {
+          "id": "q_has_deadline",
+          "type": "single_choice",
+          "text": "보정 기한 또는 재접수 기한이 있나요?",
+          "options": [
+            "예(기한 있음)",
+            "아니오",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "기한이 촉박하면 우선 처리/자료 수급 전략이 중요합니다.",
+          "next": "q_docs_ready"
+        },
+        {
+          "id": "q_docs_ready",
+          "type": "single_choice",
+          "text": "보정요구/반려통지/접수증 등 관련 자료는 준비되어 있나요?",
+          "options": [
+            "준비됨",
+            "준비 필요",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "자료가 없으면 원인 파악부터 시간이 소요됩니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "보정/반려 사유 요지와 현재 진행 상황을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 180000,
+        "maxPrice": 450000,
+        "etaDays": 5,
+        "requiredDocs": [
+          "보정요구/반려통지",
+          "접수증(있으면)",
+          "현재 서류 일체(초안 포함)"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_has_deadline",
+              "op": "eq",
+              "value": "예(기한 있음)"
+            }
+          ],
+          "addMinPrice": 40000,
+          "addMaxPrice": 80000
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_docs_ready",
+              "op": "in",
+              "value": [
+                "준비 필요",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 2
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_reject_stage",
+              "op": "in",
+              "value": [
+                "반려/각하",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 60000,
+          "addMaxPrice": 120000,
+          "addEtaDays": 1
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_reason_known",
+                "op": "eq",
+                "value": "예(있음)"
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "보정/반려 사유 핵심 문구를 특이사항에 간단히 붙여주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "종료·청산"
+        ],
+        "desiredScenarioKeys": [
+          "reapplication_after_rejection"
+        ],
+        "preferredTags": [
+          "보정재신청"
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "split_merger",
+      "title": "분할합병",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "분할합병",
+          "분할 합병",
+          "조직재편"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_structure",
+          "type": "single_choice",
+          "text": "분할합병 구조가 정해져 있나요?",
+          "options": [
+            "예(구조 확정)",
+            "아니오(검토 필요)",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "구조(분할+합병) 설계가 확정되어야 계약/계획서와 일정 산정이 가능합니다.",
+          "next": "q_entities_count"
+        },
+        {
+          "id": "q_entities_count",
+          "type": "single_choice",
+          "text": "관여 회사 수는 어느 정도인가요?",
+          "options": [
+            "2개",
+            "3개 이상",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "관여 회사가 많을수록 문서/결의/공고 절차가 길어집니다.",
+          "next": "q_creditor_procedure_ready"
+        },
+        {
+          "id": "q_creditor_procedure_ready",
+          "type": "single_choice",
+          "text": "채권자보호절차(공고/최고) 준비가 되어 있나요?",
+          "options": [
+            "준비됨",
+            "준비 필요",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "분할합병은 채권자보호절차가 필수인 경우가 많아 일정에 큰 영향을 줍니다.",
+          "next": "q_asset_transfer_complexity"
+        },
+        {
+          "id": "q_asset_transfer_complexity",
+          "type": "single_choice",
+          "text": "이관되는 사업/자산/계약이 복잡한 편인가요?",
+          "options": [
+            "단순",
+            "복잡",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "이관이 복잡하면 계획서·부속서류 검토와 이해관계 조정이 늘어납니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "구조/일정/대상 회사 등 특이사항을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 1800000,
+        "maxPrice": 3800000,
+        "etaDays": 28,
+        "requiredDocs": [
+          "분할계획서/합병계약서(초안)",
+          "주주총회 의사록",
+          "채권자보호절차 관련 자료"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_structure",
+              "op": "in",
+              "value": [
+                "아니오(검토 필요)",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 4,
+          "addMinPrice": 200000,
+          "addMaxPrice": 500000
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_entities_count",
+              "op": "in",
+              "value": [
+                "3개 이상",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 3,
+          "addMinPrice": 250000,
+          "addMaxPrice": 700000
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_creditor_procedure_ready",
+              "op": "in",
+              "value": [
+                "준비 필요",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 5
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_asset_transfer_complexity",
+              "op": "in",
+              "value": [
+                "복잡",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 3,
+          "addMinPrice": 200000,
+          "addMaxPrice": 500000
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_structure",
+                "op": "eq",
+                "value": "모르겠음"
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "구조가 불명확하면 분할/합병 대상과 목적을 특이사항에 적어주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "조직행위"
+        ],
+        "desiredScenarioKeys": [
+          "split_merger"
+        ],
+        "preferredTags": [
+          "분할합병"
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "stock_consolidation",
+      "title": "주식 병합",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "주식 병합",
+          "주식병합",
+          "액면병합",
+          "주식수 병합"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_ratio_ready",
+          "type": "single_choice",
+          "text": "병합 비율(예: 10주→1주)이 정해져 있나요?",
+          "options": [
+            "예(정해짐)",
+            "아니오(검토 필요)",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "병합 비율은 주주 영향과 정관/주식수 변경 산정의 핵심입니다.",
+          "next": "q_fraction_handling"
+        },
+        {
+          "id": "q_fraction_handling",
+          "type": "single_choice",
+          "text": "단수주(소수점/잔여주) 처리 방안이 있나요?",
+          "options": [
+            "예(정리됨)",
+            "아니오(미정)",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "단수주 처리 방식은 실무 난이도와 주주 안내에 영향을 줍니다.",
+          "next": "q_shareholder_complexity"
+        },
+        {
+          "id": "q_shareholder_complexity",
+          "type": "single_choice",
+          "text": "주주 수가 많거나 주주 구조가 복잡한 편인가요?",
+          "options": [
+            "단순",
+            "복잡",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "주주가 많으면 통지/서류 정리와 일정이 늘어납니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "병합 비율/단수주 처리 계획 등 특이사항을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 380000,
+        "maxPrice": 850000,
+        "etaDays": 7,
+        "requiredDocs": [
+          "주주총회 의사록",
+          "정관(현행/변경안)",
+          "주주명부"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_ratio_ready",
+              "op": "in",
+              "value": [
+                "아니오(검토 필요)",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 2
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_fraction_handling",
+              "op": "in",
+              "value": [
+                "아니오(미정)",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 2,
+          "addMinPrice": 80000,
+          "addMaxPrice": 160000
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_shareholder_complexity",
+              "op": "in",
+              "value": [
+                "복잡",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 80000,
+          "addMaxPrice": 180000,
+          "addEtaDays": 1
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "자본·주식"
+        ],
+        "desiredScenarioKeys": [
+          "stock_consolidation"
+        ],
+        "preferredTags": []
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "stock_option",
+      "title": "주식매수선택권 관련 변경",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "스톡옵션",
+          "주식매수선택권",
+          "부여",
+          "취소",
+          "행사"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_action",
+          "type": "single_choice",
+          "text": "어떤 스톡옵션 관련 업무인가요?",
+          "options": [
+            "부여",
+            "변경",
+            "취소",
+            "행사(주식 발행) 관련",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "부여/취소/행사 단계에 따라 결의, 계약서, 등기 범위가 달라집니다.",
+          "next": "q_recipients"
+        },
+        {
+          "id": "q_recipients",
+          "type": "single_choice",
+          "text": "부여/대상자는 누구인가요?",
+          "options": [
+            "임직원",
+            "외부 자문/기타",
+            "복수",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "대상자 유형과 수에 따라 계약/첨부서류와 리스크가 달라집니다.",
+          "next": "q_terms_ready"
+        },
+        {
+          "id": "q_terms_ready",
+          "type": "single_choice",
+          "text": "행사가격/수량/베스팅 등 조건이 정리되어 있나요?",
+          "options": [
+            "예(정리됨)",
+            "아니오(검토 필요)",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "조건 확정이 되어야 결의/계약서/등기 문구를 확정할 수 있습니다.",
+          "next": "q_resolution_kind"
+        },
+        {
+          "id": "q_resolution_kind",
+          "type": "single_choice",
+          "text": "의사결정 방식은 어떤가요?",
+          "options": [
+            "주주총회 결의",
+            "이사회 결의",
+            "서면결의/동의",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 3,
+          "why": "결의기관/방식에 따라 의사록/주주명부 등 첨부서류가 달라집니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "대상자/조건/일정 등 특이사항을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 420000,
+        "maxPrice": 950000,
+        "etaDays": 7,
+        "requiredDocs": [
+          "이사회/주주총회 의사록",
+          "스톡옵션 계약서(초안)",
+          "정관(관련 조항)"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_action",
+              "op": "in",
+              "value": [
+                "행사(주식 발행) 관련",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 120000,
+          "addMaxPrice": 220000,
+          "addEtaDays": 2
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_recipients",
+              "op": "in",
+              "value": [
+                "복수",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 80000,
+          "addMaxPrice": 160000,
+          "addEtaDays": 1
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_terms_ready",
+              "op": "in",
+              "value": [
+                "아니오(검토 필요)",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 2
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_resolution_kind",
+              "op": "eq",
+              "value": "주주총회 결의"
+            }
+          ],
+          "addDocs": [
+            "주주명부"
+          ]
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          },
+          {
+            "when": [
+              {
+                "questionId": "q_terms_ready",
+                "op": "eq",
+                "value": "모르겠음"
+              },
+              {
+                "questionId": "q_notes",
+                "op": "not_exists"
+              }
+            ],
+            "messageKo": "조건이 불명확하면 예상 수량/행사가/일정을 특이사항에 적어주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "자본·주식"
+        ],
+        "desiredScenarioKeys": [
+          "stock_option"
+        ],
+        "preferredTags": []
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "scenarioKey": "stock_split",
+      "title": "주식 분할",
+      "enabled": true,
+      "version": 1,
+      "entry": {
+        "keywords": [
+          "주식 분할",
+          "주식분할",
+          "액면분할",
+          "주식수 분할"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q_ratio_ready",
+          "type": "single_choice",
+          "text": "분할 비율(예: 1주→10주)이 정해져 있나요?",
+          "options": [
+            "예(정해짐)",
+            "아니오(검토 필요)",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 1,
+          "why": "분할 비율은 주식수/정관 변경 산정의 핵심입니다.",
+          "next": "q_shareholder_complexity"
+        },
+        {
+          "id": "q_shareholder_complexity",
+          "type": "single_choice",
+          "text": "주주 수가 많거나 주주 구조가 복잡한 편인가요?",
+          "options": [
+            "단순",
+            "복잡",
+            "모르겠음"
+          ],
+          "required": true,
+          "depth": 2,
+          "why": "주주가 많으면 통지/서류 정리와 일정이 늘어납니다.",
+          "next": "q_timing"
+        },
+        {
+          "id": "q_timing",
+          "type": "single_choice",
+          "text": "언제까지 처리가 필요하신가요?",
+          "options": [
+            "긴급(1~2일)",
+            "일반(3~5일)",
+            "여유(1주 이상)"
+          ],
+          "required": true,
+          "depth": 3,
+          "why": "긴급 여부는 결의/정관 변경 일정 조정에 영향을 줍니다.",
+          "next": "q_region"
+        },
+        {
+          "id": "q_region",
+          "type": "single_choice",
+          "text": "어느 지역(관할) 관련 업무인가요?",
+          "options": [
+            "서울",
+            "경기",
+            "인천",
+            "부산",
+            "대구",
+            "광주",
+            "대전",
+            "울산",
+            "세종",
+            "기타"
+          ],
+          "required": true,
+          "next": "q_notes"
+        },
+        {
+          "id": "q_notes",
+          "type": "text",
+          "text": "분할 비율/목적 등 특이사항을 적어주세요.",
+          "required": false,
+          "next": null
+        }
+      ],
+      "previewBase": {
+        "minPrice": 300000,
+        "maxPrice": 700000,
+        "etaDays": 6,
+        "requiredDocs": [
+          "주주총회 의사록",
+          "정관(현행/변경안)",
+          "주주명부"
+        ]
+      },
+      "previewRules": [
+        {
+          "when": [
+            {
+              "questionId": "q_ratio_ready",
+              "op": "in",
+              "value": [
+                "아니오(검토 필요)",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addEtaDays": 2
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_shareholder_complexity",
+              "op": "in",
+              "value": [
+                "복잡",
+                "모르겠음"
+              ]
+            }
+          ],
+          "addMinPrice": 80000,
+          "addMaxPrice": 180000,
+          "addEtaDays": 1
+        },
+        {
+          "when": [
+            {
+              "questionId": "q_timing",
+              "op": "eq",
+              "value": "긴급(1~2일)"
+            }
+          ],
+          "addMinPrice": 50000,
+          "addMaxPrice": 90000
+        }
+      ],
+      "validators": {
+        "forbid": [
+          {
+            "when": [
+              {
+                "questionId": "q_notes",
+                "op": "regex",
+                "value": "코딩|프로그래밍|개발|react|typescript|python|java|sql|docker|kubernetes|깃|git"
+              }
+            ],
+            "messageKo": "본 입력은 서비스 범위와 무관합니다. 등기 업무 관련 요청을 입력해주세요."
+          }
+        ]
+      },
+      "partnerMatch": {
+        "desiredSpecialties": [
+          "자본·주식"
+        ],
+        "desiredScenarioKeys": [
+          "stock_split"
         ],
         "preferredTags": []
       }
