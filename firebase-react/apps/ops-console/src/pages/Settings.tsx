@@ -8,6 +8,17 @@ interface TossPaymentsSettings { enabled: boolean; clientKey: string; secretKey:
 interface LlmSettings { enabled: boolean; provider: "glm"; model: string; endpoint: string; apiKey: string; apiKeySet?: boolean; updatedAt?: string; }
 interface AlertPolicyRules { circuitBreakerOpen: boolean; deadJobs: boolean; failRateThreshold: number; deniedThreshold: number; }
 interface AlertPolicy { enabled: boolean; cooldownSec: number; rules: AlertPolicyRules; channels: { useGateWebhook: boolean }; }
+interface PricingBenchmarkItem {
+  scenarioKey: string;
+  region: string;
+  minFee: number;
+  avgFee: number;
+  maxFee: number;
+  officialCostIncluded: boolean;
+  sourceLabel: string;
+  sourceUrl: string;
+  note?: string;
+}
 
 function formatTimestamp(ts: unknown): string {
   if (!ts) return "-";
@@ -20,6 +31,7 @@ const EMPTY_TELEGRAM: TelegramSettings = { enabled: false, botToken: "", chatId:
 const EMPTY_TOSS: TossPaymentsSettings = { enabled: false, clientKey: "", secretKey: "" };
 const EMPTY_LLM: LlmSettings = { enabled: false, provider: "glm", model: "glm-5.1", endpoint: "https://api.z.ai/api/coding/paas/v4", apiKey: "", apiKeySet: false };
 const EMPTY_POLICY: AlertPolicy = { enabled: false, cooldownSec: 300, rules: { circuitBreakerOpen: true, deadJobs: true, failRateThreshold: 0.3, deniedThreshold: 0.1 }, channels: { useGateWebhook: false } };
+const DEFAULT_PRICING_BENCHMARKS: PricingBenchmarkItem[] = [{ scenarioKey: "corp_establishment", region: "KR", minFee: 395900, avgFee: 520000, maxFee: 650000, officialCostIncluded: true, sourceLabel: "헬프미/회사등기 공개가 기준", sourceUrl: "https://reg.help-me.kr/pricing/%EB%B2%95%EC%9D%B8%EC%84%A4%EB%A6%BD/%EC%A3%BC%EC%8B%9D%ED%9A%8C%EC%82%AC-%EC%9D%BC%EB%B0%98", note: "초기 공개 견적 기준값입니다. 자본금, 지역, 과밀억제권역 여부에 따라 달라질 수 있습니다." }];
 
 function PasswordField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   const [show, setShow] = useState(false);
@@ -50,6 +62,11 @@ export default function Settings() {
   const [llmTesting, setLlmTesting] = useState(false);
   const [llmMsg, setLlmMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [llmTestMsg, setLlmTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pricingBenchmarks, setPricingBenchmarks] = useState<PricingBenchmarkItem[]>(DEFAULT_PRICING_BENCHMARKS);
+  const [pricingText, setPricingText] = useState(JSON.stringify(DEFAULT_PRICING_BENCHMARKS, null, 2));
+  const [pricingLoading, setPricingLoading] = useState(true);
+  const [pricingSaving, setPricingSaving] = useState(false);
+  const [pricingMsg, setPricingMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const [gates, setGates] = useState<string[]>([]);
   const [selectedGate, setSelectedGate] = useState("");
@@ -65,16 +82,22 @@ export default function Settings() {
       fetch(`${getApiBaseUrl()}/v1/ops/settings/telegram`, { headers }).then((r) => r.json()),
       fetch(`${getApiBaseUrl()}/v1/ops/settings/tosspayments`, { headers }).then((r) => r.json()),
       fetch(`${getApiBaseUrl()}/v1/ops/settings/llm`, { headers }).then((r) => r.json()),
+      fetch(`${getApiBaseUrl()}/v1/ops/settings/pricing-benchmarks`, { headers }).then((r) => r.json()),
       fetch(`${getApiBaseUrl()}/v1/ops/health/summary?limit=50`, { headers }).then((r) => r.json()),
-    ]).then(([tgRes, tossRes, llmRes, gatesRes]) => {
+    ]).then(([tgRes, tossRes, llmRes, pricingRes, gatesRes]) => {
       if (tgRes.status === "fulfilled" && tgRes.value.ok) setTelegram(tgRes.value.data?.settings || EMPTY_TELEGRAM);
       if (tossRes.status === "fulfilled" && tossRes.value.ok) setToss(tossRes.value.data?.settings || EMPTY_TOSS);
       if (llmRes.status === "fulfilled" && llmRes.value.ok) {
         const s = llmRes.value.data?.settings || EMPTY_LLM;
         setLlm({ ...s, apiKey: "" });
       }
+      if (pricingRes.status === "fulfilled" && pricingRes.value.ok) {
+        const items = pricingRes.value.data?.settings?.items || DEFAULT_PRICING_BENCHMARKS;
+        setPricingBenchmarks(items);
+        setPricingText(JSON.stringify(items, null, 2));
+      }
       if (gatesRes.status === "fulfilled" && gatesRes.value.ok) setGates(gatesRes.value.data?.items?.map((i: any) => i.gateKey).filter(Boolean) || []);
-    }).finally(() => { setTelegramLoading(false); setTossLoading(false); setLlmLoading(false); setGatesLoading(false); });
+    }).finally(() => { setTelegramLoading(false); setTossLoading(false); setLlmLoading(false); setPricingLoading(false); setGatesLoading(false); });
   }, [token]);
 
   const loadPolicy = useCallback(async (gateKey: string) => {
@@ -113,6 +136,27 @@ export default function Settings() {
       if (json.ok && json.data?.settings) setLlm({ ...(json.data.settings as any), apiKey: "" });
       setLlmMsg({ ok: json.ok, text: json.ok ? "저장되었습니다." : "저장 실패" });
     } catch { setLlmMsg({ ok: false, text: "요청 실패" }); } finally { setLlmSaving(false); }
+  };
+
+  const savePricingBenchmarks = async () => {
+    setPricingSaving(true); setPricingMsg(null);
+    try {
+      const parsed = JSON.parse(pricingText);
+      const res = await fetch(`${getApiBaseUrl()}/v1/ops/settings/pricing-benchmarks`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ items: parsed }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        const items = json.data?.settings?.items || parsed;
+        setPricingBenchmarks(items);
+        setPricingText(JSON.stringify(items, null, 2));
+      }
+      setPricingMsg({ ok: !!json.ok, text: json.ok ? "저장되었습니다." : "저장 실패" });
+    } catch {
+      setPricingMsg({ ok: false, text: "JSON 형식을 확인해주세요." });
+    } finally { setPricingSaving(false); }
   };
 
   const testLlm = async () => {
@@ -232,6 +276,32 @@ export default function Settings() {
                   <button className="ops-btn" onClick={testLlm} disabled={llmTesting}>{llmTesting ? "테스트 중" : "테스트"}</button>
                   {llmMsg && <span style={{ fontSize: 13, color: llmMsg.ok ? "var(--ops-success)" : "var(--ops-danger)" }}>{llmMsg.text}</span>}
                   {llmTestMsg && <span style={{ fontSize: 13, color: llmTestMsg.ok ? "var(--ops-success)" : "var(--ops-danger)" }}>{llmTestMsg.text}</span>}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="ops-panel" style={{ gridColumn: "1 / -1" }}>
+          <div className="ops-panel-header"><h3 className="ops-panel-title">시장 평균 가격 벤치마크</h3></div>
+          <div className="ops-panel-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {pricingLoading ? <div style={{ fontSize: 13, color: "var(--ops-text-muted)" }}>불러오는 중...</div> : (
+              <>
+                <div style={{ fontSize: 13, color: "var(--ops-text-muted)", lineHeight: 1.6 }}>
+                  `scenarioKey`, `region`, `minFee`, `avgFee`, `maxFee`, `officialCostIncluded`, `sourceLabel`, `sourceUrl`, `note` 형식의 배열 JSON을 입력합니다.
+                </div>
+                <textarea
+                  className="ops-input"
+                  value={pricingText}
+                  onChange={(e) => setPricingText(e.target.value)}
+                  style={{ minHeight: 280, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.5 }}
+                />
+                <div style={{ fontSize: 12, color: "var(--ops-text-muted)" }}>
+                  현재 항목 수: {pricingBenchmarks.length}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <button className="ops-btn ops-btn-brand" onClick={savePricingBenchmarks} disabled={pricingSaving}>{pricingSaving ? "저장 중" : "저장"}</button>
+                  {pricingMsg && <span style={{ fontSize: 13, color: pricingMsg.ok ? "var(--ops-success)" : "var(--ops-danger)" }}>{pricingMsg.text}</span>}
                 </div>
               </>
             )}

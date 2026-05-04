@@ -6,13 +6,34 @@ import { requireAuth, isOps } from "../../lib/auth";
 import { requireOpsRole } from "../../lib/ops_rbac";
 import { fail, ok, logError } from "../../lib/http";
 import { logOpsEvent } from "../../lib/ops_audit";
-import { getOpsSettingsCollection, TelegramSettings, TossPaymentsSettings, LlmSettings } from "../../lib/ops_settings";
+import { DEFAULT_PRICING_BENCHMARKS, getOpsSettingsCollection, TelegramSettings, TossPaymentsSettings, LlmSettings, PricingBenchmarkItem, PricingBenchmarksSettings } from "../../lib/ops_settings";
 import { llmTestCall } from "../../lib/llm_engine";
 
 export function registerOpsSettingsRoutes(app: express.Application, adminApp: typeof admin) {
   const secretClient = new SecretManagerServiceClient();
   const DEFAULT_LLM = { enabled: false, provider: "glm", model: "glm-5.1", endpoint: "https://api.z.ai/api/coding/paas/v4", apiKeySecretName: "" };
   const SECRET_ID = "ops_llm_glm_api_key";
+
+  function normalizePricingItem(raw: any): PricingBenchmarkItem {
+    return {
+      scenarioKey: String(raw?.scenarioKey || "").trim(),
+      region: String(raw?.region || "KR").trim().toUpperCase(),
+      minFee: Number(raw?.minFee || 0),
+      avgFee: Number(raw?.avgFee || 0),
+      maxFee: Number(raw?.maxFee || 0),
+      officialCostIncluded: raw?.officialCostIncluded !== false,
+      sourceLabel: String(raw?.sourceLabel || "").trim(),
+      sourceUrl: String(raw?.sourceUrl || "").trim(),
+      note: String(raw?.note || "").trim(),
+    };
+  }
+
+  function normalizePricingItems(rawItems: any): PricingBenchmarkItem[] {
+    if (!Array.isArray(rawItems)) return DEFAULT_PRICING_BENCHMARKS;
+    return rawItems
+      .map(normalizePricingItem)
+      .filter((item) => item.scenarioKey && item.region && item.minFee >= 0 && item.avgFee >= 0 && item.maxFee >= item.minFee);
+  }
 
   function projectId(): string {
     return process.env.GOOGLE_CLOUD_PROJECT || "agent-eregi";
@@ -208,6 +229,71 @@ export function registerOpsSettingsRoutes(app: express.Application, adminApp: ty
       return ok(res, { settings: responseSettings });
     } catch (err: any) {
       logError({ endpoint: "ops/settings/llm/put", code: "INTERNAL", messageKo: "LLM 설정 변경 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // GET /v1/ops/settings/pricing-benchmarks
+  app.get("/v1/ops/settings/pricing-benchmarks", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin");
+      if (!hasRole) return;
+
+      const docSnap = await getOpsSettingsCollection().doc("pricing_benchmarks").get();
+      const raw = docSnap.exists ? (docSnap.data() as any) : { items: DEFAULT_PRICING_BENCHMARKS };
+      const settings = {
+        items: normalizePricingItems(raw.items),
+        updatedAt: raw.updatedAt,
+        updatedBy: raw.updatedBy,
+      };
+
+      return ok(res, { settings });
+    } catch (err: any) {
+      logError({ endpoint: "ops/settings/pricing-benchmarks/get", code: "INTERNAL", messageKo: "가격 벤치마크 조회 실패", err });
+      return fail(res, 500, "INTERNAL", err.message);
+    }
+  });
+
+  // PUT /v1/ops/settings/pricing-benchmarks
+  app.put("/v1/ops/settings/pricing-benchmarks", async (req: express.Request, res: express.Response) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_admin");
+      if (!hasRole) return;
+
+      const items = normalizePricingItems(req.body?.items);
+      if (items.length === 0) {
+        return fail(res, 400, "INVALID_ARGUMENT", "최소 1개 이상의 가격 벤치마크가 필요합니다.");
+      }
+
+      const update: Partial<PricingBenchmarksSettings> = {
+        items,
+        updatedAt: adminApp.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
+        updatedBy: auth.uid,
+      };
+
+      await getOpsSettingsCollection().doc("pricing_benchmarks").set(update, { merge: true });
+
+      await logOpsEvent(adminApp, {
+        gateKey: "system",
+        action: "ops_settings.update",
+        status: "success",
+        actorUid: auth.uid,
+        requestId: req.requestId!,
+        summary: `가격 벤치마크 설정 변경 (${items.length}건)`,
+        target: { type: "pricing_benchmarks", count: items.length },
+      });
+
+      return ok(res, { settings: update });
+    } catch (err: any) {
+      logError({ endpoint: "ops/settings/pricing-benchmarks/put", code: "INTERNAL", messageKo: "가격 벤치마크 저장 실패", err });
       return fail(res, 500, "INTERNAL", err.message);
     }
   });

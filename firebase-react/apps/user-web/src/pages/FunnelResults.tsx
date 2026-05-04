@@ -22,10 +22,41 @@ interface FunnelResults {
   compareTop3: PartnerInfo[];
   sponsored: PartnerInfo[];
   ai?: any;
+  preview?: {
+    minPrice: number;
+    maxPrice: number;
+    etaDays: number;
+    requiredDocs: string[];
+  } | null;
+  pricingBenchmark?: {
+    scenarioKey: string;
+    region: string;
+    minFee: number;
+    avgFee: number;
+    maxFee: number;
+    officialCostIncluded: boolean;
+    sourceLabel: string;
+    sourceUrl: string;
+    note?: string;
+  } | null;
+  followUp?: {
+    status?: string;
+    questions?: Array<{
+      id: string;
+      text: string;
+      type: "single_choice" | "number" | "text";
+    }>;
+    answers?: Record<string, string | number>;
+  } | null;
 }
 
 function formatPrice(n: number): string {
   return n.toLocaleString("ko-KR");
+}
+
+function formatAnswer(value: unknown): string {
+  if (value === undefined || value === null || value === "") return "미응답";
+  return String(value);
 }
 
 function PartnerCard({
@@ -302,6 +333,12 @@ export default function FunnelResults() {
   if (!results) return null;
 
   const hasPartners = Boolean(results.recommended) || results.compareTop3.length > 0 || results.sponsored.length > 0;
+  const preview = results.preview || null;
+  const previewAverage = preview ? Math.round((Number(preview.minPrice || 0) + Number(preview.maxPrice || 0)) / 2) : null;
+  const pricingBenchmark = results.pricingBenchmark || null;
+  const followUpQuestions = Array.isArray(results.followUp?.questions) ? results.followUp?.questions : [];
+  const followUpAnswers = results.followUp?.answers || {};
+  const answeredFollowUp = followUpQuestions.filter((q) => followUpAnswers[q.id] !== undefined && followUpAnswers[q.id] !== null && String(followUpAnswers[q.id]).trim() !== "");
 
   return (
     <div className="uw-container" style={{ maxWidth: 960, margin: "0 auto", paddingTop: 60, paddingBottom: 80 }}>
@@ -388,6 +425,104 @@ export default function FunnelResults() {
           <div style={{ color: "var(--uw-fog)", fontSize: 13 }}>진단 결과를 요약하고 추천 기준/다음 단계를 제안합니다.</div>
         )}
       </div>
+
+      {(preview || answeredFollowUp.length > 0) && (
+        <div className="uw-card" style={{ padding: 24, marginBottom: 24 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)", marginBottom: 12 }}>
+            반영된 진단 요약
+          </div>
+          {pricingBenchmark && (
+            <div style={{ padding: 16, borderRadius: 14, background: "rgba(97, 60, 240, 0.06)", border: "1px solid rgba(97, 60, 240, 0.12)", marginBottom: 20 }}>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 8 }}>시장 평균 벤치마크</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--uw-fog)", marginBottom: 6 }}>시장 범위</div>
+                  <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
+                    ₩{formatPrice(pricingBenchmark.minFee)}~₩{formatPrice(pricingBenchmark.maxFee)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--uw-fog)", marginBottom: 6 }}>시장 평균</div>
+                  <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
+                    ₩{formatPrice(pricingBenchmark.avgFee)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--uw-fog)", marginBottom: 6 }}>비용 기준</div>
+                  <div style={{ fontSize: 14, color: "var(--uw-slate)", lineHeight: 1.6 }}>
+                    {pricingBenchmark.officialCostIncluded ? "공과금 포함 기준" : "대행 수수료 중심 기준"}
+                  </div>
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", marginTop: 10 }}>
+                출처: <a href={pricingBenchmark.sourceUrl} target="_blank" rel="noreferrer">{pricingBenchmark.sourceLabel}</a>
+              </div>
+              {pricingBenchmark.note && (
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", marginTop: 6 }}>
+                  {pricingBenchmark.note}
+                </div>
+              )}
+            </div>
+          )}
+          {preview && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: answeredFollowUp.length > 0 ? 20 : 0 }}>
+              <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>예상 비용 범위</div>
+                <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
+                  ₩{formatPrice(preview.minPrice)}~₩{formatPrice(preview.maxPrice)}
+                </div>
+              </div>
+              {previewAverage !== null && (
+                <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
+                  <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>기준 평균값</div>
+                  <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
+                    ₩{formatPrice(previewAverage)}
+                  </div>
+                </div>
+              )}
+              <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>예상 기간</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
+                  {t('funnel.days', { count: preview.etaDays })}
+                </div>
+              </div>
+              <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>참고</div>
+                <div style={{ fontSize: 13, color: "var(--uw-slate)", lineHeight: 1.6 }}>
+                  현재 시나리오 기준 예상 범위입니다. 파트너 수급과 추가 조건에 따라 달라질 수 있습니다.
+                </div>
+              </div>
+            </div>
+          )}
+          {preview && Array.isArray(preview.requiredDocs) && preview.requiredDocs.length > 0 && (
+            <div style={{ marginBottom: answeredFollowUp.length > 0 ? 16 : 0 }}>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 8 }}>예상 준비 서류</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {preview.requiredDocs.map((doc) => (
+                  <span key={doc} className="uw-badge" style={{ fontSize: 12 }}>
+                    {doc}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {answeredFollowUp.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 8 }}>반영된 추가 질문 답변</div>
+              <div style={{ display: "grid", gap: 10 }}>
+                {answeredFollowUp.map((q) => (
+                  <div key={q.id} style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
+                    <div style={{ fontSize: 13, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>{q.text}</div>
+                    <div style={{ fontSize: 15, color: "var(--uw-ink)", fontWeight: 700 }}>
+                      {formatAnswer(followUpAnswers[q.id])}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="animate-slide-up" style={{ marginBottom: 48 }}>
         <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>

@@ -19,6 +19,7 @@ import { listGeneratedFunnelScenarios } from "../../lib/registry_funnel_scenario
 import { loadPartnerTaxonomy, normalizeByAllowWithAliases, sanitizeListWithAliases } from "../../lib/partner_taxonomy";
 import { loadMatchingWeights } from "../../lib/matching_weights";
 import { getDesiredSpecialtiesForScenarioKey, getPreferredTagsForScenarioKey, normalizeScenarioKeys } from "../../lib/scenario_partner_match";
+import { DEFAULT_PRICING_BENCHMARKS } from "../../lib/ops_settings";
 
 function parseJsonText(text: string): any {
   const t = String(text || "").trim();
@@ -705,6 +706,9 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
       }
       
       const sessionData = sessionDoc.data() as any;
+      const pricingSnap = await db.collection("ops_settings").doc("pricing_benchmarks").get();
+      const pricingItems = Array.isArray(pricingSnap.data()?.items) ? pricingSnap.data()?.items : DEFAULT_PRICING_BENCHMARKS;
+      const pricingBenchmark = pricingItems.find((item: any) => String(item?.scenarioKey || "") === String(sessionData?.scenarioKey || "")) || null;
       if (sessionData.status !== "completed") {
         // 완벽하게 막을 수도 있지만 유연성을 위해 경고만 줄 수도 있음. 여기서는 그냥 진행 허용.
       }
@@ -821,7 +825,10 @@ export function registerFunnelRoutes(app: Express, adminApp: typeof admin) {
         recommended,
         compareTop3,
         sponsored: sponsoredPartners,
-        ai: sessionData.aiSuggestions || null
+        ai: sessionData.aiSuggestions || null,
+        preview: sessionData.preview || null,
+        followUp: sessionData.followUp || null,
+        pricingBenchmark,
       }, requestId);
 
     } catch (error: any) {
