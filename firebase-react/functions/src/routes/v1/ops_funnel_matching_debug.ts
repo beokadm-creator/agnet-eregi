@@ -151,6 +151,47 @@ async function loadPublishedScenarios(db: admin.firestore.Firestore): Promise<Fu
 export function registerOpsFunnelMatchingDebugRoutes(app: Express, adminApp: typeof admin) {
   const db = adminApp.firestore();
 
+  app.get("/v1/ops/funnel-sessions/recent", async (req, res) => {
+    try {
+      const auth = await requireAuth(adminApp, req, res);
+      if (!auth) return;
+      if (!isOps(auth)) return fail(res, 403, "FORBIDDEN", "운영자만 접근 가능합니다.");
+      const hasRole = await requireOpsRole(adminApp, req, res, auth, "ops_viewer");
+      if (!hasRole) return;
+
+      const limitRaw = Number(req.query.limit || 20);
+      const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 20;
+      const snap = await db.collection("funnel_sessions")
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .get();
+
+      const items = snap.docs.map((doc) => {
+        const data = doc.data() as any;
+        const followUpAnswers = data?.followUp?.answers && typeof data.followUp.answers === "object"
+          ? Object.values(data.followUp.answers).filter((v) => v !== undefined && v !== null && String(v).trim() !== "").length
+          : 0;
+
+        return {
+          sessionId: doc.id,
+          scenarioKey: String(data?.scenarioKey || ""),
+          scenarioVersion: Number(data?.scenarioVersion || 1),
+          status: String(data?.status || ""),
+          createdAt: data?.createdAt || null,
+          updatedAt: data?.updatedAt || null,
+          answerCount: data?.answers && typeof data.answers === "object" ? Object.keys(data.answers).length : 0,
+          followUpStatus: String(data?.followUp?.status || ""),
+          followUpAnswerCount: followUpAnswers,
+        };
+      });
+
+      return ok(res, { items });
+    } catch (err: any) {
+      logError({ endpoint: "ops/funnel-sessions/recent/get", code: "INTERNAL", messageKo: "최근 퍼널 세션 조회 실패", err });
+      return fail(res, 500, "INTERNAL", "최근 퍼널 세션 조회 실패");
+    }
+  });
+
   app.get("/v1/ops/funnel-sessions/:sessionId/matching-debug", async (req, res) => {
     try {
       const auth = await requireAuth(adminApp, req, res);
