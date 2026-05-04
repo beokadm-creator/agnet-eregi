@@ -36,9 +36,10 @@ export default function OpsLayout({ onLogout }: { onLogout: () => void }) {
           <NavLink to="/release" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>릴리즈 관리</NavLink>
           <NavLink to="/system" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>시스템 관리</NavLink>
           <NavLink to="/funnel-scenarios" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>퍼널 시나리오</NavLink>
-          <NavLink to="/partner-taxonomy" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>파트너 분류</NavLink>
-          <NavLink to="/matching-weights" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>매칭 가중치</NavLink>
-          <NavLink to="/matching-debug" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>매칭 디버그</NavLink>
+          <NavLink to="/matching-settings" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>매칭 설정</NavLink>
+          <NavLink to="/partner-taxonomy" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>매칭 기준값</NavLink>
+          <NavLink to="/matching-weights" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>점수 규칙</NavLink>
+          <NavLink to="/matching-debug" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>결과 검증</NavLink>
 
           <div className="ops-nav-section">기록</div>
           <NavLink to="/audit-logs" className={({ isActive }) => `ops-nav-item${isActive ? ' active' : ''}`}>감사 로그</NavLink>

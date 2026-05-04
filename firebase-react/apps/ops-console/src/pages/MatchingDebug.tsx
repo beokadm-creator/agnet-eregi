@@ -23,8 +23,8 @@ export default function MatchingDebug() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <h1 className="ops-title">매칭 디버그</h1>
-        <p className="ops-subtitle">세션 기준으로 추천 점수/근거와 현재 taxonomy/weights를 확인합니다.</p>
+        <h1 className="ops-title">결과 검증</h1>
+        <p className="ops-subtitle">세션 기준으로 추천 점수, 노출 근거, 현재 기준값/점수 규칙 적용 결과를 검증합니다.</p>
       </div>
 
       <div className="ops-panel">
@@ -82,4 +82,3 @@ export default function MatchingDebug() {
     </div>
   );
 }
-

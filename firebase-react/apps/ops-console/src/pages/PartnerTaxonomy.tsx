@@ -65,8 +65,8 @@ export default function PartnerTaxonomy() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <h1 className="ops-title">파트너 분류</h1>
-        <p className="ops-subtitle">regions / specialties / tags 허용값을 정의합니다. 매칭 및 필터링의 기준이 됩니다.</p>
+        <h1 className="ops-title">매칭 기준값</h1>
+        <p className="ops-subtitle">파트너의 지역, 전문분야, 태그, scenarioKey 허용값을 관리합니다. 매칭과 필터링의 공통 기준입니다.</p>
       </div>
 
       <div className="ops-panel">

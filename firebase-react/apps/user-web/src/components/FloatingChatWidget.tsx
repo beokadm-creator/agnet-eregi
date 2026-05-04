@@ -130,7 +130,7 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
 
   return (
     <div style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, fontFamily: 'var(--ar-font-ui)' }}>
-      <button id="chatbot-fab" onClick={() => setIsOpen(true)} style={{ display: 'none' }} />
+      <button id="chatbot-fab" onClick={() => setIsOpen(true)} style={{ display: 'none' }} aria-hidden="true" />
       {isOpen ? (
         <div style={{
           width: 350,
@@ -252,9 +252,9 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
         <button
           onClick={() => setIsOpen(true)}
           style={{
-            width: 60,
-            height: 60,
-            borderRadius: '30px',
+            minWidth: 148,
+            height: 56,
+            borderRadius: '28px',
             backgroundColor: 'var(--ar-accent)',
             color: 'var(--ar-canvas)',
             border: 'none',
@@ -263,10 +263,18 @@ export default function FloatingChatWidget({ token }: FloatingChatWidgetProps) {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            fontSize: '24px'
+            gap: 10,
+            padding: '0 18px',
+            fontSize: '15px',
+            fontWeight: 700
           }}
+          aria-label="AI 상담 열기"
         >
-          💬
+          <span style={{ fontSize: 20, lineHeight: 1 }}>💬</span>
+          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.1 }}>
+            <span>AI 상담</span>
+            <span style={{ fontSize: 11, fontWeight: 500, opacity: 0.85 }}>바로 문의하기</span>
+          </span>
         </button>
       )}
     </div>

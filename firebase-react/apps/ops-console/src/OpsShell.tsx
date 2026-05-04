@@ -26,6 +26,7 @@ import PartnerTaxonomy from "./pages/PartnerTaxonomy";
 import Partners from "./pages/Partners";
 import MatchingWeights from "./pages/MatchingWeights";
 import MatchingDebug from "./pages/MatchingDebug";
+import MatchingSettings from "./pages/MatchingSettings";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, isReady, accessDenied } = useAuth();
@@ -80,6 +81,7 @@ export default function App() {
             <Route path="release" element={<Release />} />
             <Route path="system" element={<System />} />
             <Route path="funnel-scenarios" element={<FunnelScenarios />} />
+            <Route path="matching-settings" element={<MatchingSettings />} />
             <Route path="partner-taxonomy" element={<PartnerTaxonomy />} />
             <Route path="matching-weights" element={<MatchingWeights />} />
             <Route path="matching-debug" element={<MatchingDebug />} />
