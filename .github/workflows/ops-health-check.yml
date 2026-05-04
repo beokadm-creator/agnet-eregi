@@ -1,0 +1,138 @@
+name: Ops Health Check
+run-name: "ops-health"
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "점검할 환경"
+        required: true
+        type: choice
+        options:
+          - staging
+          - prod
+          - all
+        default: all
+      freshness:
+        description: "로그 조회 범위 (예: 24h, 72h)"
+        required: false
+        type: string
+        default: "72h"
+      log_limit:
+        description: "로그 최대 조회 개수"
+        required: false
+        type: string
+        default: "20"
+  schedule:
+    # KST 09:00 = UTC 00:00
+    - cron: "0 0 * * *"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      freshness: ${{ steps.set-config.outputs.freshness }}
+      log_limit: ${{ steps.set-config.outputs.log_limit }}
+    steps:
+      - name: Set config
+        id: set-config
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "freshness=24h" >> "$GITHUB_OUTPUT"
+            echo "log_limit=20" >> "$GITHUB_OUTPUT"
+          else
+            echo "freshness=${{ inputs.freshness }}" >> "$GITHUB_OUTPUT"
+            echo "log_limit=${{ inputs.log_limit }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build matrix
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo 'matrix={"environment":["staging","prod"]}' >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.environment }}" = "all" ]; then
+            echo 'matrix={"environment":["staging","prod"]}' >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix={\"environment\":[\"${{ inputs.environment }}\"]}" >> "$GITHUB_OUTPUT"
+          fi
+
+  health-check:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: firebase-react/package-lock.json
+
+      - name: Install deps
+        working-directory: firebase-react
+        run: npm ci
+
+      - name: Authenticate to Google Cloud (staging)
+        if: matrix.environment == 'staging'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_STAGING }}
+
+      - name: Authenticate to Google Cloud (prod)
+        if: matrix.environment == 'prod'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_PROD }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run ops health check
+        env:
+          OPS_HEALTH_FRESHNESS: ${{ needs.prepare.outputs.freshness }}
+          OPS_HEALTH_LOG_LIMIT: ${{ needs.prepare.outputs.log_limit }}
+          LOG_PATH: ${{ github.workspace }}/ops-health-${{ matrix.environment }}.log
+        run: |
+          set -o pipefail
+          cd firebase-react
+          npm run ops:health:${{ matrix.environment }} | tee "$LOG_PATH"
+
+      - name: Append workflow summary
+        if: always()
+        env:
+          LOG_PATH: ${{ github.workspace }}/ops-health-${{ matrix.environment }}.log
+        run: |
+          ENV_NAME_UPPER="$(echo "${{ matrix.environment }}" | tr '[:lower:]' '[:upper:]')"
+          {
+            echo "## ${ENV_NAME_UPPER} Health Check"
+            echo ""
+            echo "- Environment: \`${{ matrix.environment }}\`"
+            echo "- Trigger: \`${{ github.event_name }}\`"
+            echo "- Freshness: \`${{ needs.prepare.outputs.freshness }}\`"
+            echo "- Log limit: \`${{ needs.prepare.outputs.log_limit }}\`"
+            echo ""
+            echo '```text'
+            if [ -f "$LOG_PATH" ]; then
+              cat "$LOG_PATH"
+            else
+              echo "No log output captured."
+            fi
+            echo '```'
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+        shell: bash
+
+      - name: Upload health check log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ops-health-${{ matrix.environment }}-log
+          path: ${{ github.workspace }}/ops-health-${{ matrix.environment }}.log
+          if-no-files-found: warn

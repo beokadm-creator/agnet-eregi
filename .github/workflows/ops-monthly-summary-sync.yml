@@ -1,0 +1,138 @@
+name: Ops Monthly Summary Sync
+run-name: "monthly-summary ${{ inputs.gate_key }} ${{ inputs.target_month }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      gate_key:
+        description: "단일 동기화할 gateKey (비우면 전체 gateKeys 실행)"
+        required: false
+        type: string
+      gate_keys:
+        description: "동기화할 gateKey 목록 (JSON 배열 문자열)"
+        required: false
+        type: string
+        default: '["pilot-gate", "partner-gate", "billing-gate"]'
+      target_month:
+        description: "동기화할 월 (YYYY-MM). 비우면 KST 기준 이번 달"
+        required: false
+        type: string
+      output_mode:
+        description: "파일 생성 모드 (separate 또는 append-to-log)"
+        required: false
+        type: choice
+        options:
+          - separate
+          - append-to-log
+        default: 'separate'
+  schedule:
+    # 매월 1일 KST 00:15 = UTC 전월 말일 15:15
+    # 여기서는 매일 돌도록 해서 실시간 반영되게 할 수도 있지만, 
+    # 월간 요약이므로 매일 새벽(UTC 15:15)마다 돌도록 설정 (일일 로그 싱크 이후)
+    - cron: "15 15 * * *"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      gate_keys: ${{ steps.set-gates.outputs.gate_keys }}
+      target_month: ${{ steps.set-meta.outputs.target_month }}
+      kst_date: ${{ steps.set-meta.outputs.kst_date }}
+    steps:
+      - name: Set gate keys
+        id: set-gates
+        run: |
+          if [ -n "${{ github.event.inputs.gate_key }}" ]; then
+            echo "gate_keys=[\"${{ github.event.inputs.gate_key }}\"]" >> $GITHUB_OUTPUT
+          elif [ -n "${{ github.event.inputs.gate_keys }}" ]; then
+            echo "gate_keys=${{ github.event.inputs.gate_keys }}" >> $GITHUB_OUTPUT
+          else
+            echo 'gate_keys=["pilot-gate", "partner-gate", "billing-gate"]' >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set target month
+        id: set-meta
+        run: |
+          export TZ="Asia/Seoul"
+          KST_DATE=$(date +"%Y-%m-%d")
+          if [ -n "${{ github.event.inputs.target_month }}" ]; then
+            TARGET_MONTH="${{ github.event.inputs.target_month }}"
+          else
+            TARGET_MONTH=$(date +"%Y-%m")
+          fi
+          echo "target_month=${TARGET_MONTH}" >> "$GITHUB_OUTPUT"
+          echo "kst_date=${KST_DATE}" >> "$GITHUB_OUTPUT"
+
+  sync-summary:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        gateKey: ${{ fromJson(needs.prepare.outputs.gate_keys) }}
+      fail-fast: false
+    
+    concurrency:
+      group: ops-monthly-summary-sync-${{ matrix.gateKey }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: 'npm'
+          cache-dependency-path: 'firebase-react/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: firebase-react
+        run: npm ci
+
+      - name: Inject Markdown Summary into Spec
+        id: generate
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          TARGET_MONTH: ${{ needs.prepare.outputs.target_month }}
+          GATE_KEY: ${{ matrix.gateKey }}
+          OUTPUT_MODE: ${{ github.event.inputs.output_mode || 'separate' }}
+        run: node firebase-react/scripts/ops_monthly_summary_sync.mjs
+
+      - name: Create or Update Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GATE_KEY: ${{ matrix.gateKey }}
+          TARGET_MONTH: ${{ needs.prepare.outputs.target_month }}
+          KST_DATE: ${{ needs.prepare.outputs.kst_date }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 파일 변경 여부 확인
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes to commit. Exiting."
+            exit 0
+          fi
+          
+          BRANCH_NAME="bot/ops-monthly-summary-${GATE_KEY}-${TARGET_MONTH}"
+
+          # 현재 브랜치에서 새 브랜치로 분기 (이름 중복 방지)
+          git checkout -b ${BRANCH_NAME}
+
+          git add spec/00-index/
+          git commit -m "docs(ops): sync monthly summary ${TARGET_MONTH} (${GATE_KEY})"
+          git push -f origin ${BRANCH_NAME}
+
+          # PR 존재 여부 확인 및 생성
+          PR_EXISTS=$(gh pr list --head ${BRANCH_NAME} --json number --jq 'length')
+          if [ "$PR_EXISTS" -eq "0" ]; then
+            gh pr create \
+              --title "docs(ops): sync monthly summary ${TARGET_MONTH} (${GATE_KEY})" \
+              --body "This PR auto-syncs the ops monthly summary from Firestore for ${GATE_KEY} (${TARGET_MONTH})." \
+              --label "ops,automation,report" || true
+          else
+            echo "PR already exists for ${BRANCH_NAME}. Changes pushed."
+          fi

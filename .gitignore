@@ -1,0 +1,12 @@
+node_modules/
+dist/
+/lib/
+build/
+.DS_Store
+*.log
+.env
+.env.local
+firebase-react/functions/lib/
+firebase-react/**/playwright-report/
+firebase-react/**/test-results/
+.sisyphus/

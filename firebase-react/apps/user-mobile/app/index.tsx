@@ -1,0 +1,188 @@
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { router } from "expo-router";
+import auth from "@react-native-firebase/auth";
+import * as GoogleSignIn from "@react-native-google-signin/google-signin";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
+import { getApiBaseUrl } from "../lib/apiBase";
+import { T, R, S, FS, FW, BH } from '../lib/tokens';
+
+export default function Index() {
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const unsub = auth().onAuthStateChanged((u: any) => {
+      if (u) {
+        (async () => {
+          try {
+            const token = await u.getIdToken();
+            const res = await fetch(`${getApiBaseUrl()}/v1/user/account/deletion-status`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const json: any = await res.json().catch(() => null);
+            const status = json?.data?.status || json?.status;
+            if (status === "queued" || status === "processing") {
+              Alert.alert("계정 삭제 진행 중", "계정 삭제가 진행 중입니다. 완료 후 다시 시도해주세요.");
+              await auth().signOut();
+              router.replace("/");
+              setReady(true);
+              return;
+            }
+          } catch {}
+          router.replace("/(tabs)/home");
+        })();
+        return;
+      }
+      setReady(true);
+    });
+    return () => unsub();
+  }, []);
+
+  async function signInWithGoogle() {
+    setBusy(true);
+    try {
+      const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+      if (!webClientId) throw new Error("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID 환경변수가 필요합니다.");
+      GoogleSignIn.GoogleSignin.configure({ webClientId });
+
+      await GoogleSignIn.GoogleSignin.hasPlayServices();
+      await GoogleSignIn.GoogleSignin.signIn();
+      const tokens = await GoogleSignIn.GoogleSignin.getTokens();
+      const idToken = (tokens as any)?.idToken;
+      if (!idToken) throw new Error("Google idToken을 가져오지 못했습니다.");
+
+      const credential = auth.GoogleAuthProvider.credential(idToken);
+      await auth().signInWithCredential(credential);
+      router.replace("/(tabs)/home");
+    } catch (e: any) {
+      Alert.alert("로그인 실패", e?.message || "Unknown failure");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signInWithApple() {
+    setBusy(true);
+    try {
+      const bytes = await Crypto.getRandomBytesAsync(16);
+      const rawNonce = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: hashedNonce,
+      });
+      if (!credential.identityToken) throw new Error("Apple identityToken을 가져오지 못했습니다.");
+      const appleCredential = auth.AppleAuthProvider.credential(credential.identityToken, rawNonce);
+      await auth().signInWithCredential(appleCredential);
+      router.replace("/(tabs)/home");
+    } catch (e: any) {
+      if (e?.code === "ERR_REQUEST_CANCELED") return;
+      Alert.alert("로그인 실패", e?.message || "Unknown failure");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signInAsGuest() {
+    setBusy(true);
+    try {
+      await auth().signInAnonymously();
+      router.replace("/(tabs)/home");
+    } catch (e: any) {
+      Alert.alert("로그인 실패", e?.message || "Unknown failure");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!ready) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>AgentRegi</Text>
+      <Text style={styles.subtitle}>로그인 후 내 사건을 확인하세요.</Text>
+
+      <Pressable style={[styles.button, busy && styles.buttonDisabled]} onPress={signInWithGoogle} disabled={busy}>
+        <Text style={styles.buttonText}>Google 로그인</Text>
+      </Pressable>
+
+      <AppleAuthentication.AppleAuthenticationButton
+        buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+        cornerRadius={R.btn}
+        style={{ width: "100%", height: BH.lg, marginTop: S.md }}
+        onPress={busy ? () => {} : signInWithApple}
+      />
+
+      <Pressable style={[styles.buttonSecondary, busy && styles.buttonDisabled]} onPress={signInAsGuest} disabled={busy}>
+        <Text style={styles.buttonTextSecondary}>게스트로 시작</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: T.paper,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: S.lg,
+  },
+  title: {
+    fontSize: FS.h2,
+    fontWeight: FW.bold,
+    marginBottom: S.base,
+    color: T.ink,
+  },
+  subtitle: {
+    fontSize: FS.md,
+    marginBottom: S.xl,
+    color: T.graphite,
+    textAlign: "center",
+  },
+  button: {
+    width: "100%",
+    height: BH.lg,
+    borderRadius: R.btn,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: T.accent,
+  },
+  buttonSecondary: {
+    width: "100%",
+    height: BH.lg,
+    borderRadius: R.btn,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: T.surfaceMuted,
+    marginTop: S.md,
+    borderWidth: 1,
+    borderColor: T.hairline,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonText: {
+    color: T.canvas,
+    fontWeight: FW.bold,
+    fontSize: FS.md,
+  },
+  buttonTextSecondary: {
+    color: T.ink,
+    fontWeight: FW.bold,
+    fontSize: FS.md,
+  },
+});

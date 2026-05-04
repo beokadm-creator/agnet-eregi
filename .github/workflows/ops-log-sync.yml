@@ -1,0 +1,229 @@
+name: Ops Log Sync (Firestore → spec markdown)
+
+on:
+  workflow_dispatch:
+    inputs:
+      gate_key:
+        description: "단일 동기화할 gateKey (비우면 전체 gateKeys 실행)"
+        required: false
+        type: string
+      gate_keys:
+        description: "동기화할 gateKey 목록 (JSON 배열 문자열)"
+        required: false
+        type: string
+        default: '["pilot-gate", "partner-gate", "billing-gate"]'
+      target_month:
+        description: "동기화할 월 (YYYY-MM). 비우면 KST 기준 현재 월"
+        required: false
+        type: string
+  schedule:
+    # GitHub Actions cron is UTC. KST 00:10 = UTC 15:10 (전일)
+    - cron: "10 15 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      gate_keys: ${{ steps.set-gates.outputs.gate_keys }}
+    steps:
+      - name: Set gate keys
+        id: set-gates
+        run: |
+          if [ -n "${{ github.event.inputs.gate_key }}" ]; then
+            echo "gate_keys=[\"${{ github.event.inputs.gate_key }}\"]" >> $GITHUB_OUTPUT
+          elif [ -n "${{ github.event.inputs.gate_keys }}" ]; then
+            echo "gate_keys=${{ github.event.inputs.gate_keys }}" >> $GITHUB_OUTPUT
+          else
+            echo 'gate_keys=["pilot-gate", "partner-gate", "billing-gate"]' >> $GITHUB_OUTPUT
+          fi
+
+  sync:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        gateKey: ${{ fromJson(needs.prepare.outputs.gate_keys) }}
+      fail-fast: false
+    
+    concurrency:
+      group: ops-log-sync-${{ matrix.gateKey }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: firebase-react/package-lock.json
+
+      - name: Install deps (firebase-react)
+        run: npm ci
+        working-directory: firebase-react
+
+      - name: Compute meta (KST)
+        id: meta
+        env:
+          INPUT_TARGET_MONTH: ${{ inputs.target_month }}
+        run: |
+          set -euo pipefail
+          KST_DATE="$(TZ=Asia/Seoul date +%Y-%m-%d)"
+          if [ -n "${INPUT_TARGET_MONTH}" ]; then
+            TARGET_MONTH="${INPUT_TARGET_MONTH}"
+          else
+            TARGET_MONTH="$(TZ=Asia/Seoul date +%Y-%m)"
+          fi
+          BRANCH_NAME="bot/ops-log-sync-${{ matrix.gateKey }}-${KST_DATE}"
+          echo "kst_date=${KST_DATE}" >> "$GITHUB_OUTPUT"
+          echo "target_month=${TARGET_MONTH}" >> "$GITHUB_OUTPUT"
+          echo "branch_name=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate markdown from Firestore
+        id: generate
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          TARGET_MONTH: ${{ steps.meta.outputs.target_month }}
+          GATE_KEY: ${{ matrix.gateKey }}
+        run: node firebase-react/scripts/ops_log_sync.mjs
+
+      - name: Backup to Cloud Storage
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON_STORAGE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON_STORAGE || secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          TARGET_MONTH: ${{ steps.meta.outputs.target_month }}
+          GATE_KEY: ${{ matrix.gateKey }}
+          SYNC_FILE: ${{ steps.generate.outputs.sync_file }}
+        run: node firebase-react/scripts/ops_log_storage_backup.mjs
+
+      - name: Detect changes
+        id: changes
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit & push
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          BRANCH_NAME: ${{ steps.meta.outputs.branch_name }}
+          TARGET_MONTH: ${{ steps.meta.outputs.target_month }}
+        run: |
+          set -euo pipefail
+          git config user.name "ops-log-sync-bot"
+          git config user.email "ops-log-sync-bot@users.noreply.github.com"
+          git checkout -b "${BRANCH_NAME}"
+          git add spec/00-index/
+          git commit -m "chore(ops): sync ops log ${TARGET_MONTH} (${{ matrix.gateKey }})"
+          git push --set-upstream origin "${BRANCH_NAME}"
+
+      - name: Open PR (github-script)
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        env:
+          BRANCH_NAME: ${{ steps.meta.outputs.branch_name }}
+          TARGET_MONTH: ${{ steps.meta.outputs.target_month }}
+          SYNC_DAYS: ${{ steps.generate.outputs.sync_days }}
+          SYNC_FILE: ${{ steps.generate.outputs.sync_file }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const head = process.env.BRANCH_NAME;
+            const base = context.payload.repository.default_branch;
+            const targetMonth = process.env.TARGET_MONTH;
+            const syncDays = process.env.SYNC_DAYS;
+            const syncFile = process.env.SYNC_FILE;
+
+            const title = `chore(ops): sync ops log ${targetMonth} (${{ matrix.gateKey }})`;
+            const body = [
+              `Firestore(ops_daily_logs) 기반으로 월별 SSOT 마크다운을 자동 갱신합니다.`,
+              ``,
+              `- **대상 월**: ${targetMonth}`,
+              `- **동기화 파일**: \`${syncFile}\``,
+              `- **집계된 로그 일수**: ${syncDays}일`,
+              `- **생성 주체**: GitHub Actions (\`ops-log-sync\`)`,
+            ].join("\n");
+
+            const existing = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: "open",
+              head: `${owner}:${head}`,
+              base,
+            });
+
+            let prNumber;
+            if (existing.data.length > 0) {
+              prNumber = existing.data[0].number;
+              core.info(`PR already exists: #${prNumber}`);
+              
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: prNumber,
+                body,
+              });
+              
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: `🔄 **Ops Log Sync Update**\n- 동기화 파일: \`${syncFile}\`\n- 집계된 로그 일수: ${syncDays}일\n- 내용이 업데이트 되었습니다.`
+              });
+              
+              core.info(`Updated PR #${prNumber} body and added comment.`);
+            } else {
+              const pr = await github.rest.pulls.create({
+                owner,
+                repo,
+                head,
+                base,
+                title,
+                body,
+              });
+              prNumber = pr.data.number;
+              core.info(`Created PR: #${prNumber} ${pr.data.html_url}`);
+            }
+
+            // 라벨 보장 로직 (404시 생성, 422 경합 무시)
+            async function ensureLabel(name, color, description) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+                try {
+                  core.info(`Label '${name}' not found. Creating...`);
+                  await github.rest.issues.createLabel({ owner, repo, name, color, description });
+                } catch (e2) {
+                  if (e2.status !== 422) throw e2; // 422=이미 존재로 간주
+                }
+              }
+            }
+
+            const requiredLabels = [
+              { name: 'ops', color: '0E8A16', description: 'Ops related' },
+              { name: 'automation', color: '5319E7', description: 'Automation' }
+            ];
+
+            for (const lbl of requiredLabels) {
+              await ensureLabel(lbl.name, lbl.color, lbl.description);
+            }
+
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: prNumber,
+              labels: requiredLabels.map(l => l.name)
+            });

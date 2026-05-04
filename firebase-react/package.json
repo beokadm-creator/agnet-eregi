@@ -1,0 +1,42 @@
+{
+  "name": "registry-platform-firebase",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "functions"
+  ],
+  "scripts": {
+    "dev:user": "npm --workspace apps/user-web run dev",
+    "dev:partner": "npm --workspace apps/partner-console run dev",
+    "dev:ops": "npm --workspace apps/ops-console run dev",
+    "build": "npm -ws run build",
+    "lint": "npm -ws run lint",
+    "format": "npm -ws run format || true",
+    "test:rules": "node scripts/rules_test.mjs",
+    "test:rules:exec": "firebase emulators:exec --project demo-rp --only auth,firestore \"node scripts/rules_test.mjs\"",
+    "gen:scenario-cards": "node scripts/generate_registry_scenario_cards.mjs",
+    "gen:funnel-scenarios": "node scripts/generate_registry_funnel_scenarios.mjs",
+    "ops:admins:check": "node scripts/ops_admin_claims_sync.mjs all",
+    "ops:admins:sync": "node scripts/ops_admin_claims_sync.mjs all --apply",
+    "ops:admins:check:staging": "node scripts/ops_admin_claims_sync.mjs staging",
+    "ops:admins:check:prod": "node scripts/ops_admin_claims_sync.mjs prod",
+    "ops:admins:sync:staging": "node scripts/ops_admin_claims_sync.mjs staging --apply",
+    "ops:admins:sync:prod": "node scripts/ops_admin_claims_sync.mjs prod --apply",
+    "ops:health": "node scripts/ops_health_check.mjs all",
+    "ops:health:staging": "node scripts/ops_health_check.mjs staging",
+    "ops:health:prod": "node scripts/ops_health_check.mjs prod",
+    "emulators": "firebase emulators:start",
+    "deploy:staging": "npm run ops:admins:sync:staging && npm run build && firebase deploy --project project-staging --force",
+    "deploy:prod": "npm run ops:admins:sync:prod && npm run build && firebase deploy --project project-prod --force",
+    "deploy:agent-eregi": "npm run ops:admins:sync:prod && npm run build && firebase deploy --project project-prod --force"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^25.6.0",
+    "firebase-admin": "^13.8.0",
+    "firebase-tools": "^15.16.0",
+    "typescript": "^6.0.3"
+  }
+}

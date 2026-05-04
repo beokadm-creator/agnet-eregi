@@ -1,0 +1,37 @@
+{
+  "projects": {
+    "default": "agent-eregi",
+    "agent-eregi": "agent-eregi",
+    "project-prod": "agent-eregi",
+    "project-staging": "agentregi-d77a3"
+  },
+  "targets": {
+    "agent-eregi": {
+      "hosting": {
+        "ops-console": [
+          "agentregi-ops-console"
+        ],
+        "partner-console": [
+          "agentregi-partner-console"
+        ],
+        "user-web": [
+          "agentregi-user-web"
+        ]
+      }
+    },
+    "agentregi-d77a3": {
+      "hosting": {
+        "user-web": [
+          "agentregi-d77a3-user-web"
+        ],
+        "partner-console": [
+          "agentregi-d77a3-partner-console"
+        ],
+        "ops-console": [
+          "agentregi-d77a3-ops-console"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

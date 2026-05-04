@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgentRegi · Hodu Design System</title>
+  <style>
+    html, body { margin: 0; padding: 0; background: #1a1a1a; }
+  </style>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="tokens.jsx"></script>
+  <script type="text/babel" src="styles.jsx"></script>
+  <script type="text/babel" src="primitives.jsx"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="artboard-system.jsx"></script>
+  <script type="text/babel" src="artboard-user.jsx"></script>
+  <script type="text/babel" src="artboard-partner.jsx"></script>
+  <script type="text/babel" src="artboard-ops.jsx"></script>
+
+  <script type="text/babel">
+    const TWEAKS = /*EDITMODE-BEGIN*/{
+      "accent": "#D87242",
+      "paper": "#FAF8F4",
+      "radiusScale": 1
+    }/*EDITMODE-END*/;
+
+    const ACCENT_OPTIONS = [
+      { label: "Cognac (호두)", value: "#D87242" },
+      { label: "Toss Blue", value: "#3182F6" },
+      { label: "당근 Orange", value: "#FF7F2A" },
+      { label: "Forest", value: "#2E8B57" },
+      { label: "Plum", value: "#8B3A62" },
+    ];
+
+    function App() {
+      const [tweaks, setTweak] = window.useTweaks(TWEAKS);
+
+      React.useEffect(() => {
+        // Convert hex to oklch-ish hover/soft via opacity tricks
+        const overrides = { accent: tweaks.accent, paper: tweaks.paper };
+        // Recompute soft variants by mixing accent with paper
+        window.AR_applyTokens(overrides);
+        // Set computed accent-soft via color-mix in CSS
+        document.documentElement.style.setProperty('--ar-accent-soft', `color-mix(in oklab, ${tweaks.accent} 12%, ${tweaks.paper})`);
+        document.documentElement.style.setProperty('--ar-accent-ink', `color-mix(in oklab, ${tweaks.accent} 70%, #000)`);
+        document.documentElement.style.setProperty('--ar-accent-hover', `color-mix(in oklab, ${tweaks.accent} 80%, #000)`);
+        document.documentElement.style.setProperty('--ar-accent-deep', `color-mix(in oklab, ${tweaks.accent} 50%, #000)`);
+      }, [tweaks.accent, tweaks.paper]);
+
+      const { DesignCanvas, DCSection, DCArtboard } = window;
+
+      return (
+        <>
+          <DesignCanvas
+            title="AgentRegi · Hodu Design System"
+            subtitle="법인 등기를 가장 쉽게 — User · Partner · Ops 통합 가이드"
+          >
+            <DCSection id="system" title="01 · 디자인 시스템 가이드">
+              <DCArtboard id="ds" label="Design tokens · type · color · components" width={1280} height={1820}>
+                <window.SystemArtboard />
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="user" title="02 · User Web — 의뢰 시작 (랜딩)">
+              <DCArtboard id="user-landing" label="agentregi-user-web · 첫 인상 · 직방 메타포" width={1280} height={1620}>
+                <window.UserWebArtboard />
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="partner" title="03 · Partner Console — 케이스 워크보드">
+              <DCArtboard id="partner-board" label="agentregi-partner-console · 사건 칸반 · 정보 밀도 중" width={1440} height={1000}>
+                <window.PartnerArtboard />
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="ops" title="04 · Ops Console — 플랫폼 헬스 대시보드">
+              <DCArtboard id="ops-health" label="agentregi-ops-console · SLO · 인시던트 · 배치 실행" width={1440} height={980}>
+                <window.OpsArtboard />
+              </DCArtboard>
+            </DCSection>
+          </DesignCanvas>
+
+          <window.TweaksPanel title="Tweaks">
+            <window.TweakSection title="브랜드 액센트">
+              <window.TweakRadio
+                label="액센트 컬러"
+                value={tweaks.accent}
+                options={ACCENT_OPTIONS}
+                onChange={(v) => setTweak('accent', v)}
+              />
+              <window.TweakColor
+                label="커스텀 컬러"
+                value={tweaks.accent}
+                onChange={(v) => setTweak('accent', v)}
+              />
+            </window.TweakSection>
+            <window.TweakSection title="페이퍼 톤">
+              <window.TweakRadio
+                label="배경"
+                value={tweaks.paper}
+                options={[
+                  { label: "Warm (#FAF8F4)", value: "#FAF8F4" },
+                  { label: "Pure white", value: "#FFFFFF" },
+                  { label: "Cool gray", value: "#F6F7F9" },
+                ]}
+                onChange={(v) => setTweak('paper', v)}
+              />
+            </window.TweakSection>
+          </window.TweaksPanel>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
