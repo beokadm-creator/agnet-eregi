@@ -30,6 +30,116 @@ function parseJsonText(text: string): any {
   }
 }
 
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => String(item || "").trim())
+    .filter((item) => item.length > 0);
+}
+
+function buildFallbackAiSuggestions(input: {
+  scenarioCard: any;
+  scenarioKey: string;
+  answers: Record<string, any>;
+}): {
+  summaryKo: string;
+  recommendedNextStepsKo: string[];
+  recommendedPartnerCriteriaKo: string[];
+  suggestedQuestionsKo: string[];
+  followUpQuestions: Array<{
+    type: "single_choice" | "text";
+    text: string;
+    options?: string[];
+    required: boolean;
+    depth: number;
+    why: string;
+  }>;
+} {
+  const scenarioTitle =
+    String(input.scenarioCard?.displayName || input.scenarioCard?.title || input.scenarioKey || "등기 절차").trim();
+  const region = String(input.answers?.q_region || "").trim();
+  const sealReady = String(input.answers?.q_seal_ready || "").trim();
+  const deadlineKnown = String(input.answers?.q_deadline || "").trim();
+
+  const summaryParts = [
+    `${scenarioTitle} 절차로 분류되었고, 현재 입력된 응답 기준으로 제출 전 핵심 정보와 준비 서류를 한 번 더 정리할 단계입니다.`,
+    region ? `${region} 기준 진행 여부와 제출 순서를 함께 점검하는 것이 좋습니다.` : "관할과 제출 순서를 함께 점검하는 것이 좋습니다.",
+  ];
+
+  const nextSteps = [
+    "등기 목적, 당사자 정보, 제출 서류를 한 번에 확인할 수 있도록 정리하세요.",
+    sealReady ? `인감 준비 상태(${sealReady})에 맞춰 제작 또는 제출 일정을 먼저 확정하세요.` : "인감, 위임장, 주소 증빙 등 누락되기 쉬운 서류를 먼저 확인하세요.",
+    "제출 전 보정 가능성이 높은 항목을 체크하고, 필요한 경우 전문가 검토를 요청하세요.",
+  ];
+
+  const criteria = [
+    `${scenarioTitle} 처리 경험이 있는 파트너`,
+    region ? `${region} 관할 또는 동일 지역 사건 경험` : "유사 사건 처리 경험과 절차 이해도",
+    "보정 대응 속도와 커뮤니케이션이 빠른 파트너",
+  ];
+
+  const suggestedQuestions = [
+    deadlineKnown ? `현재 확인된 일정(${deadlineKnown}) 외에 내부 마감일이 더 있나요?` : "반드시 맞춰야 하는 제출 기한이 있나요?",
+    "아직 확정되지 않은 등기 정보나 의사결정 항목이 있나요?",
+    "추가 발급이 필요한 증빙 서류나 위임 문서가 있나요?",
+  ];
+
+  return {
+    summaryKo: summaryParts.join(" "),
+    recommendedNextStepsKo: nextSteps,
+    recommendedPartnerCriteriaKo: criteria,
+    suggestedQuestionsKo: suggestedQuestions,
+    followUpQuestions: [
+      {
+        type: "single_choice",
+        text: "반드시 맞춰야 하는 제출 일정이 있나요?",
+        options: ["있음", "없음", "아직 미정"],
+        required: true,
+        depth: 1,
+        why: "일정이 있으면 처리 우선순위와 준비 순서가 달라질 수 있습니다.",
+      },
+      {
+        type: "single_choice",
+        text: "현재 기준으로 추가 발급이 필요한 서류가 있나요?",
+        options: ["있음", "없음", "확인 필요"],
+        required: true,
+        depth: 2,
+        why: "추가 서류 여부에 따라 보정 가능성과 전체 소요 시간이 달라집니다.",
+      },
+      {
+        type: "text",
+        text: "가장 걱정되는 준비 항목이나 아직 확정되지 않은 내용을 적어주세요.",
+        required: true,
+        depth: 2,
+        why: "불확실한 지점을 먼저 확인하면 후속 질문과 파트너 추천 기준을 더 정확히 잡을 수 있습니다.",
+      },
+    ],
+  };
+}
+
+function normalizeAiSuggestions(parsed: any, input: {
+  scenarioCard: any;
+  scenarioKey: string;
+  answers: Record<string, any>;
+}) {
+  const fallback = buildFallbackAiSuggestions(input);
+  const summaryKo = String(parsed?.summaryKo || "").trim() || fallback.summaryKo;
+  const recommendedNextStepsKo = asStringArray(parsed?.recommendedNextStepsKo);
+  const recommendedPartnerCriteriaKo = asStringArray(parsed?.recommendedPartnerCriteriaKo);
+  const suggestedQuestionsKo = asStringArray(parsed?.suggestedQuestionsKo);
+  const followUpQuestions = Array.isArray(parsed?.followUpQuestions) && parsed.followUpQuestions.length > 0
+    ? parsed.followUpQuestions
+    : fallback.followUpQuestions;
+
+  return {
+    summaryKo,
+    recommendedNextStepsKo: recommendedNextStepsKo.length > 0 ? recommendedNextStepsKo : fallback.recommendedNextStepsKo,
+    recommendedPartnerCriteriaKo: recommendedPartnerCriteriaKo.length > 0 ? recommendedPartnerCriteriaKo : fallback.recommendedPartnerCriteriaKo,
+    suggestedQuestionsKo: suggestedQuestionsKo.length > 0 ? suggestedQuestionsKo : fallback.suggestedQuestionsKo,
+    followUpQuestions,
+  };
+}
+
 function num(v: any, fallback: number = 0): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
@@ -806,20 +916,33 @@ ${buildDataBlock("funnel-input", {
 }
 `;
 
-      const out = await llmChatComplete(
-        adminApp,
-        [
-          { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." + SYSTEM_HARDENING_SUFFIX },
-          { role: "user", content: prompt }
-        ],
-        { temperature: 0.2, maxTokens: 900, expectJson: true }
-      );
+      let out: { provider: string; model: string; text: string } | null = null;
+      let parsed: any = {};
+      let fallbackReason: string | null = null;
+      try {
+        out = await llmChatComplete(
+          adminApp,
+          [
+            { role: "system", content: "당신은 한국어로만 답변하며, 오직 유효한 JSON만 반환합니다." + SYSTEM_HARDENING_SUFFIX },
+            { role: "user", content: prompt }
+          ],
+          { temperature: 0.2, maxTokens: 900, expectJson: true }
+        );
+        parsed = parseJsonText(out.text || "{}");
+      } catch (llmError: any) {
+        fallbackReason = llmError?.message || "AI generation unavailable";
+      }
 
-      const parsed = parseJsonText(out.text || "{}");
+      const normalizedAi = normalizeAiSuggestions(parsed, {
+        scenarioCard,
+        scenarioKey: String(sessionData.scenarioKey || ""),
+        answers: sessionData.answers || {},
+      });
       const aiSuggestions = {
-        ...parsed,
-        provider: out.provider,
-        model: out.model,
+        ...normalizedAi,
+        provider: out?.provider || "fallback",
+        model: out?.model || "fallback",
+        ...(fallbackReason ? { fallbackReason } : {}),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
 

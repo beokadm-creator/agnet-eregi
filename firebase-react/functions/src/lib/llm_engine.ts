@@ -27,9 +27,26 @@ export interface LlmChatCompletionResult {
 const DEFAULT_GLM_ENDPOINT = "https://api.z.ai/api/coding/paas/v4";
 const DEFAULT_GLM_MODEL = "glm-5.1";
 
-const DEFAULT_VERTEX_PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || "agent-eregi";
+function getRuntimeProjectId(): string {
+  const direct =
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    process.env.GCLOUD_PROJECT ||
+    process.env.GCP_PROJECT;
+  if (direct) return direct;
+
+  try {
+    const firebaseConfig = process.env.FIREBASE_CONFIG ? JSON.parse(process.env.FIREBASE_CONFIG) : null;
+    if (firebaseConfig?.projectId) return String(firebaseConfig.projectId);
+  } catch {
+    // Ignore malformed env and fall back to the legacy default.
+  }
+
+  return "agent-eregi";
+}
+
+const DEFAULT_VERTEX_PROJECT_ID = getRuntimeProjectId();
 const DEFAULT_VERTEX_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || "asia-northeast3";
-const DEFAULT_VERTEX_MODEL = "gemini-1.5-flash-preview-0514";
+const DEFAULT_VERTEX_MODEL = "gemini-2.5-flash";
 
 const secretClient = new SecretManagerServiceClient();
 
@@ -99,7 +116,29 @@ function stripJsonFences(text: string): string {
   return t;
 }
 
-let vertexInstance: VertexAI | null = null;
+function extractVertexText(response: any): string {
+  try {
+    if (typeof response?.text === "function") {
+      const text = response.text();
+      if (typeof text === "string" && text.trim()) return text;
+    }
+  } catch {
+    // Fall through to manual extraction.
+  }
+
+  const parts = response?.candidates?.flatMap((candidate: any) =>
+    Array.isArray(candidate?.content?.parts) ? candidate.content.parts : []
+  ) || [];
+
+  const text = parts
+    .map((part: any) => (typeof part?.text === "string" ? part.text : ""))
+    .join("\n")
+    .trim();
+
+  return text;
+}
+
+const vertexInstances = new Map<string, VertexAI>();
 
 async function vertexChatCompletion(
   settings: { model?: string; projectId?: string; location?: string },
@@ -110,8 +149,11 @@ async function vertexChatCompletion(
   const location = settings.location || DEFAULT_VERTEX_LOCATION;
   const modelName = settings.model || DEFAULT_VERTEX_MODEL;
 
+  const vertexKey = `${projectId}:${location}`;
+  let vertexInstance = vertexInstances.get(vertexKey);
   if (!vertexInstance) {
     vertexInstance = new VertexAI({ project: projectId, location });
+    vertexInstances.set(vertexKey, vertexInstance);
   }
 
   const genModel = vertexInstance.getGenerativeModel({
@@ -134,7 +176,7 @@ async function vertexChatCompletion(
   const chat = genModel.startChat({ history });
   const responseStream = await chat.sendMessage([{ text: userText }]);
   const response = await responseStream.response;
-  const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const text = extractVertexText(response);
   const tokensUsed = response.usageMetadata?.totalTokenCount || 0;
   return { text, tokensUsed };
 }

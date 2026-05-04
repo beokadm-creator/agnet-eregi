@@ -18,7 +18,7 @@ interface PartnerInfo {
 }
 
 interface FunnelResults {
-  recommended: PartnerInfo;
+  recommended: PartnerInfo | null;
   compareTop3: PartnerInfo[];
   sponsored: PartnerInfo[];
   ai?: any;
@@ -154,6 +154,23 @@ export default function FunnelResults() {
   const [selectingPartner, setSelectingPartner] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  function isPartnerInfo(value: unknown): value is PartnerInfo {
+    if (!value || typeof value !== "object") return false;
+    const candidate = value as Partial<PartnerInfo>;
+    return typeof candidate.partnerId === "string" && typeof candidate.name === "string";
+  }
+
+  function normalizeResults(value: unknown): FunnelResults | null {
+    if (!value || typeof value !== "object") return null;
+    const candidate = value as Partial<FunnelResults>;
+    return {
+      recommended: isPartnerInfo(candidate.recommended) ? candidate.recommended : null,
+      compareTop3: Array.isArray(candidate.compareTop3) ? candidate.compareTop3.filter(isPartnerInfo) : [],
+      sponsored: Array.isArray(candidate.sponsored) ? candidate.sponsored.filter(isPartnerInfo) : [],
+      ai: candidate.ai ?? null,
+    };
+  }
+
   async function apiGet<T = unknown>(path: string): Promise<T> {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -191,9 +208,12 @@ export default function FunnelResults() {
     setBusy(true);
     setError(null);
     try {
-      const data = await apiGet<FunnelResults>(`/v1/funnel/sessions/${sessionId}/results`);
+      const data = normalizeResults(await apiGet(`/v1/funnel/sessions/${sessionId}/results`));
+      if (!data) {
+        throw new Error(t('results.load_error'));
+      }
       setResults(data);
-      setAi((data as any)?.ai || null);
+      setAi(data.ai || null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t('results.load_error'));
     } finally {
@@ -280,6 +300,8 @@ export default function FunnelResults() {
   }
 
   if (!results) return null;
+
+  const hasPartners = Boolean(results.recommended) || results.compareTop3.length > 0 || results.sponsored.length > 0;
 
   return (
     <div className="uw-container" style={{ maxWidth: 960, margin: "0 auto", paddingTop: 60, paddingBottom: 80 }}>
@@ -389,14 +411,25 @@ export default function FunnelResults() {
         </div>
       )}
 
-      <div style={{ marginBottom: 48 }}>
-        <PartnerCard
-          partner={results.recommended}
-          isRecommended
-          onSelect={selectPartner}
-          busy={selectingPartner !== null}
-        />
-      </div>
+      {results.recommended ? (
+        <div style={{ marginBottom: 48 }}>
+          <PartnerCard
+            partner={results.recommended}
+            isRecommended
+            onSelect={selectPartner}
+            busy={selectingPartner !== null}
+          />
+        </div>
+      ) : (
+        <div className="uw-card" style={{ padding: 28, marginBottom: 48, textAlign: "center" }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)", marginBottom: 8 }}>
+            {t('results.title')}
+          </div>
+          <div style={{ fontSize: 14, color: "var(--uw-slate)", lineHeight: 1.6 }}>
+            현재 조건에 맞는 추천 파트너가 아직 없습니다. 조건을 조정하거나 잠시 후 다시 시도해 주세요.
+          </div>
+        </div>
+      )}
 
       {results.compareTop3.length > 0 && (
         <div style={{ marginBottom: 48 }}>
@@ -450,6 +483,14 @@ export default function FunnelResults() {
                 busy={selectingPartner !== null}
               />
             ))}
+          </div>
+        </div>
+      )}
+
+      {!hasPartners && !error && (
+        <div className="uw-card" style={{ padding: 24, marginTop: 24, textAlign: "center" }}>
+          <div style={{ fontSize: 14, color: "var(--uw-slate)", lineHeight: 1.6 }}>
+            추천 가능한 파트너 데이터가 없어 결과를 제한적으로 표시했습니다.
           </div>
         </div>
       )}
