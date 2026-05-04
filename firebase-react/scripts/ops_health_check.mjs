@@ -3,6 +3,8 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 
+import { inspectOpsAdminClaims } from "./lib/ops_admin_claims.mjs";
+
 const REGION = "asia-northeast3";
 const ARTIFACT_REPOSITORY = "gcf-artifacts";
 const EXPECTED_RUNTIME = "nodejs22";
@@ -80,7 +82,7 @@ function runJsonCommand(command, args) {
   return stdout ? JSON.parse(stdout) : [];
 }
 
-function runEnvironmentHealth(envName, options) {
+async function runEnvironmentHealth(envName, options) {
   const envConfig = ENVIRONMENTS[envName];
   if (!envConfig) {
     throw new Error(`Unknown environment: ${envName}`);
@@ -121,12 +123,15 @@ function runEnvironmentHealth(envName, options) {
     "--format=json",
   ]);
 
+  const claimsAudit = await inspectOpsAdminClaims(envName);
+
   return {
     envName,
     projectId: envConfig.projectId,
     logs,
     functions,
     artifacts,
+    claimsAudit,
   };
 }
 
@@ -204,12 +209,24 @@ function printArtifacts(artifacts) {
   }
 }
 
+function printClaimsAudit(claimsAudit) {
+  const failures = claimsAudit.failures || [];
+  console.log(`- Ops admin claims: expected=${claimsAudit.checks.length}, failures=${failures.length}`);
+  for (const item of claimsAudit.checks.slice(0, 10)) {
+    const status = item.ok ? "ok" : "mismatch";
+    const actualRole = item.actualRole || "none";
+    const expectedRole = item.expectedRole || "none";
+    console.log(`  - ${item.email} | actual=${actualRole} | expected=${expectedRole} | status=${status}`);
+  }
+}
+
 function printSummary(result) {
   console.log("");
   console.log(`=== ${result.envName.toUpperCase()} (${result.projectId}) ===`);
   printLogs(result.logs);
   printFunctions(result.functions);
   printArtifacts(result.artifacts);
+  printClaimsAudit(result.claimsAudit);
 }
 
 function printFailure(envName, error) {
@@ -219,7 +236,7 @@ function printFailure(envName, error) {
   console.log(`  - ${error.message}`);
 }
 
-function main() {
+async function main() {
   const options = parseArgs(process.argv.slice(2));
   const envNames = options.env === "all" ? Object.keys(ENVIRONMENTS) : [options.env];
   let hasFailure = false;
@@ -229,8 +246,11 @@ function main() {
 
   for (const envName of envNames) {
     try {
-      const result = runEnvironmentHealth(envName, options);
+      const result = await runEnvironmentHealth(envName, options);
       printSummary(result);
+      if ((result.claimsAudit?.failures || []).length > 0) {
+        hasFailure = true;
+      }
     } catch (error) {
       hasFailure = true;
       printFailure(envName, error);

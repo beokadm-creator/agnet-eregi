@@ -1,0 +1,14 @@
+{
+  "staging": [
+    {
+      "email": "aaron@beoksolution.com",
+      "opsRole": "ops_admin"
+    }
+  ],
+  "prod": [
+    {
+      "email": "aaron@beoksolution.com",
+      "opsRole": "ops_admin"
+    }
+  ]
+}
