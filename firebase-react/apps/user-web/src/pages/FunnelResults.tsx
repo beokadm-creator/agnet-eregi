@@ -338,7 +338,11 @@ export default function FunnelResults() {
   const pricingBenchmark = results.pricingBenchmark || null;
   const followUpQuestions = Array.isArray(results.followUp?.questions) ? results.followUp?.questions : [];
   const followUpAnswers = results.followUp?.answers || {};
+  const followUpStatus = typeof results.followUp?.status === "string" ? results.followUp.status : null;
+  const followUpAnswerCount = Object.values(followUpAnswers).filter((v) => v !== undefined && v !== null && String(v).trim() !== "").length;
   const answeredFollowUp = followUpQuestions.filter((q) => followUpAnswers[q.id] !== undefined && followUpAnswers[q.id] !== null && String(followUpAnswers[q.id]).trim() !== "");
+  const answeredFollowUpFallback = answeredFollowUp.length > 0 ? [] : Object.entries(followUpAnswers).filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== "");
+  const shouldShowReflection = Boolean(preview) || Boolean(pricingBenchmark) || followUpAnswerCount > 0 || Boolean(followUpStatus);
 
   return (
     <div className="uw-container" style={{ maxWidth: 960, margin: "0 auto", paddingTop: 60, paddingBottom: 80 }}>
@@ -349,6 +353,147 @@ export default function FunnelResults() {
       >
         {t('results.back_to_dashboard')}
       </button>
+
+      {shouldShowReflection && (
+        <div className="uw-card" style={{ padding: 24, marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>반영된 진단 요약</div>
+            {followUpStatus && (
+              <span
+                className="uw-badge"
+                style={{
+                  fontSize: 12,
+                  background: followUpStatus === "completed" ? "rgba(46, 204, 113, 0.14)" : "rgba(255, 183, 0, 0.14)",
+                  color: followUpStatus === "completed" ? "rgba(46, 204, 113, 1)" : "rgba(255, 183, 0, 1)",
+                  border: followUpStatus === "completed" ? "1px solid rgba(46, 204, 113, 0.22)" : "1px solid rgba(255, 183, 0, 0.22)",
+                }}
+              >
+                {followUpStatus === "completed" ? "추가 질문 완료" : "추가 질문 진행중"}
+              </span>
+            )}
+          </div>
+
+          {followUpAnswerCount > 0 && (
+            <div style={{ fontSize: 13, color: "var(--uw-slate)", marginBottom: 14 }}>
+              추가 질문 답변 {followUpAnswerCount}건이 반영되었습니다.
+            </div>
+          )}
+
+          {pricingBenchmark ? (
+            <div style={{ padding: 16, borderRadius: 14, background: "rgba(97, 60, 240, 0.06)", border: "1px solid rgba(97, 60, 240, 0.12)", marginBottom: 20 }}>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 8 }}>시장 평균 벤치마크</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--uw-fog)", marginBottom: 6 }}>시장 범위</div>
+                  <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
+                    ₩{formatPrice(pricingBenchmark.minFee)}~₩{formatPrice(pricingBenchmark.maxFee)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--uw-fog)", marginBottom: 6 }}>시장 평균</div>
+                  <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
+                    ₩{formatPrice(pricingBenchmark.avgFee)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--uw-fog)", marginBottom: 6 }}>비용 기준</div>
+                  <div style={{ fontSize: 14, color: "var(--uw-slate)", lineHeight: 1.6 }}>
+                    {pricingBenchmark.officialCostIncluded ? "공과금 포함 기준" : "대행 수수료 중심 기준"}
+                  </div>
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", marginTop: 10 }}>
+                출처: <a href={pricingBenchmark.sourceUrl} target="_blank" rel="noreferrer">{pricingBenchmark.sourceLabel}</a>
+              </div>
+              {pricingBenchmark.note && (
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", marginTop: 6 }}>
+                  {pricingBenchmark.note}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ padding: 16, borderRadius: 14, background: "var(--uw-surface)", border: "1px solid rgba(255, 255, 255, 0.08)", marginBottom: preview ? 20 : 0 }}>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 6 }}>시장 평균 벤치마크</div>
+              <div style={{ fontSize: 13, color: "var(--uw-slate)", lineHeight: 1.6 }}>
+                현재 시나리오에 대한 시장 평균 벤치마크가 준비 중입니다.
+              </div>
+            </div>
+          )}
+
+          {preview && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: (answeredFollowUp.length > 0 || answeredFollowUpFallback.length > 0) ? 20 : 0 }}>
+              <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>예상 비용 범위</div>
+                <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
+                  ₩{formatPrice(preview.minPrice)}~₩{formatPrice(preview.maxPrice)}
+                </div>
+              </div>
+              {previewAverage !== null && (
+                <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
+                  <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>기준 평균값</div>
+                  <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
+                    ₩{formatPrice(previewAverage)}
+                  </div>
+                </div>
+              )}
+              <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>예상 기간</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
+                  {t('funnel.days', { count: preview.etaDays })}
+                </div>
+              </div>
+              <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
+                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>참고</div>
+                <div style={{ fontSize: 13, color: "var(--uw-slate)", lineHeight: 1.6 }}>
+                  현재 시나리오 기준 예상 범위입니다. 파트너 수급과 추가 조건에 따라 달라질 수 있습니다.
+                </div>
+              </div>
+            </div>
+          )}
+          {preview && Array.isArray(preview.requiredDocs) && preview.requiredDocs.length > 0 && (
+            <div style={{ marginBottom: (answeredFollowUp.length > 0 || answeredFollowUpFallback.length > 0) ? 16 : 0 }}>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 8 }}>예상 준비 서류</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {preview.requiredDocs.map((doc) => (
+                  <span key={doc} className="uw-badge" style={{ fontSize: 12 }}>
+                    {doc}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {answeredFollowUp.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 8 }}>반영된 추가 질문 답변</div>
+              <div style={{ display: "grid", gap: 10 }}>
+                {answeredFollowUp.map((q) => (
+                  <div key={q.id} style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
+                    <div style={{ fontSize: 13, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>{q.text}</div>
+                    <div style={{ fontSize: 15, color: "var(--uw-ink)", fontWeight: 700 }}>
+                      {formatAnswer(followUpAnswers[q.id])}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {answeredFollowUp.length === 0 && answeredFollowUpFallback.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 8 }}>반영된 추가 질문 답변</div>
+              <div style={{ display: "grid", gap: 10 }}>
+                {answeredFollowUpFallback.map(([id, value]) => (
+                  <div key={id} style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
+                    <div style={{ fontSize: 13, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>{id}</div>
+                    <div style={{ fontSize: 15, color: "var(--uw-ink)", fontWeight: 700 }}>
+                      {formatAnswer(value)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="uw-card" style={{ padding: 24, marginBottom: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -426,104 +571,6 @@ export default function FunnelResults() {
         )}
       </div>
 
-      {(preview || answeredFollowUp.length > 0) && (
-        <div className="uw-card" style={{ padding: 24, marginBottom: 24 }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)", marginBottom: 12 }}>
-            반영된 진단 요약
-          </div>
-          {pricingBenchmark && (
-            <div style={{ padding: 16, borderRadius: 14, background: "rgba(97, 60, 240, 0.06)", border: "1px solid rgba(97, 60, 240, 0.12)", marginBottom: 20 }}>
-              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 8 }}>시장 평균 벤치마크</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
-                <div>
-                  <div style={{ fontSize: 12, color: "var(--uw-fog)", marginBottom: 6 }}>시장 범위</div>
-                  <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
-                    ₩{formatPrice(pricingBenchmark.minFee)}~₩{formatPrice(pricingBenchmark.maxFee)}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, color: "var(--uw-fog)", marginBottom: 6 }}>시장 평균</div>
-                  <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
-                    ₩{formatPrice(pricingBenchmark.avgFee)}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, color: "var(--uw-fog)", marginBottom: 6 }}>비용 기준</div>
-                  <div style={{ fontSize: 14, color: "var(--uw-slate)", lineHeight: 1.6 }}>
-                    {pricingBenchmark.officialCostIncluded ? "공과금 포함 기준" : "대행 수수료 중심 기준"}
-                  </div>
-                </div>
-              </div>
-              <div style={{ fontSize: 12, color: "var(--uw-fog)", marginTop: 10 }}>
-                출처: <a href={pricingBenchmark.sourceUrl} target="_blank" rel="noreferrer">{pricingBenchmark.sourceLabel}</a>
-              </div>
-              {pricingBenchmark.note && (
-                <div style={{ fontSize: 12, color: "var(--uw-fog)", marginTop: 6 }}>
-                  {pricingBenchmark.note}
-                </div>
-              )}
-            </div>
-          )}
-          {preview && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: answeredFollowUp.length > 0 ? 20 : 0 }}>
-              <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
-                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>예상 비용 범위</div>
-                <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
-                  ₩{formatPrice(preview.minPrice)}~₩{formatPrice(preview.maxPrice)}
-                </div>
-              </div>
-              {previewAverage !== null && (
-                <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
-                  <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>기준 평균값</div>
-                  <div className="uw-tabular" style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
-                    ₩{formatPrice(previewAverage)}
-                  </div>
-                </div>
-              )}
-              <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
-                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>예상 기간</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: "var(--uw-ink)" }}>
-                  {t('funnel.days', { count: preview.etaDays })}
-                </div>
-              </div>
-              <div style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
-                <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>참고</div>
-                <div style={{ fontSize: 13, color: "var(--uw-slate)", lineHeight: 1.6 }}>
-                  현재 시나리오 기준 예상 범위입니다. 파트너 수급과 추가 조건에 따라 달라질 수 있습니다.
-                </div>
-              </div>
-            </div>
-          )}
-          {preview && Array.isArray(preview.requiredDocs) && preview.requiredDocs.length > 0 && (
-            <div style={{ marginBottom: answeredFollowUp.length > 0 ? 16 : 0 }}>
-              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 8 }}>예상 준비 서류</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {preview.requiredDocs.map((doc) => (
-                  <span key={doc} className="uw-badge" style={{ fontSize: 12 }}>
-                    {doc}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {answeredFollowUp.length > 0 && (
-            <div>
-              <div style={{ fontSize: 12, color: "var(--uw-fog)", fontWeight: 800, marginBottom: 8 }}>반영된 추가 질문 답변</div>
-              <div style={{ display: "grid", gap: 10 }}>
-                {answeredFollowUp.map((q) => (
-                  <div key={q.id} style={{ padding: 14, borderRadius: 12, background: "var(--uw-surface)" }}>
-                    <div style={{ fontSize: 13, color: "var(--uw-fog)", fontWeight: 700, marginBottom: 6 }}>{q.text}</div>
-                    <div style={{ fontSize: 15, color: "var(--uw-ink)", fontWeight: 700 }}>
-                      {formatAnswer(followUpAnswers[q.id])}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="animate-slide-up" style={{ marginBottom: 48 }}>
         <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
           {t('results.title')}
@@ -563,6 +610,16 @@ export default function FunnelResults() {
           <div style={{ fontSize: 14, color: "var(--uw-slate)", lineHeight: 1.6 }}>
             현재 조건에 맞는 추천 파트너가 아직 없습니다. 조건을 조정하거나 잠시 후 다시 시도해 주세요.
           </div>
+          {ai && (
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 16 }}>
+              <button onClick={generateAi} disabled={aiBusy || busy} className="uw-btn uw-btn-outline">
+                {aiBusy ? "AI 생성 중..." : "AI 추천 갱신"}
+              </button>
+              <button onClick={startFollowup} disabled={followupBusy || aiBusy || busy} className="uw-btn uw-btn-outline">
+                {followupBusy ? "시작 중..." : "추가 질문 답변하기"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
